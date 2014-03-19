@@ -235,16 +235,15 @@ Notes:
 
 * The above figures were generated on a Rackspace cloud server with 16 vCPUs & 60GB RAM.
 * A line of stats is output every second during the test.
-* First, 8 concurrent processes put 100 million unique keys into the hash table.
-* Then, 8 concurrent processes get 100 million unique keys from the hash table.
-* Then, 8 concurrent processes get 98% of 100 million unique keys while updating (del/put) the other 2%.
+* During the 'PUT' phase, 16 concurrent processes put 100 million unique keys into the hash table.
+* Then during the 'GET' phase, 16 concurrent processes get 100 million unique keys from the hash table.
+* Then during the 'MIX' phase, 16 concurrent processes get 98% of 100 million unique keys while updating (del/put) the other 2%.
 * In total 300 million hash table operations are performed.
 * Why does put performance vary so much? This is due to kernel memory mapping overhead; 'top' shows bigger system CPU usage.
 
 ## TODO
 
 * Tune for faster performance.
-* Test performance on large Amazon EC2 instance.
 * Test performance on flash drives.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
