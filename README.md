@@ -41,7 +41,7 @@ To reduce contention there is no single global hash table lock by design. Instea
 
 Can multiple threads in multiple processes also access SharedHashFile hash tables concurrently? Yes.
 
-Persistent Storage
+### Persistent Storage
 
 Hash tables are stored in memory mapped files in `/dev/shm` which means the data persists even when no processes are using hash tables. However, the hash tables will not survive rebooting.
 
