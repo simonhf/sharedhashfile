@@ -28,9 +28,26 @@ test_get_bytes_marked_as_deleted(SHF * shf)
     return all_data_free;
 }
 
+static uint32_t
+test_get_cpu_count(void)
+{
+    long cpu_count     = -1;
+    long cpu_count_max = -1;
+
+#ifndef _SC_NPROCESSORS_ONLN
+    SHF_ASSERT(0, "Cannot count CPUs; sysconf(_SC_NPROCESSORS_ONLN) not available\n");
+#endif
+    cpu_count     = sysconf(_SC_NPROCESSORS_ONLN); SHF_ASSERT(cpu_count     >= 1, "%ld=sysconf(_SC_NPROCESSORS_ONLN): %u:  ", cpu_count, errno);
+    cpu_count_max = sysconf(_SC_NPROCESSORS_CONF); SHF_ASSERT(cpu_count_max >= 1, "%ld=sysconf(_SC_NPROCESSORS_CONF): %u:  ", cpu_count, errno);
+    SHF_DEBUG("- %ld of %ld CPUs available\n",cpu_count, cpu_count_max);
+    return cpu_count;
+}
+
 int main(void)
 {
     plan_tests(10);
+
+    uint32_t cpu_count = test_get_cpu_count();
 
     shf_init();
 
@@ -107,10 +124,10 @@ int main(void)
 
     ok(0 != test_get_bytes_marked_as_deleted(shf), "del does not   clean  up after itself as expected");
 
-#define TEST_MAX_PROCESSES (8)
+#define TEST_MAX_PROCESSES (16)
 
     uint32_t process;
-    uint32_t processes = 8;
+    uint32_t processes = cpu_count > TEST_MAX_PROCESSES ? TEST_MAX_PROCESSES : cpu_count;
     uint32_t counts_old[TEST_MAX_PROCESSES] = { 0 };
     volatile uint32_t * put_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != put_counts, "mmap(): %u: ", errno);
     volatile uint32_t * get_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != get_counts, "mmap(): %u: ", errno);
@@ -166,7 +183,7 @@ int main(void)
     uint64_t tabs_shrunk_old    = 0;
     uint64_t tabs_parted_old    = 0;
     uint32_t message            = 0;
-    const char * message_text = "PUT:";
+    const char * message_text = "PUT";
 #ifdef SHF_DEBUG_VERSION
     uint64_t lock_conflicts_old = 0;
 #endif
@@ -176,7 +193,11 @@ int main(void)
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "LOCKC ");
 #endif
-            fprintf(stderr, "WHAT -MMAP REMAP SHRK PART CPU0-/s CPU1-/s CPU2-/s CPU3-/s CPU4-/s CPU5-/s CPU6-/s CPU7-/s ----TOTAL TOTAL/s\n");
+            fprintf(stderr, "-OP -MMAP -REMAP SHRK PART -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -CPU -TOTAL -CPU\n");
+#ifdef SHF_DEBUG_VERSION
+            fprintf(stderr, "----- ");
+#endif
+            fprintf(stderr, "--- ----- ------ ---- ---- -0/s -1/s -2/s -3/s -4/s -5/s -6/s -7/s -8/s -9/s 10/s 11/s 12/s 13/s 14/s 15/s ---OPS -*/s\n");
         }
         seconds ++;
         // todo: add % system CPU time to per second summary line; why does put require so much system?
@@ -202,7 +223,7 @@ int main(void)
                 tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk;
                 tabs_parted  += shf->shf_mmap->wins[win].tabs_parted;
             }
-            fprintf(stderr, "%5lu %5lu %4lu %4lu ", tabs_mmaps - tabs_mmaps_old, tabs_mremaps - tabs_mremaps_old, tabs_shrunk - tabs_shrunk_old, tabs_parted - tabs_parted_old);
+            fprintf(stderr, "%5lu %6lu %4lu %4lu ", tabs_mmaps - tabs_mmaps_old, tabs_mremaps - tabs_mremaps_old, tabs_shrunk - tabs_shrunk_old, tabs_parted - tabs_parted_old);
             tabs_mmaps_old   = tabs_mmaps;
             tabs_mremaps_old = tabs_mremaps;
             tabs_shrunk_old  = tabs_shrunk;
@@ -212,13 +233,13 @@ int main(void)
             key_total = 0;
             for (process = 0; process < TEST_MAX_PROCESSES; process++) {
                 key_total += put_counts[process] + get_counts[process] + mix_counts[process];
-                fprintf(stderr, "%7u ", put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]);
+                fprintf(stderr, "%3uk ", (put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]) / 1024);
                 counts_old[process] = put_counts[process] + get_counts[process] + mix_counts[process];
             }
             uint32_t key_total_per_second = key_total - key_total_old;
-            fprintf(stderr, "%9u %7u %s\n", key_total, key_total_per_second, &graph_100[100 - (key_total_per_second / 100000)]);
-            if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "GET:"; }
-            else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "MIX:"; }
+            fprintf(stderr, "%5.1fM %0.1fM %s\n", key_total / 1024.0 / 1024.0, key_total_per_second / 1024.0 / 1024.0, &graph_100[100 - (key_total_per_second / 200000)]);
+            if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "GET"; }
+            else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "MIX"; }
             key_total_old = key_total;
         }
         usleep(1000000); /* one second */
