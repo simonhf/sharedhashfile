@@ -1,0 +1,33 @@
+SharedHashFile
+
+Copyright © 2014 Hardy-Francis Enterprises Inc. (referred to in this
+notice as "HFEI").
+
+This product includes software ("Software") developed by HFEI.
+
+The copyright in the bundled SharedHashFile database (including the
+Software) is owned by HFEI. The Software developed and owned
+by HFEI is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3 (http://www.fsf.org/licensing/licenses/agpl-3.0.html) ("AGPL")
+to all third parties and that license, as required by the AGPL, is
+included in the LICENSE.txt file.
+
+However, if you have executed an End User Software License and Services
+Agreement or an OEM Software License and Support Services Agreement, or
+another commercial license agreement with HFEI or one of its affiliates
+(each, a "Commercial Agreement"), the terms of the license in such
+Commercial Agreement will supersede the AGPL and you may use the
+software solely pursuant to the terms of the relevant Commercial
+Agreement.
+
+Full license texts are found in LICENSES.txt.
+
+Third-party licenses
+--------------------
+
+BSD License
+  libtap
+
+MIT License
+  MurmurHash3
+
