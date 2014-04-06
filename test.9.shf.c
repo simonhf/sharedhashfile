@@ -193,11 +193,11 @@ int main(void)
     do {
         if (0 == seconds % 50) {
 #ifdef SHF_DEBUG_VERSION
-            fprintf(stderr, "LOCKC ");
+            fprintf(stderr, "-LOCKC ");
 #endif
             fprintf(stderr, "-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND OPS\n");
 #ifdef SHF_DEBUG_VERSION
-            fprintf(stderr, "----- ");
+            fprintf(stderr, "------ ");
 #endif
             fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 M/s\n");
         }
@@ -209,7 +209,7 @@ int main(void)
             for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
                 lock_conflicts += shf->shf_mmap->wins[win].lock.conflicts;
             }
-            fprintf(stderr, "%5lu ", lock_conflicts - lock_conflicts_old);
+            fprintf(stderr, "%6lu ", lock_conflicts - lock_conflicts_old);
             lock_conflicts_old = lock_conflicts;
         }
 #endif
