@@ -132,6 +132,11 @@ int main(void)
     volatile uint32_t * put_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != put_counts, "mmap(): %u: ", errno);
     volatile uint32_t * get_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != get_counts, "mmap(): %u: ", errno);
     volatile uint32_t * mix_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
+    volatile uint64_t * start_line = mmap(NULL, SHF_MOD_PAGE(                 3*sizeof(uint64_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
+    SHF_ASSERT(sizeof(uint64_t) == sizeof(long), "INTERNAL: expected sizeof(uint64_t) == sizeof(long), but got %lu == %lu", sizeof(uint64_t), sizeof(long));
+    start_line[0] = 0;
+    start_line[1] = 0;
+    start_line[3] = 0;
     keys = 20 * 1000000;
     for (process = 0; process < processes; process++) {
         pid_t fork_pid = fork();
@@ -140,13 +145,20 @@ int main(void)
             shf = shf_attach_existing(test_shf_folder, test_shf_name);
             SHF_DEBUG("test process #%u with pid %5u\n", process, getpid());
             {
+                long previous_long_value;
+                SHF_UNUSE(previous_long_value);
+
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1);
+                while (processes != start_line[0]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
                     uint32_t key = keys / processes * process + i;
                     put_counts[process] ++;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
                     shf_put_val(shf, SHF_CAST(const char *, &key), sizeof(key));
                 }
-                usleep(1000000); /* one second */
+                usleep(2000000); /* one second */
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
+                while (processes != start_line[1]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
                     uint32_t key = keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
@@ -159,7 +171,9 @@ int main(void)
                         mix_counts[process] += shf_get_copy_via_key(shf);
                     }
                 }
-                usleep(1000000); /* one second */
+                usleep(2000000); /* one second */
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
+                while (processes != start_line[2]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
                     uint32_t key = keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
@@ -220,20 +234,20 @@ int main(void)
             uint64_t tabs_shrunk  = 0;
             uint64_t tabs_parted  = 0;
             for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
-                tabs_mmaps   += shf->shf_mmap->wins[win].tabs_mmaps;
+                tabs_mmaps   += shf->shf_mmap->wins[win].tabs_mmaps  ;
                 tabs_mremaps += shf->shf_mmap->wins[win].tabs_mremaps;
-                tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk;
-                tabs_parted  += shf->shf_mmap->wins[win].tabs_parted;
+                tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk ;
+                tabs_parted  += shf->shf_mmap->wins[win].tabs_parted ;
             }
             fprintf(stderr, "%4.1f %5.1f %4lu %4lu",
-                (tabs_mmaps   - tabs_mmaps_old  ) / 1024.0,
-                (tabs_mremaps - tabs_mremaps_old) / 1024.0,
+                (tabs_mmaps   - tabs_mmaps_old  ) / 1000.0,
+                (tabs_mremaps - tabs_mremaps_old) / 1000.0,
                 (tabs_shrunk  - tabs_shrunk_old )         ,
                 (tabs_parted  - tabs_parted_old )         );
-            tabs_mmaps_old   = tabs_mmaps;
+            tabs_mmaps_old   = tabs_mmaps  ;
             tabs_mremaps_old = tabs_mremaps;
-            tabs_shrunk_old  = tabs_shrunk;
-            tabs_parted_old  = tabs_parted;
+            tabs_shrunk_old  = tabs_shrunk ;
+            tabs_parted_old  = tabs_parted ;
         }
         {
             key_total = 0;
@@ -242,13 +256,13 @@ int main(void)
                 key_total             += put_counts[process] + get_counts[process] + mix_counts[process];
                 key_total_this_second += put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process];
             }
-            fprintf(stderr, " %5.1f", key_total / 1024.0 / 1024.0);
+            fprintf(stderr, " %5.1f", key_total / 1000.0 / 1000.0);
             for (process = 0; process < TEST_MAX_PROCESSES; process++) {
-                fprintf(stderr, "%3.0f", (put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]) * 100.0 / key_total_this_second);
+                fprintf(stderr, "%3.0f", (put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]) * 100.0 / (0 == key_total_this_second ? 1 : key_total_this_second));
                 counts_old[process] = put_counts[process] + get_counts[process] + mix_counts[process];
             }
             uint32_t key_total_per_second = key_total - key_total_old;
-            fprintf(stderr, "%4.1f %s\n", key_total_per_second / 1024.0 / 1024.0, &graph_100[100 - (key_total_per_second / 350000)]);
+            fprintf(stderr, "%4.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 350000)]);
             if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "MIX"; }
             else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "GET"; }
             key_total_old = key_total;
