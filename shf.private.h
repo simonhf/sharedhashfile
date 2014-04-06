@@ -45,7 +45,7 @@
 #define SHF_REFS_PER_SHF        (SHF_REFS_PER_WIN * SHF_WINS_PER_SHF)                     /*   4,096M refs per shf */
 #define SHF_TABS_PER_SHF        (SHF_TABS_PER_WIN * SHF_WINS_PER_SHF)                     /* 524,288  tabs per shf */
 
-typedef struct SHF_REF_MMAP { // todo: consider optimizing from 4+4 bytes to 3+3 bytes
+typedef struct SHF_REF_MMAP { // todo: consider optimizing from 4+4 bytes to 3+3 bytes (maybe not due to useful atomic long?)
     volatile uint32_t tab :      SHF_TABS_PER_WIN_BITS; /* 11 bits or 2,048 tabs */
     volatile uint32_t rnd : 32 - SHF_TABS_PER_WIN_BITS; /* 21 bits or 2,097,152; /16 is 1 in 131,072 chance */
     volatile uint32_t pos                             ; /* 0 means ref UNused */

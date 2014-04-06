@@ -37,7 +37,7 @@ SharedHashFile is designed to expand gracefully as more key,value pairs are inse
 
 ### Locking
 
-To reduce contention there is no single global hash table lock by design. Instead keys are sharded across 256 locks. During tests with 8 concurrent processes reading unique keys as fast as possible (with a total throughput of approx. 3 million keys accessed per second) then only about 75,000 of the 3,000,000 locks results in lock contention.
+To reduce contention there is no single global hash table lock by design. Instead keys are sharded across 256 locks. During tests with 8 concurrent processes reading unique keys as fast as possible (with a total throughput of approx. 5.6 million keys accessed per second) then only about 117,000 of the 5,600,000 locks -- or 2.1% -- result in lock contention.
 
 Can multiple threads in multiple processes also access SharedHashFile hash tables concurrently? Yes.
 
