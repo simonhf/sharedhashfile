@@ -193,11 +193,11 @@ int main(void)
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "LOCKC ");
 #endif
-            fprintf(stderr, "-OP -MMAP -REMAP SHRK PART ------PERCENT OPERATIONS PER PROCESS PER SECOND -TOTAL -OPS\n");
+            fprintf(stderr, "-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND OPS\n");
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "----- ");
 #endif
-            fprintf(stderr, "--- ----- ------ ---- ---- 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 ---OPS --/s\n");
+            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 M/s\n");
         }
         seconds ++;
         // todo: add % system CPU time to per second summary line; why does put require so much system?
@@ -223,7 +223,11 @@ int main(void)
                 tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk;
                 tabs_parted  += shf->shf_mmap->wins[win].tabs_parted;
             }
-            fprintf(stderr, "%5lu %6lu %4lu %4lu", tabs_mmaps - tabs_mmaps_old, tabs_mremaps - tabs_mremaps_old, tabs_shrunk - tabs_shrunk_old, tabs_parted - tabs_parted_old);
+            fprintf(stderr, "%4.1f %5.1f %4lu %4lu",
+                (tabs_mmaps   - tabs_mmaps_old  ) / 1024.0,
+                (tabs_mremaps - tabs_mremaps_old) / 1024.0,
+                (tabs_shrunk  - tabs_shrunk_old )         ,
+                (tabs_parted  - tabs_parted_old )         );
             tabs_mmaps_old   = tabs_mmaps;
             tabs_mremaps_old = tabs_mremaps;
             tabs_shrunk_old  = tabs_shrunk;
@@ -231,17 +235,18 @@ int main(void)
         }
         {
             key_total = 0;
-            uint64_t key_total_this_second = 0;
+            uint32_t key_total_this_second = 0;
             for (process = 0; process < TEST_MAX_PROCESSES; process++) {
                 key_total             += put_counts[process] + get_counts[process] + mix_counts[process];
                 key_total_this_second += put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process];
             }
+            fprintf(stderr, " %5.1f", key_total / 1024.0 / 1024.0);
             for (process = 0; process < TEST_MAX_PROCESSES; process++) {
                 fprintf(stderr, "%3.0f", (put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]) * 100.0 / key_total_this_second);
                 counts_old[process] = put_counts[process] + get_counts[process] + mix_counts[process];
             }
             uint32_t key_total_per_second = key_total - key_total_old;
-            fprintf(stderr, " %5.1fM %0.1fM %s\n", key_total / 1024.0 / 1024.0, key_total_per_second / 1024.0 / 1024.0, &graph_100[100 - (key_total_per_second / 200000)]);
+            fprintf(stderr, "%4.1f %s\n", key_total_per_second / 1024.0 / 1024.0, &graph_100[100 - (key_total_per_second / 350000)]);
             if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "GET"; }
             else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "MIX"; }
             key_total_old = key_total;
