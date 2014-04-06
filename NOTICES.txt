@@ -30,4 +30,5 @@ BSD License
 
 MIT License
   MurmurHash3
+  ReactOS
 

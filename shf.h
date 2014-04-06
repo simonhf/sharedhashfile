@@ -70,6 +70,7 @@ typedef union SHF_DATA_TYPE {
 #define SHF_DATA_TYPE_DELETED (0xff)
 #define SHF_UID_NONE          (UINT32_MAX)
 
+extern char     * shf_backticks(const char * command);
 extern double     shf_get_time_in_seconds(void);
 extern void       shf_init(void);
 extern void       shf_detach(SHF * shf);

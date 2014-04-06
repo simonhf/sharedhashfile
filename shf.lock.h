@@ -31,7 +31,7 @@
 #include "shf.defines.h"
 
 /* The following inline function is based on ReactOS; the license in the source file is MIT
- * See: http://www.google.com/codesearch/p?hl=en#S3vzerue4i0/trunk/reactos/include/crt/mingw32/intrin_x86.h
+ * See: http://code.reactos.org/browse/reactos/trunk/reactos/include/crt/mingw32/intrin_x86.h?r=62389
  */
 
 #define __INTRIN_INLINE extern __inline__ __attribute__((__always_inline__,__gnu_inline__))

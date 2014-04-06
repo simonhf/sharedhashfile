@@ -26,7 +26,7 @@ test_get_bytes_marked_as_deleted(SHF * shf)
         }
     }
     return all_data_free;
-}
+} /* test_get_bytes_marked_as_deleted() */
 
 static uint32_t
 test_get_cpu_count(void)
@@ -39,9 +39,9 @@ test_get_cpu_count(void)
 #endif
     cpu_count     = sysconf(_SC_NPROCESSORS_ONLN); SHF_ASSERT(cpu_count     >= 1, "%ld=sysconf(_SC_NPROCESSORS_ONLN): %u:  ", cpu_count, errno);
     cpu_count_max = sysconf(_SC_NPROCESSORS_CONF); SHF_ASSERT(cpu_count_max >= 1, "%ld=sysconf(_SC_NPROCESSORS_CONF): %u:  ", cpu_count, errno);
-    SHF_DEBUG("- %ld of %ld CPUs available\n",cpu_count, cpu_count_max);
+    SHF_DEBUG("- %ld of %ld CPUs available\n", cpu_count, cpu_count_max);
     return cpu_count;
-}
+} /* test_get_cpu_count() */
 
 int main(void)
 {
@@ -150,12 +150,6 @@ int main(void)
                 for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
                     uint32_t key = keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
-                    get_counts[process] += shf_get_copy_via_key(shf);
-                }
-                usleep(1000000); /* one second */
-                for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
-                    uint32_t key = keys / processes * process + i;
-                    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
                     if (0 == i % 50) {
                         shf_del_key(shf);
                         shf_put_val(shf, SHF_CAST(const char *, &key), sizeof(key));
@@ -164,6 +158,12 @@ int main(void)
                     else {
                         mix_counts[process] += shf_get_copy_via_key(shf);
                     }
+                }
+                usleep(1000000); /* one second */
+                for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
+                    uint32_t key = keys / processes * process + i;
+                    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
+                    get_counts[process] += shf_get_copy_via_key(shf);
                 }
                 exit(0);
             }
@@ -188,6 +188,8 @@ int main(void)
     uint64_t lock_conflicts_old = 0;
 #endif
     char graph_100[] = "----------------------------------------------------------------------------------------------------";
+    fprintf(stderr, "running tests on: via command: '%s'\n",               "cat /proc/cpuinfo | egrep 'model name' | head -n 1" );
+    fprintf(stderr, "running tests on: `%s`\n"             , shf_backticks("cat /proc/cpuinfo | egrep 'model name' | head -n 1"));
     do {
         if (0 == seconds % 50) {
 #ifdef SHF_DEBUG_VERSION
@@ -247,8 +249,8 @@ int main(void)
             }
             uint32_t key_total_per_second = key_total - key_total_old;
             fprintf(stderr, "%4.1f %s\n", key_total_per_second / 1024.0 / 1024.0, &graph_100[100 - (key_total_per_second / 350000)]);
-            if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "GET"; }
-            else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "MIX"; }
+            if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "MIX"; }
+            else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "GET"; }
             key_total_old = key_total;
         }
         usleep(1000000); /* one second */

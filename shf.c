@@ -40,20 +40,57 @@
 
 #include "murmurhash3.h"
 
-                      uint32_t   shf_init_called    = 0;
-                       int32_t   shf_debug_disabled = 0;
+                      uint32_t   shf_init_called           = 0   ;
+                       int32_t   shf_debug_disabled        = 0   ;
 #ifdef SHF_DEBUG_VERSION
-static                 FILE    * shf_debug_file     = 0;
+static                 FILE    * shf_debug_file            = 0   ;
 #endif
 
        __thread       SHF_HASH   shf_hash;
 
-       __thread       char     * shf_val            = NULL; /* mmap() */
-static __thread       uint32_t   shf_val_size             ; /* mmap() size */
-       __thread       uint32_t   shf_val_len;
+       __thread       char     * shf_val                   = NULL; /* mmap() */
+static __thread       uint32_t   shf_val_size                    ; /* mmap() size */
+       __thread       uint32_t   shf_val_len                     ;
 
-static __thread const char     * shf_key    ; /* used by shf_make_hash() */
-static __thread       uint32_t   shf_key_len; /* used by shf_make_hash() */
+static __thread const char     * shf_key                         ; /* used by shf_make_hash() */
+static __thread       uint32_t   shf_key_len                     ; /* used by shf_make_hash() */
+
+static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
+static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
+static __thread       uint32_t   shf_backticks_buffer_used       ;
+
+char *
+shf_backticks(const char * command) /* e.g. buf_used = shf_backticks("ls -la | grep \.log", buf, sizeof(buf)); */
+{
+    FILE     * fp;
+    uint32_t   bytes_read;
+
+    if (0 == shf_backticks_buffer_size) {
+        shf_backticks_buffer_size = SHF_SIZE_PAGE;
+        shf_backticks_buffer      = mmap(NULL, shf_backticks_buffer_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_backticks_buffer, "mmap(): %u: ", errno);
+    }
+
+    fp = popen(command, "r"); SHF_ASSERT(NULL != fp, "popen('%s'): %u: ", command, errno);
+
+    shf_backticks_buffer_used = 0;
+    while ((bytes_read = fread(&shf_backticks_buffer[shf_backticks_buffer_used], sizeof(char), (shf_backticks_buffer_size - shf_backticks_buffer_used - 1), fp)) != 0) {
+        SHF_DEBUG("read %u bytes from the pipe", bytes_read);
+        shf_backticks_buffer_used += bytes_read;
+        if (shf_backticks_buffer_size - shf_backticks_buffer_used <= 1) {
+            shf_backticks_buffer       = mremap(shf_backticks_buffer, shf_backticks_buffer_size, SHF_SIZE_PAGE + shf_backticks_buffer_size, MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_backticks_buffer, "mremap(): %u: ", errno);
+            shf_backticks_buffer_size += SHF_SIZE_PAGE;
+            SHF_DEBUG("shf_backticks() increased buffer size to %u\n", shf_backticks_buffer_size);
+        }
+    }
+
+    while (shf_backticks_buffer_used > 0 && ('\n' == shf_backticks_buffer[shf_backticks_buffer_used - 1] || '\r' == shf_backticks_buffer[shf_backticks_buffer_used - 1] || ' ' == shf_backticks_buffer[shf_backticks_buffer_used - 1])) {
+        shf_backticks_buffer_used --; /* trim trailing whitespace */
+    }
+    shf_backticks_buffer[shf_backticks_buffer_used] = '\0';
+    int value = pclose(fp); SHF_ASSERT(0 == value, "pclose(): %u: ", errno);
+
+    return shf_backticks_buffer;
+} /* shf_backticks() */
 
 double
 shf_get_time_in_seconds(void)
