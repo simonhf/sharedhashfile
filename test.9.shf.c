@@ -137,7 +137,7 @@ int main(void)
     start_line[0] = 0;
     start_line[1] = 0;
     start_line[3] = 0;
-    keys = 20 * 1000000;
+    keys = 50 * 1000000;
     for (process = 0; process < processes; process++) {
         pid_t fork_pid = fork();
         if (fork_pid == 0) {     /*child*/
@@ -209,11 +209,11 @@ int main(void)
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "-LOCKC ");
 #endif
-            fprintf(stderr, "-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND OPS\n");
+            fprintf(stderr, "-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS\n");
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "------ ");
 #endif
-            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 M/s\n");
+            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s\n");
         }
         seconds ++;
         // todo: add % system CPU time to per second summary line; why does put require so much system?
@@ -227,7 +227,7 @@ int main(void)
             lock_conflicts_old = lock_conflicts;
         }
 #endif
-        fprintf(stderr, "%s ", message_text);
+        fprintf(stderr, "%s", message_text);
         {
             uint64_t tabs_mmaps   = 0;
             uint64_t tabs_mremaps = 0;
@@ -239,7 +239,7 @@ int main(void)
                 tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk ;
                 tabs_parted  += shf->shf_mmap->wins[win].tabs_parted ;
             }
-            fprintf(stderr, "%4.1f %5.1f %4lu %4lu",
+            fprintf(stderr, "%5.1f %5.1f %4lu %4lu",
                 (tabs_mmaps   - tabs_mmaps_old  ) / 1000.0,
                 (tabs_mremaps - tabs_mremaps_old) / 1000.0,
                 (tabs_shrunk  - tabs_shrunk_old )         ,
@@ -262,7 +262,7 @@ int main(void)
                 counts_old[process] = put_counts[process] + get_counts[process] + mix_counts[process];
             }
             uint32_t key_total_per_second = key_total - key_total_old;
-            fprintf(stderr, "%4.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 350000)]);
+            fprintf(stderr, "%5.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 750000)]);
             if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "MIX"; }
             else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "GET"; }
             key_total_old = key_total;

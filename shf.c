@@ -420,16 +420,6 @@ shf_make_hash(
     tab_mmap_new->row[row].ref[ref].rnd = tab_mmap_old->row[row].ref[ref].rnd; \
     tab_mmap_new->tab_refs_used ++;
 
-#define SHF_LOCK(LOCK) /* todo: consider having unlocked mode */ \
-    SHF_DEBUG("locking for %s()\n", __FUNCTION__); \
-    while (SHF_LOCK_STATUS_LOCKED != shf_lock(LOCK)) { \
-        SHF_DEBUG("failed to lock for %s; trying again\n", __FUNCTION__); \
-    }
-
-#define SHF_UNLOCK(LOCK) \
-    shf_unlock(LOCK); \
-    SHF_DEBUG("unlocked for %s()\n", __FUNCTION__);
-
 #ifdef SHF_DEBUG_VERSION
 #define SHF_LOCK_DEBUG_LINE(LOCK)        (LOCK)->line = __LINE__;
 #define SHF_LOCK_DEBUG_MACRO(LOCK,MACRO) (LOCK)->line = __LINE__; (LOCK)->macro = MACRO;
@@ -583,7 +573,7 @@ SHF_NEED_NEW_TAB_AFTER_PARTING:;
     uint32_t row  = shf_hash.u16[2] %             SHF_ROWS_PER_TAB       ;
     uint32_t rnd  = shf_hash.u32[2] % (1 << (32 - SHF_TABS_PER_WIN_BITS));
 
-    SHF_LOCK(&shf->shf_mmap->wins[win].lock);
+    SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock);
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
     uint16_t tab = shf->shf_mmap->wins[win].tabs[tab2].tab;
@@ -613,7 +603,7 @@ SHF_NEED_NEW_TAB_AFTER_PARTING:;
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
     shf_tab_part(shf, win, tab);
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-    SHF_UNLOCK(&shf->shf_mmap->wins[win].lock);
+    SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock);
     goto SHF_NEED_NEW_TAB_AFTER_PARTING;
 
 SHF_SKIP_ROW_FULL_CHECK:;
@@ -625,7 +615,7 @@ SHF_SKIP_ROW_FULL_CHECK:;
         SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
     }
 
-    SHF_UNLOCK(&shf->shf_mmap->wins[win].lock);
+    SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock);
 
     SHF_DEBUG("%s(shf=?, val=?, val_len=%u){} // return 0x%08x=%02x-%03x-%03x-%01x=%s\n", __FUNCTION__, val_len, uid.as_u32, uid.as_part.win, uid.as_part.tab, uid.as_part.row, uid.as_part.ref, SHF_UID_NONE == uid.as_u32 ? "failure" : "success");
 
@@ -650,7 +640,8 @@ shf_find_key_internal(
     uint32_t row  = uid.as_part.row = shf_hash.u16[2] %             SHF_ROWS_PER_TAB       ;
     uint32_t rnd  =                   shf_hash.u32[2] % (1 << (32 - SHF_TABS_PER_WIN_BITS));
 
-    SHF_LOCK(&shf->shf_mmap->wins[win].lock);
+    if   (SHF_FIND_KEY_AND_COPY_VAL == what) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }
+    else                                     { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
     uint16_t tab = shf->shf_mmap->wins[win].tabs[tab2].tab;
@@ -709,7 +700,8 @@ shf_find_key_internal(
         }
     }
 
-    SHF_UNLOCK(&shf->shf_mmap->wins[win].lock);
+    if   (SHF_FIND_KEY_AND_COPY_VAL == what) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }
+    else                                     { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
 
     SHF_DEBUG("%s(shf=?){} // return 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, uid.as_u32, uid.as_part.win, uid.as_part.tab, tab, uid.as_part.row, uid.as_part.ref, result ? "exists" : "not exists");
 
