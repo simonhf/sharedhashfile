@@ -124,6 +124,13 @@ int main(void)
 
     ok(0 != test_get_bytes_marked_as_deleted(shf), "del does not   clean  up after itself as expected");
 
+    if (getenv("SHF_ENABLE_PERFORMANCE_TEST") && atoi(getenv("SHF_ENABLE_PERFORMANCE_TEST"))) {
+    }
+    else {
+        fprintf(stderr, "NOTE: prefix make with SHF_ENABLE_PERFORMANCE_TEST=1 ?\n");
+        goto EARLY_EXIT;
+    }
+
 #define TEST_MAX_PROCESSES (16)
 
     uint32_t process;
@@ -270,6 +277,8 @@ int main(void)
         usleep(1000000); /* one second */
     } while (key_total < (3 * keys));
     fprintf(stderr, "* MIX is 2%% (%u) del/put, 98%% (%u) get\n", keys * 2 / 100, keys * 98 / 100);
+
+EARLY_EXIT:;
 
     return 0;
 } /* main() */
