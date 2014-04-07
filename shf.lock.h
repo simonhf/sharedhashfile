@@ -139,8 +139,8 @@ shf_spin_unlock(SHF_SPIN_LOCK * lock)
 
 /* C version ported from assembly language 'fair read/write spinlocks' Copyright (c) 2002 David Howells (dhowells@redhat.com); See: https://lkml.org/lkml/2002/11/8/102 */
 
-#define barrier()   asm volatile("": : :"memory")
-#define cpu_pause() asm volatile("pause\n": : :"memory")
+#define SHF_BARRIER()   asm volatile(       "": : :"memory")
+#define SHF_CPU_PAUSE() asm volatile("pause\n": : :"memory")
 
 union SHF_RW_LOCK_UNION
 {
@@ -185,7 +185,7 @@ shf_rw_lock_writer(SHF_RW_LOCK * lock)
 
     lock->lock.as_u08.pad_ticket_next = 0; /* ensure overflow never gets too big */
 
-    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_writer) { cpu_pause(); spin ++; }
+    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_writer) { SHF_CPU_PAUSE(); spin ++; }
 
 #ifdef SHF_DEBUG_VERSION
     if (spin) {
@@ -201,7 +201,7 @@ shf_rw_unlock_writer(SHF_RW_LOCK * lock)
         SHF_RW_LOCK tmp;
         tmp.lock.as_u32 = lock->lock.as_u32;
 
-        barrier();
+        SHF_BARRIER();
 
         tmp.lock.as_u08.ticket_active_writer ++;
         tmp.lock.as_u08.ticket_active_reader ++;
@@ -225,7 +225,7 @@ shf_rw_lock_reader(SHF_RW_LOCK * lock)
 
     lock->lock.as_u08.pad_ticket_next = 0; /* ensure overflow never gets too big */
 
-    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_reader)  { cpu_pause(); spin ++; } /* todo: add pid to identify trouble-maker when spinned for too long */
+    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_reader)  { SHF_CPU_PAUSE(); spin ++; } /* todo: add pid to identify trouble-maker when spinned for too long */
     if (0) {
         lock->lock.as_u08.ticket_active_reader ++; /* so that other readers can read concurrently (if no writer) */
     }
@@ -237,6 +237,7 @@ shf_rw_lock_reader(SHF_RW_LOCK * lock)
 #ifdef SHF_DEBUG_VERSION
     if (spin) {
         lock->conflicts ++;
+        /* todo: record bucket stats for number of spins; consider using SHF_YIELD() instead of SHF_SHF_CPU_PAUSE() if too many spins */
     }
 #endif
 } /* shf_rw_lock_reader() */
