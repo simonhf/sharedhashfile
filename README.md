@@ -150,67 +150,112 @@ Notes:
 Here's an example on an 8 core Lenovo W530 laptop showing a hash table with 50 million keys, and then doing 2% delete/insert and 98% read at a rate of over 10 million operations per second:
 
 ```
-$ make clean ; rm -rf /dev/shm/test-*/ ; make
+$ make clean ; rm -rf /dev/shm/test-*/ ; SHF_ENABLE_PERFORMANCE_TEST=1 make
 rm -rf release debug
-make: variable: PROD_SRCS=murmurhash3.c shf.c tap.c
-make: variable: PROD_OBJS=release/murmurhash3.o release/shf.o release/tap.o
-make: variable: TEST_SRCS=test.1.tap.c test.9.shf.c
-make: variable: TEST_OBJS=release/test.1.tap.o release/test.9.shf.o
-make: variable: TEST_EXES=release/test.1.tap.t release/test.9.shf.t
-make: compling: release/test.1.tap.o
-make: compling: release/murmurhash3.o
-make: compling: release/shf.o
-make: compling: release/tap.o
+make: variable: DEPS_H=murmurhash3.h shf.defines.h shf.h shf.lock.h shf.private.h tap.h
+make: variable: DEPS_HPP=SharedHashFile.hpp
+make: variable: PROD_SRCS_C=murmurhash3.c shf.c tap.c
+make: variable: PROD_OBJS_C=release/murmurhash3.o release/shf.o release/tap.o
+make: variable: PROD_SRCS_CPP=SharedHashFile.cpp
+make: variable: PROD_OBJS_CPP=release/SharedHashFile.o
+make: variable: TEST_SRCS_C=test.1.tap.c test.9.shf.c
+make: variable: TEST_OBJS_C=
+make: variable: TEST_SRCS_CPP=test.a.shf.cpp
+make: variable: TEST_OBJS_CPP=
+make: variable: TEST_EXES=release/test.1.tap.t release/test.9.shf.t release/test.a.shf.t
+make: compiling: release/test.1.tap.o
+make: compiling: release/murmurhash3.o
+make: compiling: release/shf.o
+make: compiling: release/tap.o
+make: compiling: release/SharedHashFile.o
 make: linking: release/test.1.tap.t
 make: running: release/test.1.tap.t
 1..1
 ok 1 - All passed
-make: compling: release/test.9.shf.o
+make: compiling: release/test.9.shf.o
 make: linking: release/test.9.shf.t
 make: running: release/test.9.shf.t
-1..10
+1..21
 ok 1 - shf_attach_existing() fails for non-existing file as expected
 ok 2 - shf_attach()          works for non-existing file as expected
 ok 3 - shf_get_copy_via_key() could not find unput key as expected
-ok 4 - shf_get_copy_via_key() could     find   put key as expected
-ok 5 - put expected number of              keys // 2820759 keys per second
-ok 6 - got expected number of non-existing keys // 4566847 keys per second
-ok 7 - got expected number of     existing keys // 3471626 keys per second
-ok 8 - graceful growth cleans up after itself as expected
-ok 9 - del expected number of     existing keys // 3662386 keys per second
-ok 10 - del does not   clean  up after itself as expected
+ok 4 - shf_del_key()          could not find unput key as expected
+ok 5 - shf_put_val()                           put key as expected
+ok 6 - shf_get_copy_via_key() could     find   put key as expected
+ok 7 - shf_val_len                                     as expected
+ok 8 - shf_val                                         as expected
+ok 9 - shf_del_key()          could     find   put key as expected
+ok 10 - shf_get_copy_via_key() could not find   del key as expected
+ok 11 - shf_del_key()          could not find   del key as expected
+ok 12 - shf_put_val()                         reput key as expected
+ok 13 - shf_get_copy_via_key() could     find reput key as expected
+ok 14 - shf_val_len                                     as expected
+ok 15 - shf_val                                         as expected
+ok 16 - put expected number of              keys // estimate 4050542 keys per second
+ok 17 - got expected number of non-existing keys // estimate 5102659 keys per second
+ok 18 - got expected number of     existing keys // estimate 4814089 keys per second
+ok 19 - graceful growth cleans up after itself as expected
+ok 20 - del expected number of     existing keys // estimate 5583620 keys per second
+ok 21 - del does not   clean  up after itself as expected
 running tests on: via command: 'cat /proc/cpuinfo | egrep 'model name' | head -n 1'
 running tests on: `model name   : Intel(R) Core(TM) i7-3720QM CPU @ 2.60GHz`
 -OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS
 --- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s
-PUT  2.9  16.9 1165  626   0.0 16 15 11 14 13 12  7 12  0  0  0  0  0  0  0  0  0.0
-PUT 26.6 205.8 1600 1258   5.9 13 12 12 12 13 13 12 13  0  0  0  0  0  0  0  0  5.9 -------
-PUT 30.9 134.9 1934 1933   9.0 13 12 13 12 13 12 12 13  0  0  0  0  0  0  0  0  3.1 ----
-PUT 15.9 170.5 1034 1034  13.9 13 13 12 12 13 12 12 13  0  0  0  0  0  0  0  0  4.9 ------
-PUT 36.7 122.5 2292 2293  16.4 13 13 12 13 13 12 12 13  0  0  0  0  0  0  0  0  2.6 ---
-PUT 15.2 166.8  910  909  21.5 12 13 12 12 13 13 12 12  0  0  0  0  0  0  0  0  5.1 ------
-PUT 15.4 181.0 1007 1007  26.3 12 13 13 12 13 12 12 13  0  0  0  0  0  0  0  0  4.8 ------
-PUT 32.8 119.5 2096 2096  29.2 13 13 13 12 13 13 12 12  0  0  0  0  0  0  0  0  2.9 ---
-PUT 35.6 107.5 2230 2230  31.6 13 13 12 12 13 13 13 12  0  0  0  0  0  0  0  0  2.3 ---
-PUT 31.5 101.6 1941 1941  34.1 12 12 13 13 13 13 12 12  0  0  0  0  0  0  0  0  2.5 ---
-PUT 14.9 160.2  872  872  38.7 13 12 13 12 12 13 12 12  0  0  0  0  0  0  0  0  4.6 ------
-PUT  4.7 228.5  311  312  44.5 13 13 13 12 12 13 12 12  0  0  0  0  0  0  0  0  5.8 -------
-PUT 14.4 164.5  936  935  49.7 13 13 12 13 12 12 12 13  0  0  0  0  0  0  0  0  5.2 ------
-PUT  0.7   3.1   98   98  50.0  0  0 11 31  0  0 45 12  0  0  0  0  0  0  0  0  0.3
+PUT  0.4   0.9   49    0   0.0 36 22 22  0  0  0  0 27  0  0  0  0  0  0  0  0  0.0
+PUT 29.0 160.2 1888 1680   4.2 13 13 12 12 12 13 12 13  0  0  0  0  0  0  0  0  4.2 -----
+PUT 27.4 157.7 1734 1734   8.1 13 12 13 12 13 12 13 12  0  0  0  0  0  0  0  0  3.9 -----
+PUT 16.4 175.8 1027 1028  13.1 13 13 12 12 13 13 12 12  0  0  0  0  0  0  0  0  5.0 ------
+PUT 32.6 106.5 2069 2068  15.7 12 13 13 12 13 12 12 13  0  0  0  0  0  0  0  0  2.5 ---
+PUT 22.0  96.4 1327 1327  17.9 13 12 13 13 12 13 13 12  0  0  0  0  0  0  0  0  2.2 --
+PUT  4.5 157.9  282  282  22.4 13 12 13 12 12 13 12 12  0  0  0  0  0  0  0  0  4.5 -----
+PUT  8.1  84.7  527  527  25.1 13 13 12 13 13 12 12 13  0  0  0  0  0  0  0  0  2.7 ---
+PUT 27.6 145.6 1791 1792  28.4 12 12 12 12 13 12 12 13  0  0  0  0  0  0  0  0  3.3 ----
+PUT 36.6  90.9 2303 2302  30.9 13 13 13 12 12 13 12 12  0  0  0  0  0  0  0  0  2.5 ---
+PUT 34.9 129.1 2144 2144  33.4 12 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0  2.5 ---
+PUT 21.0 152.4 1244 1244  37.2 13 13 12 12 12 12 13 12  0  0  0  0  0  0  0  0  3.8 -----
+PUT  4.7 215.8  301  301  43.7 13 13 13 12 12 12 13 13  0  0  0  0  0  0  0  0  6.6 --------
+PUT 11.4 179.3  753  753  48.6 13 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0  4.8 ------
+PUT  5.1  24.9  362  362  50.0  8 11 11 18 14 11 15 12  0  0  0  0  0  0  0  0  1.4 -
 MIX  0.0   0.0    0    0  50.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
-MIX  1.9   9.6    0    0  59.8 13 13 12 12 12 13 13 13  0  0  0  0  0  0  0  0  9.8 -------------
-MIX  0.0   5.9    0    0  70.5 13 13 13 12 12 13 13 13  0  0  0  0  0  0  0  0 10.7 --------------
-MIX  0.0   7.6    0    0  81.2 13 13 13 12 12 13 13 12  0  0  0  0  0  0  0  0 10.7 --------------
-MIX  0.0   9.8    0    0  92.1 13 12 13 13 12 13 12 12  0  0  0  0  0  0  0  0 10.9 --------------
-MIX  0.0   7.2    0    0 100.0 12 12 12 14 13 12 12 13  0  0  0  0  0  0  0  0  7.9 ----------
+MIX  1.6   7.5    0    0  57.0 12 13 12 13 13 12 13 12  0  0  0  0  0  0  0  0  7.0 ---------
+MIX  0.0   5.8    0    0  67.9 13 13 12 13 12 12 13 13  0  0  0  0  0  0  0  0 10.9 --------------
+MIX  0.0   7.4    0    0  79.0 13 13 12 13 12 13 13 13  0  0  0  0  0  0  0  0 11.0 --------------
+MIX  0.0   9.3    0    0  89.8 12 13 12 13 12 12 13 13  0  0  0  0  0  0  0  0 10.8 --------------
+MIX  0.0   9.4    0    0 100.0 13 12 13 12 13 13 12 12  0  0  0  0  0  0  0  0 10.2 -------------
 GET  0.0   0.0    0    0 100.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
-GET  0.0   0.4    0    0 102.7 11 12 13 13 12 13 12 12  0  0  0  0  0  0  0  0  2.7 ---
-GET  0.0   0.0    0    0 114.8 12 13 13 13 12 13 12 12  0  0  0  0  0  0  0  0 12.1 ----------------
-GET  0.0   0.0    0    0 126.9 12 13 13 13 13 13 12 12  0  0  0  0  0  0  0  0 12.1 ----------------
-GET  0.0   0.0    0    0 139.1 12 13 13 13 13 12 12 13  0  0  0  0  0  0  0  0 12.2 ----------------
-GET  0.0   0.0    0    0 149.5 12 12 12 12 12 13 14 14  0  0  0  0  0  0  0  0 10.4 -------------
-GET  0.0   0.0    0    0 150.0 49  0  0  0 27  0 24  0  0  0  0  0  0  0  0  0  0.5
+GET  0.0   0.4    0    0 100.5 12 13 12 13 13 13 10 13  0  0  0  0  0  0  0  0  0.5
+GET  0.0   0.0    0    0 112.8 12 13 13 13 13 12 13 12  0  0  0  0  0  0  0  0 12.3 ----------------
+GET  0.0   0.0    0    0 125.0 13 13 12 13 13 12 12 12  0  0  0  0  0  0  0  0 12.2 ----------------
+GET  0.0   0.0    0    0 137.2 13 13 12 13 13 13 12 12  0  0  0  0  0  0  0  0 12.2 ----------------
+GET  0.0   0.0    0    0 149.3 12 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0 12.1 ----------------
+GET  0.0   0.0    0    0 150.0  8  4 19  0  0  6 28 35  0  0  0  0  0  0  0  0  0.7
 * MIX is 2% (1000000) del/put, 98% (6050327) get
+make: compiling: release/test.a.shf.o
+make: linking: release/test.a.shf.t
+make: running: release/test.a.shf.t
+1..22
+ok 1 - new SharedHashFile returned object as expected
+ok 2 - ->AttachExisting() fails for non-existing file as expected
+ok 3 - ->Attach()         works for non-existing file as expected
+ok 4 - ->GetCopyViaKey() could not find unput key as expected
+ok 5 - ->DelKey()        could not find unput key as expected
+ok 6 - ->PutVal()                         put key as expected
+ok 7 - ->GetCopyViaKey() could     find   put key as expected
+ok 8 - shf_val_len                                as expected
+ok 9 - shf_val                                    as expected
+ok 10 - ->DelKey()        could     find   put key as expected
+ok 11 - ->GetCopyViaKey() could not find   del key as expected
+ok 12 - ->DelKey()        could not find   del key as expected
+ok 13 - ->PutVal()                       reput key as expected
+ok 14 - ->GetCopyViaKey() could     find reput key as expected
+ok 15 - shf_val_len                                as expected
+ok 16 - shf_val                                    as expected
+ok 17 - put expected number of              keys // estimate 4021107 keys per second
+ok 18 - got expected number of non-existing keys // estimate 5255414 keys per second
+ok 19 - got expected number of     existing keys // estimate 5274607 keys per second
+ok 20 - graceful growth cleans up after itself as expected
+ok 21 - del expected number of     existing keys // estimate 5312581 keys per second
+ok 22 - del does not   clean  up after itself as expected
 make: built and tested release version
 ```
 

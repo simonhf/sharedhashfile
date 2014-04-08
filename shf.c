@@ -48,8 +48,8 @@ static                 FILE    * shf_debug_file            = 0   ;
 
        __thread       SHF_HASH   shf_hash;
 
-       __thread       char     * shf_val                   = NULL; /* mmap() */
 static __thread       uint32_t   shf_val_size                    ; /* mmap() size */
+       __thread       char     * shf_val                   = NULL; /* mmap() */
        __thread       uint32_t   shf_val_len                     ;
 
 static __thread const char     * shf_key                         ; /* used by shf_make_hash() */
@@ -105,6 +105,10 @@ void
 shf_init(void)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
+    if (shf_init_called) {
+        SHF_DEBUG("%s() already called; early out\n", __FUNCTION__);
+        goto EARLY_OUT;
+    }
     shf_init_called = 1;
 
     SHF_DEBUG("- SHF_SIZE_PAGE        :%u\n" , SHF_SIZE_PAGE          );
@@ -148,6 +152,7 @@ shf_init(void)
     shf_debug_file = fopen("/tmp/debug.shf", "wb"); SHF_ASSERT(NULL != shf_debug_file, "fopen(): %u: ", errno); /* shorten debug file */
     fclose(shf_debug_file);
 #endif
+EARLY_OUT:;
 } /* shf_init() */
 
 void
@@ -729,3 +734,18 @@ shf_del(
     SHF_UNUSE(shf);
     SHF_DEBUG("todo: implement shf_del(); delete entire shf");
 } /* shf_del() */
+
+uint64_t
+shf_debug_get_bytes_marked_as_deleted(
+    SHF * shf)
+{
+    uint64_t all_data_free = 0;
+    for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
+        uint32_t tabs_used = shf->shf_mmap->wins[win].tabs_used;
+        for (uint32_t tab = 0; tab < tabs_used; tab++) {
+            all_data_free += shf->tabs[win][tab].tab_mmap->tab_data_free;
+        }
+    }
+    return all_data_free;
+} /* shf_debug_get_bytes_marked_as_deleted() */
+

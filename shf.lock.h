@@ -24,9 +24,17 @@
 #ifndef __SHF_LOCK_H__
 #define __SHF_LOCK_H__
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE      /* See feature_test_macros(7) */
+#endif
+#include <unistd.h>
+#include <sys/syscall.h> /* For SYS_xxx definitions; see man syscall */
 #include <sched.h>
 #include <sys/types.h>
-#include <sys/syscall.h>
+#include <stdio.h>       /* for stderr */
+#include <errno.h>       /* for errno */
+#include <stdlib.h>      /* for exit() */
+#include <sys/stat.h>    /* for stat() */
 
 #include "shf.defines.h"
 
@@ -252,18 +260,18 @@ shf_rw_unlock_reader(SHF_RW_LOCK * lock)
 #if 0
 
 #define SHF_LOCK                SHF_SPIN_LOCK
-#define SHF_LOCK_READER(LOCK)   SHF_DEBUG("locking for %s() // aka spinlock()\n", __FUNCTION__); while (SHF_SPIN_LOCK_STATUS_LOCKED != shf_spin_lock(LOCK)) { SHF_DEBUG("failed to spin lock for %s; trying again\n", __FUNCTION__); }
-#define SHF_UNLOCK_READER(LOCK)                                                                                                        shf_spin_unlock(LOCK); SHF_DEBUG("unlocked for %s() // aka spinlock()\n", __FUNCTION__);
+#define SHF_LOCK_READER(LOCK)   SHF_DEBUG("- locking for %s() // aka spinlock()\n", __FUNCTION__); while (SHF_SPIN_LOCK_STATUS_LOCKED != shf_spin_lock(LOCK)) { SHF_DEBUG("- failed to spin lock for %s; trying again\n", __FUNCTION__); }
+#define SHF_UNLOCK_READER(LOCK)                                                                                                          shf_spin_unlock(LOCK); SHF_DEBUG("- unlocked for %s() // aka spinlock()\n", __FUNCTION__);
 #define SHF_LOCK_WRITER(LOCK)   SHF_LOCK_READER(LOCK)
 #define SHF_UNLOCK_WRITER(LOCK) SHF_UNLOCK_READER(LOCK)
 
 #else
 
 #define SHF_LOCK                SHF_RW_LOCK
-#define SHF_LOCK_READER(LOCK)   SHF_DEBUG("rw locking for reader %s()\n", __FUNCTION__); shf_rw_lock_reader(LOCK)
-#define SHF_UNLOCK_READER(LOCK)                                                          shf_rw_unlock_reader(LOCK); SHF_DEBUG("rw unlocked for reader %s()\n", __FUNCTION__);
-#define SHF_LOCK_WRITER(LOCK)   SHF_DEBUG("rw locking for writer %s()\n", __FUNCTION__); shf_rw_lock_writer(LOCK)
-#define SHF_UNLOCK_WRITER(LOCK)                                                          shf_rw_unlock_writer(LOCK); SHF_DEBUG("rw unlocked for writer %s()\n", __FUNCTION__);
+#define SHF_LOCK_READER(LOCK)   SHF_DEBUG("- rw locking for reader %s()\n", __FUNCTION__); shf_rw_lock_reader(LOCK)
+#define SHF_UNLOCK_READER(LOCK)                                                            shf_rw_unlock_reader(LOCK); SHF_DEBUG("- rw unlocked for reader %s()\n", __FUNCTION__);
+#define SHF_LOCK_WRITER(LOCK)   SHF_DEBUG("- rw locking for writer %s()\n", __FUNCTION__); shf_rw_lock_writer(LOCK)
+#define SHF_UNLOCK_WRITER(LOCK)                                                            shf_rw_unlock_writer(LOCK); SHF_DEBUG("- rw unlocked for writer %s()\n", __FUNCTION__);
 
 #endif
 

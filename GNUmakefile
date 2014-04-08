@@ -21,39 +21,56 @@ MAKEFLAGS = --no-builtin-rules
 # Preserve intermediate files:
 .SECONDARY:
 
-CC        = gcc
-CFLAGS    = -c -g -W -Waggregate-return -Wall -Werror -Wcast-align -Wcast-qual -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wparentheses -Wpointer-arith -Wredundant-decls -Wreturn-type -Wshadow -Wstrict-prototypes -Wswitch -Wtrigraphs -Wwrite-strings -O -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -std=gnu99
+CC         = gcc
+CXXFLAGS   = -c -g -W -Waggregate-return -Wall -Werror -Wcast-align -Wcast-qual -Wchar-subscripts -Wcomment -Wformat -Wmissing-declarations -Wparentheses -Wpointer-arith -Wredundant-decls -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wwrite-strings -O -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I.
+CFLAGS     = -Wimplicit -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes -std=gnu99
 ifneq ($(filter debug,$(MAKECMDGOALS)),)
 BUILD_TYPE = debug
-CFLAGS    += -DSHF_DEBUG_VERSION
+CXXFLAGS  += -DSHF_DEBUG_VERSION
 else
 BUILD_TYPE = release
-CFLAGS    += -O3
+CXXFLAGS  += -O3
 endif
-DEPS       = $(wildcard *.h)
-PROD_SRCS  =                              $(filter-out test%,$(wildcard *.c))
-PROD_OBJS  = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.c,%.o,$(PROD_SRCS))))
-TEST_SRCS  =                              $(filter     test%,$(wildcard *.c))
-TEST_OBJS  = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.o,$(TEST_SRCS))))
-TEST_EXES  = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.t,$(TEST_SRCS))))
+DEPS_H        = $(wildcard *.h)
+DEPS_HPP      = $(wildcard *.hpp)
+PROD_SRCS_C   =                              $(filter-out test%,$(wildcard *.c))
+PROD_OBJS_C   = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.c,%.o,$(PROD_SRCS_C))))
+PROD_SRCS_CPP =                              $(filter-out test%,$(wildcard *.cpp))
+PROD_OBJS_CPP = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.cpp,%.o,$(PROD_SRCS_CPP))))
+TEST_SRCS_C   =                              $(filter     test%,$(wildcard *.c))
+TEST_OBJS_C   = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.o,$(TEST_SRCS))))
+TEST_SRCS_CPP =                              $(filter     test%,$(wildcard *.cpp))
+TEST_OBJS_CPP = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.o,$(TEST_SRCS))))
+TEST_EXES     = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.t,$(TEST_SRCS_C)))) \
+                $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.t,$(TEST_SRCS_CPP))))
 
 ifneq ($(filter clean,$(MAKECMDGOALS)),)
 else
 DUMMY := $(shell mkdir $(BUILD_TYPE) 2>&1)
-$(info make: variable: PROD_SRCS=$(PROD_SRCS))
-$(info make: variable: PROD_OBJS=$(PROD_OBJS))
-$(info make: variable: TEST_SRCS=$(TEST_SRCS))
-$(info make: variable: TEST_OBJS=$(TEST_OBJS))
+$(info make: variable: DEPS_H=$(DEPS_H))
+$(info make: variable: DEPS_HPP=$(DEPS_HPP))
+$(info make: variable: PROD_SRCS_C=$(PROD_SRCS_C))
+$(info make: variable: PROD_OBJS_C=$(PROD_OBJS_C))
+$(info make: variable: PROD_SRCS_CPP=$(PROD_SRCS_CPP))
+$(info make: variable: PROD_OBJS_CPP=$(PROD_OBJS_CPP))
+$(info make: variable: TEST_SRCS_C=$(TEST_SRCS_C))
+$(info make: variable: TEST_OBJS_C=$(TEST_OBJS_C))
+$(info make: variable: TEST_SRCS_CPP=$(TEST_SRCS_CPP))
+$(info make: variable: TEST_OBJS_CPP=$(TEST_OBJS_CPP))
 $(info make: variable: TEST_EXES=$(TEST_EXES))
 endif
 
-$(BUILD_TYPE)/%.o: %.c $(DEPS)
-	@echo make: compling: $@
-	@$(CC) -o $@ $< $(CFLAGS)
+$(BUILD_TYPE)/%.o: %.c $(DEPS_H)
+	@echo make: compiling: $@
+	@$(CC) -o $@ $< $(CXXFLAGS) $(CFLAGS)
 
-$(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS)
+$(BUILD_TYPE)/%.o: %.cpp $(DEPS_H) $(DEPS_HPP)
+	@echo make: compiling: $@
+	@$(CC) -o $@ $< $(CXXFLAGS)
+
+$(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo make: linking: $@
-	@gcc -o $@ $^
+	@g++ -o $@ $^
 	@echo make: running: $@
 	@./$@
 

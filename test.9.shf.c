@@ -1,32 +1,33 @@
-#define _GNU_SOURCE         /* See feature_test_macros(7) */
+/*
+ * ============================================================================
+ * Copyright (c) 2014 Hardy-Francis Enterprises Inc.
+ * This file is part of SharedHashFile.
+ *
+ * SharedHashFile is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * SharedHashFile is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see www.gnu.org/licenses/.
+ * ----------------------------------------------------------------------------
+ * To use SharedHashFile in a closed-source product, commercial licenses are
+ * available; email office [@] sharedhashfile [.] com for more information.
+ * ============================================================================
+ */
+
+#define _GNU_SOURCE   /* See feature_test_macros(7) */
 #include <sys/mman.h> /* for mremap() */
-#include <stdio.h> /* for fprintf() */
-#include <sys/mman.h> /* for mmap() */
-#include <unistd.h> /* for ftruncate() */
-#include <sys/types.h>
-#include <unistd.h> /* for getpagesize() */
-#include <sys/types.h> /* for open() */
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h> /* for errno */
-#include <stdlib.h> /* for exit() */
+#include <string.h>   /* for memcmp() */
 
 #include "shf.private.h"
 #include "shf.h"
 #include "tap.h"
-
-static uint64_t
-test_get_bytes_marked_as_deleted(SHF * shf)
-{
-    uint64_t all_data_free = 0;
-    for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
-        uint32_t tabs_used = shf->shf_mmap->wins[win].tabs_used;
-        for (uint32_t tab = 0; tab < tabs_used; tab++) {
-            all_data_free += shf->tabs[win][tab].tab_mmap->tab_data_free;
-        }
-    }
-    return all_data_free;
-} /* test_get_bytes_marked_as_deleted() */
 
 static uint32_t
 test_get_cpu_count(void)
@@ -45,11 +46,9 @@ test_get_cpu_count(void)
 
 int main(void)
 {
-    plan_tests(10);
+    plan_tests(21);
 
     uint32_t cpu_count = test_get_cpu_count();
-
-    shf_init();
 
     char test_shf_folder[] = "/dev/shm";
     pid_t pid = getpid();
@@ -57,72 +56,84 @@ int main(void)
     int result = snprintf(test_shf_name, sizeof(test_shf_name), "test-%05u", pid);
     SHF_ASSERT(result >= 0                                   , "%d=snprintf() too small!", result);
     SHF_ASSERT(result <= SHF_CAST(int, sizeof(test_shf_name)), "%d=snprintf() too big!"  , result);
-    SHF * shf = shf_attach_existing(test_shf_folder, test_shf_name);
-    ok(NULL == shf, "shf_attach_existing() fails for non-existing file as expected");
 
-    shf = shf_attach(test_shf_folder, test_shf_name);
-    ok(NULL != shf, "shf_attach()          works for non-existing file as expected");
+    shf_init();
 
-    SHF_MAKE_HASH("key");
-    ok(0 == shf_get_copy_via_key(shf), "shf_get_copy_via_key() could not find unput key as expected");
-    shf_put_val(shf, "val", 3);
-    ok(1 == shf_get_copy_via_key(shf), "shf_get_copy_via_key() could     find   put key as expected");
+    SHF * shf = shf_attach_existing(test_shf_folder, test_shf_name); ok(NULL == shf, "shf_attach_existing() fails for non-existing file as expected");
+          shf = shf_attach         (test_shf_folder, test_shf_name); ok(NULL != shf, "shf_attach()          works for non-existing file as expected");
 
-    uint32_t keys = 2000000;
+                       SHF_MAKE_HASH       (         "key"    );
+    ok(0            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could not find unput key as expected");
+    ok(0            == shf_del_key         (shf               ), "shf_del_key()          could not find unput key as expected");
+    ok(SHF_UID_NONE != shf_put_val         (shf    , "val" , 3), "shf_put_val()                           put key as expected");
+    ok(1            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could     find   put key as expected");
+    ok(3            == shf_val_len                             , "shf_val_len                                     as expected");
+    ok(0            == memcmp              (shf_val, "val" , 3), "shf_val                                         as expected");
+    ok(1            == shf_del_key         (shf               ), "shf_del_key()          could     find   put key as expected");
+    ok(0            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could not find   del key as expected");
+    ok(0            == shf_del_key         (shf               ), "shf_del_key()          could not find   del key as expected");
+    ok(SHF_UID_NONE != shf_put_val         (shf    , "val2", 4), "shf_put_val()                         reput key as expected");
+    ok(1            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could     find reput key as expected");
+    ok(4            == shf_val_len                             , "shf_val_len                                     as expected");
+    ok(0            == memcmp              (shf_val, "val2", 4), "shf_val                                         as expected");
+
+    uint32_t test_keys = 250000;
     {
         shf_debug_disabled ++;
-        double start_time = shf_get_time_in_seconds();
-        for (uint32_t i = 0; i < keys; i++) {
+        double test_start_time = shf_get_time_in_seconds();
+        for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
             shf_put_val(shf, SHF_CAST(const char *, &i), sizeof(i));
         }
-        double elapsed_time = shf_get_time_in_seconds() - start_time;
-        ok(1, "put expected number of              keys // %.0f keys per second", keys / elapsed_time);
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(1, "put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_disabled --;
     }
 
     {
         shf_debug_disabled ++;
-        double start_time = shf_get_time_in_seconds();
+        double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
-        for (uint32_t i = (keys * 2); i < (keys * 3); i++) {
+        for (uint32_t i = (test_keys * 2); i < (test_keys * 3); i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
             keys_found += shf_get_copy_via_key(shf);
         }
-        double elapsed_time = shf_get_time_in_seconds() - start_time;
-        ok(0 == keys_found, "got expected number of non-existing keys // %.0f keys per second", keys / elapsed_time);
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(0 == keys_found, "got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_disabled --;
     }
 
     {
         shf_debug_disabled ++;
-        double start_time = shf_get_time_in_seconds();
+        double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
-        for (uint32_t i = 0; i < keys; i++) {
+        for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
             keys_found += shf_get_copy_via_key(shf);
+            SHF_ASSERT(sizeof(i) == shf_val_len, "INTERNAL: expected shf_val_len to be %lu but got %u\n", sizeof(i), shf_val_len);
+            SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
-        double elapsed_time = shf_get_time_in_seconds() - start_time;
-        ok(keys == keys_found, "got expected number of     existing keys // %.0f keys per second", keys / elapsed_time);
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(test_keys == keys_found, "got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_disabled --;
     }
 
-    ok(0 == test_get_bytes_marked_as_deleted(shf), "graceful growth cleans up after itself as expected");
+    ok(0 == shf_debug_get_bytes_marked_as_deleted(shf), "graceful growth cleans up after itself as expected");
 
     {
         shf_debug_disabled ++;
-        double start_time = shf_get_time_in_seconds();
+        double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
-        for (uint32_t i = 0; i < keys; i++) {
+        for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
             keys_found += shf_del_key(shf);
         }
-        double elapsed_time = shf_get_time_in_seconds() - start_time;
-        ok(keys == keys_found, "del expected number of     existing keys // %.0f keys per second", keys / elapsed_time);
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(test_keys == keys_found, "del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_disabled --;
     }
 
-    ok(0 != test_get_bytes_marked_as_deleted(shf), "del does not   clean  up after itself as expected");
+    ok(0 != shf_debug_get_bytes_marked_as_deleted(shf), "del does not   clean  up after itself as expected");
 
     if (getenv("SHF_ENABLE_PERFORMANCE_TEST") && atoi(getenv("SHF_ENABLE_PERFORMANCE_TEST"))) {
     }
@@ -144,7 +155,7 @@ int main(void)
     start_line[0] = 0;
     start_line[1] = 0;
     start_line[3] = 0;
-    keys = 50 * 1000000;
+    test_keys = 50 * 1000000;
     for (process = 0; process < processes; process++) {
         pid_t fork_pid = fork();
         if (fork_pid == 0) {     /*child*/
@@ -157,8 +168,8 @@ int main(void)
 
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1);
                 while (processes != start_line[0]) { SHF_YIELD(); }
-                for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
-                    uint32_t key = keys / processes * process + i;
+                for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
+                    uint32_t key = test_keys / processes * process + i;
                     put_counts[process] ++;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
                     shf_put_val(shf, SHF_CAST(const char *, &key), sizeof(key));
@@ -166,8 +177,8 @@ int main(void)
                 usleep(2000000); /* one second */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
                 while (processes != start_line[1]) { SHF_YIELD(); }
-                for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
-                    uint32_t key = keys / processes * process + i;
+                for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
+                    uint32_t key = test_keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
                     if (0 == i % 50) {
                         shf_del_key(shf);
@@ -181,8 +192,8 @@ int main(void)
                 usleep(2000000); /* one second */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
                 while (processes != start_line[2]) { SHF_YIELD(); }
-                for (uint32_t i = 0; i < (1 + (keys / processes)); i++) {
-                    uint32_t key = keys / processes * process + i;
+                for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
+                    uint32_t key = test_keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
                     get_counts[process] += shf_get_copy_via_key(shf);
                 }
@@ -270,15 +281,15 @@ int main(void)
             }
             uint32_t key_total_per_second = key_total - key_total_old;
             fprintf(stderr, "%5.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 750000)]);
-            if      (0 == message && key_total >= (1 * keys)) { message ++; message_text = "MIX"; }
-            else if (1 == message && key_total >= (2 * keys)) { message ++; message_text = "GET"; }
+            if      (0 == message && key_total >= (1 * test_keys)) { message ++; message_text = "MIX"; }
+            else if (1 == message && key_total >= (2 * test_keys)) { message ++; message_text = "GET"; }
             key_total_old = key_total;
         }
         usleep(1000000); /* one second */
-    } while (key_total < (3 * keys));
-    fprintf(stderr, "* MIX is 2%% (%u) del/put, 98%% (%u) get\n", keys * 2 / 100, keys * 98 / 100);
+    } while (key_total < (3 * test_keys));
+    fprintf(stderr, "* MIX is 2%% (%u) del/put, 98%% (%u) get\n", test_keys * 2 / 100, test_keys * 98 / 100);
 
 EARLY_EXIT:;
 
-    return 0;
+    return exit_status();
 } /* main() */

@@ -24,6 +24,8 @@
 #ifndef __SHF_DEFINES_H__
 #define __SHF_DEFINES_H__
 
+#include <stdint.h>
+
 extern int32_t shf_debug_disabled;
 
 #define SHF_CAST(TYPE, PTR) ((TYPE)(uintptr_t)(PTR))
