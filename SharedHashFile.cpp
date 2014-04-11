@@ -97,3 +97,15 @@ SharedHashFile::DebugGetBytesMarkedAsDeleted()
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_debug_get_bytes_marked_as_deleted(shf);
 }
+
+void
+SharedHashFile::DebugVerbosityLess()
+{
+    shf_debug_verbosity_less();
+}
+
+void
+SharedHashFile::DebugVerbosityMore()
+{
+    shf_debug_verbosity_more();
+}

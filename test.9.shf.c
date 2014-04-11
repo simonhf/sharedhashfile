@@ -59,39 +59,39 @@ int main(void)
 
     shf_init();
 
-    SHF * shf = shf_attach_existing(test_shf_folder, test_shf_name); ok(NULL == shf, "shf_attach_existing() fails for non-existing file as expected");
-          shf = shf_attach         (test_shf_folder, test_shf_name); ok(NULL != shf, "shf_attach()          works for non-existing file as expected");
+    SHF * shf = shf_attach_existing(test_shf_folder, test_shf_name); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
+          shf = shf_attach         (test_shf_folder, test_shf_name); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
 
                        SHF_MAKE_HASH       (         "key"    );
-    ok(0            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could not find unput key as expected");
-    ok(0            == shf_del_key         (shf               ), "shf_del_key()          could not find unput key as expected");
-    ok(SHF_UID_NONE != shf_put_val         (shf    , "val" , 3), "shf_put_val()                           put key as expected");
-    ok(1            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could     find   put key as expected");
-    ok(3            == shf_val_len                             , "shf_val_len                                     as expected");
-    ok(0            == memcmp              (shf_val, "val" , 3), "shf_val                                         as expected");
-    ok(1            == shf_del_key         (shf               ), "shf_del_key()          could     find   put key as expected");
-    ok(0            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could not find   del key as expected");
-    ok(0            == shf_del_key         (shf               ), "shf_del_key()          could not find   del key as expected");
-    ok(SHF_UID_NONE != shf_put_val         (shf    , "val2", 4), "shf_put_val()                         reput key as expected");
-    ok(1            == shf_get_copy_via_key(shf               ), "shf_get_copy_via_key() could     find reput key as expected");
-    ok(4            == shf_val_len                             , "shf_val_len                                     as expected");
-    ok(0            == memcmp              (shf_val, "val2", 4), "shf_val                                         as expected");
+    ok(0            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could not find unput key as expected");
+    ok(0            == shf_del_key         (shf               ), "c: shf_del_key()          could not find unput key as expected");
+    ok(SHF_UID_NONE != shf_put_val         (shf    , "val" , 3), "c: shf_put_val()                           put key as expected");
+    ok(1            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could     find   put key as expected");
+    ok(3            == shf_val_len                             , "c: shf_val_len                                     as expected");
+    ok(0            == memcmp              (shf_val, "val" , 3), "c: shf_val                                         as expected");
+    ok(1            == shf_del_key         (shf               ), "c: shf_del_key()          could     find   put key as expected");
+    ok(0            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could not find   del key as expected");
+    ok(0            == shf_del_key         (shf               ), "c: shf_del_key()          could not find   del key as expected");
+    ok(SHF_UID_NONE != shf_put_val         (shf    , "val2", 4), "c: shf_put_val()                         reput key as expected");
+    ok(1            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could     find reput key as expected");
+    ok(4            == shf_val_len                             , "c: shf_val_len                                     as expected");
+    ok(0            == memcmp              (shf_val, "val2", 4), "c: shf_val                                         as expected");
 
     uint32_t test_keys = 250000;
     {
-        shf_debug_disabled ++;
+        shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
             shf_put_val(shf, SHF_CAST(const char *, &i), sizeof(i));
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(1, "c: put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        shf_debug_verbosity_more();
     }
 
     {
-        shf_debug_disabled ++;
+        shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
         for (uint32_t i = (test_keys * 2); i < (test_keys * 3); i++) {
@@ -99,12 +99,12 @@ int main(void)
             keys_found += shf_get_copy_via_key(shf);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(0 == keys_found, "got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(0 == keys_found, "c: got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        shf_debug_verbosity_more();
     }
 
     {
-        shf_debug_disabled ++;
+        shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
         for (uint32_t i = 0; i < test_keys; i++) {
@@ -114,14 +114,14 @@ int main(void)
             SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(test_keys == keys_found, "c: got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        shf_debug_verbosity_more();
     }
 
-    ok(0 == shf_debug_get_bytes_marked_as_deleted(shf), "graceful growth cleans up after itself as expected");
+    ok(0 == shf_debug_get_bytes_marked_as_deleted(shf), "c: graceful growth cleans up after itself as expected");
 
     {
-        shf_debug_disabled ++;
+        shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
         for (uint32_t i = 0; i < test_keys; i++) {
@@ -129,11 +129,11 @@ int main(void)
             keys_found += shf_del_key(shf);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(test_keys == keys_found, "c: del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        shf_debug_verbosity_more();
     }
 
-    ok(0 != shf_debug_get_bytes_marked_as_deleted(shf), "del does not   clean  up after itself as expected");
+    ok(0 != shf_debug_get_bytes_marked_as_deleted(shf), "c: del does not    clean  up after itself as expected");
 
     if (getenv("SHF_ENABLE_PERFORMANCE_TEST") && atoi(getenv("SHF_ENABLE_PERFORMANCE_TEST"))) {
     }
@@ -159,7 +159,7 @@ int main(void)
     for (process = 0; process < processes; process++) {
         pid_t fork_pid = fork();
         if (fork_pid == 0) {     /*child*/
-            shf_debug_disabled ++;
+            shf_debug_verbosity_less();
             shf = shf_attach_existing(test_shf_folder, test_shf_name);
             SHF_DEBUG("test process #%u with pid %5u\n", process, getpid());
             {

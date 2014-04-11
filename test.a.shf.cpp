@@ -43,39 +43,39 @@ main(/* int argc,char **argv */)
     SHF_ASSERT(result <= SHF_CAST(int, sizeof(testShfName)), "%d=snprintf() too big!"  , result);
 
     SharedHashFile   * myShf = new SharedHashFile;
-    ok(                myShf                                            , "new SharedHashFile returned object as expected");
-    ok(0            == myShf->AttachExisting(testShfFolder, testShfName), "->AttachExisting() fails for non-existing file as expected");
-    ok(0            != myShf->Attach        (testShfFolder, testShfName), "->Attach()         works for non-existing file as expected");
+    ok(                myShf                                                    , "c++: new SharedHashFile returned object as expected");
+    ok(0            == myShf->AttachExisting(testShfFolder, testShfName        ), "c++: ->AttachExisting() fails for non-existing file as expected");
+    ok(0            != myShf->Attach        (testShfFolder, testShfName        ), "c++: ->Attach()         works for non-existing file as expected");
                        myShf->MakeHash      (         "key" , sizeof("key") - 1);
-    ok(0            == myShf->GetCopyViaKey (                                  ), "->GetCopyViaKey() could not find unput key as expected");
-    ok(0            == myShf->DelKey        (                                  ), "->DelKey()        could not find unput key as expected");
-    ok(SHF_UID_NONE != myShf->PutVal        (         "val" , 3                ), "->PutVal()                         put key as expected");
-    ok(1            == myShf->GetCopyViaKey (                                  ), "->GetCopyViaKey() could     find   put key as expected");
-    ok(3            == shf_val_len                                              , "shf_val_len                                as expected");
-    ok(0            == memcmp               (shf_val, "val" , 3                ), "shf_val                                    as expected");
-    ok(1            == myShf->DelKey        (                                  ), "->DelKey()        could     find   put key as expected");
-    ok(0            == myShf->GetCopyViaKey (                                  ), "->GetCopyViaKey() could not find   del key as expected");
-    ok(0            == myShf->DelKey        (                                  ), "->DelKey()        could not find   del key as expected");
-    ok(SHF_UID_NONE != myShf->PutVal        (         "val2", 4                ), "->PutVal()                       reput key as expected");
-    ok(1            == myShf->GetCopyViaKey (                                  ), "->GetCopyViaKey() could     find reput key as expected");
-    ok(4            == shf_val_len                                              , "shf_val_len                                as expected");
-    ok(0            == memcmp               (shf_val, "val2", 4                ), "shf_val                                    as expected");
+    ok(0            == myShf->GetCopyViaKey (                                  ), "c++: ->GetCopyViaKey() could not find unput key as expected");
+    ok(0            == myShf->DelKey        (                                  ), "c++: ->DelKey()        could not find unput key as expected");
+    ok(SHF_UID_NONE != myShf->PutVal        (         "val" , 3                ), "c++: ->PutVal()                         put key as expected");
+    ok(1            == myShf->GetCopyViaKey (                                  ), "c++: ->GetCopyViaKey() could     find   put key as expected");
+    ok(3            == shf_val_len                                              , "c++: shf_val_len                                as expected");
+    ok(0            == memcmp               (shf_val, "val" , 3                ), "c++: shf_val                                    as expected");
+    ok(1            == myShf->DelKey        (                                  ), "c++: ->DelKey()        could     find   put key as expected");
+    ok(0            == myShf->GetCopyViaKey (                                  ), "c++: ->GetCopyViaKey() could not find   del key as expected");
+    ok(0            == myShf->DelKey        (                                  ), "c++: ->DelKey()        could not find   del key as expected");
+    ok(SHF_UID_NONE != myShf->PutVal        (         "val2", 4                ), "c++: ->PutVal()                       reput key as expected");
+    ok(1            == myShf->GetCopyViaKey (                                  ), "c++: ->GetCopyViaKey() could     find reput key as expected");
+    ok(4            == shf_val_len                                              , "c++: shf_val_len                                as expected");
+    ok(0            == memcmp               (shf_val, "val2", 4                ), "c++: shf_val                                    as expected");
 
     uint32_t test_keys = 250000;
     {
-        shf_debug_disabled ++;
+        myShf->DebugVerbosityLess();
         double test_start_time = shf_get_time_in_seconds();
         for (uint32_t i = 0; i < test_keys; i++) {
             myShf->MakeHash(SHF_CAST(const char *, &i), sizeof(i));
             myShf->PutVal  (SHF_CAST(const char *, &i), sizeof(i));
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(1, "c++: put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        myShf->DebugVerbosityMore();
     }
 
     {
-        shf_debug_disabled ++;
+        myShf->DebugVerbosityLess();
         double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
         for (uint32_t i = (test_keys * 2); i < (test_keys * 3); i++) {
@@ -83,12 +83,12 @@ main(/* int argc,char **argv */)
             keys_found += myShf->GetCopyViaKey();
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(0 == keys_found, "got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(0 == keys_found, "c++: got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        myShf->DebugVerbosityMore();
     }
 
     {
-        shf_debug_disabled ++;
+        myShf->DebugVerbosityLess();
         double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
         for (uint32_t i = 0; i < test_keys; i++) {
@@ -98,14 +98,14 @@ main(/* int argc,char **argv */)
             SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(test_keys == keys_found, "c++: got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        myShf->DebugVerbosityMore();
     }
 
-    ok(0 == myShf->DebugGetBytesMarkedAsDeleted(), "graceful growth cleans up after itself as expected");
+    ok(0 == myShf->DebugGetBytesMarkedAsDeleted(), "c++: graceful growth cleans up after itself as expected");
 
     {
-        shf_debug_disabled ++;
+        myShf->DebugVerbosityLess();
         double test_start_time = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
         for (uint32_t i = 0; i < test_keys; i++) {
@@ -113,11 +113,11 @@ main(/* int argc,char **argv */)
             keys_found += myShf->DelKey();
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_disabled --;
+        ok(test_keys == keys_found, "c++: del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        myShf->DebugVerbosityMore();
     }
 
-    ok(0 != myShf->DebugGetBytesMarkedAsDeleted(), "del does not   clean  up after itself as expected");
+    ok(0 != myShf->DebugGetBytesMarkedAsDeleted(), "c++: del does not    clean  up after itself as expected");
 
     delete myShf;
 

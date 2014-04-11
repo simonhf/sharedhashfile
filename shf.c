@@ -749,3 +749,14 @@ shf_debug_get_bytes_marked_as_deleted(
     return all_data_free;
 } /* shf_debug_get_bytes_marked_as_deleted() */
 
+void
+shf_debug_verbosity_less(void)
+{
+    shf_debug_disabled ++;
+} /* shf_debug_verbosity_less() */
+
+void
+shf_debug_verbosity_more(void)
+{
+    shf_debug_disabled --;
+} /* shf_debug_verbosity_more() */

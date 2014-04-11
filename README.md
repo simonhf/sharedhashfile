@@ -1,6 +1,6 @@
 # SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
 
-SharedHashFile is a lightweight NoSQL hash table library written in C for Linux, operating fully in memory.  There is no server process.  Data is read and written directly from/to shared memory; no sockets are used between SharedHashFile and the application program.
+SharedHashFile is a lightweight NoSQL hash table library written in C for Linux, operating fully in memory.  There is no server process.  Data is read and written directly from/to shared memory; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & nodejs.
 
 ## Project Goals
 
@@ -151,7 +151,7 @@ Here's an example on an 8 core Lenovo W530 laptop showing a hash table with 50 m
 
 ```
 $ make clean ; rm -rf /dev/shm/test-*/ ; SHF_ENABLE_PERFORMANCE_TEST=1 make
-rm -rf release debug
+rm -rf release debug wrappers/nodejs/build
 make: variable: DEPS_H=murmurhash3.h shf.defines.h shf.h shf.lock.h shf.private.h tap.h
 make: variable: DEPS_HPP=SharedHashFile.hpp
 make: variable: PROD_SRCS_C=murmurhash3.c shf.c tap.c
@@ -163,6 +163,11 @@ make: variable: TEST_OBJS_C=
 make: variable: TEST_SRCS_CPP=test.a.shf.cpp
 make: variable: TEST_OBJS_CPP=
 make: variable: TEST_EXES=release/test.1.tap.t release/test.9.shf.t release/test.a.shf.t
+make: variable: BUILD_TYPE=release
+make: variable: BUILD_TYPE_NODE=Release
+make: variable: NODEJS=/usr/bin/nodejs
+make: variable: NODE_GYP=/usr/bin/node-gyp
+make: variable: NODE_SRCS=./wrappers/nodejs/binding.gyp ./wrappers/nodejs/package.json ./wrappers/nodejs/SharedHashFile.cc ./wrappers/nodejs/SharedHashFile.js
 make: compiling: release/test.1.tap.o
 make: compiling: release/murmurhash3.o
 make: compiling: release/shf.o
@@ -176,92 +181,151 @@ make: compiling: release/test.9.shf.o
 make: linking: release/test.9.shf.t
 make: running: release/test.9.shf.t
 1..21
-ok 1 - shf_attach_existing() fails for non-existing file as expected
-ok 2 - shf_attach()          works for non-existing file as expected
-ok 3 - shf_get_copy_via_key() could not find unput key as expected
-ok 4 - shf_del_key()          could not find unput key as expected
-ok 5 - shf_put_val()                           put key as expected
-ok 6 - shf_get_copy_via_key() could     find   put key as expected
-ok 7 - shf_val_len                                     as expected
-ok 8 - shf_val                                         as expected
-ok 9 - shf_del_key()          could     find   put key as expected
-ok 10 - shf_get_copy_via_key() could not find   del key as expected
-ok 11 - shf_del_key()          could not find   del key as expected
-ok 12 - shf_put_val()                         reput key as expected
-ok 13 - shf_get_copy_via_key() could     find reput key as expected
-ok 14 - shf_val_len                                     as expected
-ok 15 - shf_val                                         as expected
-ok 16 - put expected number of              keys // estimate 4050542 keys per second
-ok 17 - got expected number of non-existing keys // estimate 5102659 keys per second
-ok 18 - got expected number of     existing keys // estimate 4814089 keys per second
-ok 19 - graceful growth cleans up after itself as expected
-ok 20 - del expected number of     existing keys // estimate 5583620 keys per second
-ok 21 - del does not   clean  up after itself as expected
+ok 1 - c: shf_attach_existing() fails for non-existing file as expected
+ok 2 - c: shf_attach()          works for non-existing file as expected
+ok 3 - c: shf_get_copy_via_key() could not find unput key as expected
+ok 4 - c: shf_del_key()          could not find unput key as expected
+ok 5 - c: shf_put_val()                           put key as expected
+ok 6 - c: shf_get_copy_via_key() could     find   put key as expected
+ok 7 - c: shf_val_len                                     as expected
+ok 8 - c: shf_val                                         as expected
+ok 9 - c: shf_del_key()          could     find   put key as expected
+ok 10 - c: shf_get_copy_via_key() could not find   del key as expected
+ok 11 - c: shf_del_key()          could not find   del key as expected
+ok 12 - c: shf_put_val()                         reput key as expected
+ok 13 - c: shf_get_copy_via_key() could     find reput key as expected
+ok 14 - c: shf_val_len                                     as expected
+ok 15 - c: shf_val                                         as expected
+ok 16 - c: put expected number of              keys // estimate 3868899 keys per second
+ok 17 - c: got expected number of non-existing keys // estimate 5242513 keys per second
+ok 18 - c: got expected number of     existing keys // estimate 5110592 keys per second
+ok 19 - c: graceful growth cleans up after itself as expected
+ok 20 - c: del expected number of     existing keys // estimate 5570657 keys per second
+ok 21 - c: del does not    clean  up after itself as expected
 running tests on: via command: 'cat /proc/cpuinfo | egrep 'model name' | head -n 1'
 running tests on: `model name   : Intel(R) Core(TM) i7-3720QM CPU @ 2.60GHz`
 -OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS
 --- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s
-PUT  0.4   0.9   49    0   0.0 36 22 22  0  0  0  0 27  0  0  0  0  0  0  0  0  0.0
-PUT 29.0 160.2 1888 1680   4.2 13 13 12 12 12 13 12 13  0  0  0  0  0  0  0  0  4.2 -----
-PUT 27.4 157.7 1734 1734   8.1 13 12 13 12 13 12 13 12  0  0  0  0  0  0  0  0  3.9 -----
-PUT 16.4 175.8 1027 1028  13.1 13 13 12 12 13 13 12 12  0  0  0  0  0  0  0  0  5.0 ------
-PUT 32.6 106.5 2069 2068  15.7 12 13 13 12 13 12 12 13  0  0  0  0  0  0  0  0  2.5 ---
-PUT 22.0  96.4 1327 1327  17.9 13 12 13 13 12 13 13 12  0  0  0  0  0  0  0  0  2.2 --
-PUT  4.5 157.9  282  282  22.4 13 12 13 12 12 13 12 12  0  0  0  0  0  0  0  0  4.5 -----
-PUT  8.1  84.7  527  527  25.1 13 13 12 13 13 12 12 13  0  0  0  0  0  0  0  0  2.7 ---
-PUT 27.6 145.6 1791 1792  28.4 12 12 12 12 13 12 12 13  0  0  0  0  0  0  0  0  3.3 ----
-PUT 36.6  90.9 2303 2302  30.9 13 13 13 12 12 13 12 12  0  0  0  0  0  0  0  0  2.5 ---
-PUT 34.9 129.1 2144 2144  33.4 12 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0  2.5 ---
-PUT 21.0 152.4 1244 1244  37.2 13 13 12 12 12 12 13 12  0  0  0  0  0  0  0  0  3.8 -----
-PUT  4.7 215.8  301  301  43.7 13 13 13 12 12 12 13 13  0  0  0  0  0  0  0  0  6.6 --------
-PUT 11.4 179.3  753  753  48.6 13 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0  4.8 ------
-PUT  5.1  24.9  362  362  50.0  8 11 11 18 14 11 15 12  0  0  0  0  0  0  0  0  1.4 -
+PUT  2.6   3.1  257    0   0.1  9 10 17 11 15 13 11 13  0  0  0  0  0  0  0  0  0.1
+PUT 16.6 125.6 1049 1049   3.5 12 13 12 13 12 13 13 13  0  0  0  0  0  0  0  0  3.4 ----
+PUT 25.8 149.9 1628 1628   7.4 13 12 13 12 12 12 13 13  0  0  0  0  0  0  0  0  3.9 -----
+PUT 21.7 155.4 1342 1342  11.6 12 13 12 13 12 13 13 12  0  0  0  0  0  0  0  0  4.2 -----
+PUT 27.1 132.6 1746 1746  14.9 12 13 12 13 13 13 12 12  0  0  0  0  0  0  0  0  3.3 ----
+PUT 32.1 105.9 1968 1968  17.5 13 12 13 12 12 13 13 12  0  0  0  0  0  0  0  0  2.6 ---
+PUT  6.3 182.2  383  384  22.3 12 13 13 12 12 12 13 12  0  0  0  0  0  0  0  0  4.9 ------
+PUT 17.1 145.4 1118 1117  26.6 12 12 13 12 13 12 13 13  0  0  0  0  0  0  0  0  4.3 -----
+PUT 29.8 110.3 1903 1905  29.2 12 12 13 12 13 13 12 12  0  0  0  0  0  0  0  0  2.6 ---
+PUT 35.6 108.1 2235 2233  31.6 12 12 13 13 12 13 13 12  0  0  0  0  0  0  0  0  2.4 ---
+PUT 32.5 103.4 1996 1996  34.1 13 12 12 13 12 13 12 13  0  0  0  0  0  0  0  0  2.6 ---
+PUT 14.1 144.0  814  814  38.1 13 12 12 13 12 12 13 13  0  0  0  0  0  0  0  0  4.0 -----
+PUT  4.2 220.7  266  266  44.0 13 12 13 12 12 13 13 12  0  0  0  0  0  0  0  0  5.9 -------
+PUT 12.2 173.8  801  801  48.9 12 13 12 12 13 13 12 12  0  0  0  0  0  0  0  0  4.9 ------
+PUT  4.5  18.3  295  295  50.0 16 13 12 12 16 10  9 13  0  0  0  0  0  0  0  0  1.1 -
 MIX  0.0   0.0    0    0  50.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
-MIX  1.6   7.5    0    0  57.0 12 13 12 13 13 12 13 12  0  0  0  0  0  0  0  0  7.0 ---------
-MIX  0.0   5.8    0    0  67.9 13 13 12 13 12 12 13 13  0  0  0  0  0  0  0  0 10.9 --------------
-MIX  0.0   7.4    0    0  79.0 13 13 12 13 12 13 13 13  0  0  0  0  0  0  0  0 11.0 --------------
-MIX  0.0   9.3    0    0  89.8 12 13 12 13 12 12 13 13  0  0  0  0  0  0  0  0 10.8 --------------
-MIX  0.0   9.4    0    0 100.0 13 12 13 12 13 13 12 12  0  0  0  0  0  0  0  0 10.2 -------------
+MIX  1.1   6.6    0    0  57.5 13 12 13 13 13 12 12 12  0  0  0  0  0  0  0  0  7.5 ----------
+MIX  0.0   5.4    0    0  67.7 12 13 12 13 13 12 13 13  0  0  0  0  0  0  0  0 10.1 -------------
+MIX  0.0   6.2    0    0  76.8 12 12 13 13 13 13 12 12  0  0  0  0  0  0  0  0  9.2 ------------
+MIX  0.0   8.3    0    0  87.1 12 12 13 13 13 12 12 13  0  0  0  0  0  0  0  0 10.3 -------------
+MIX  0.0   9.7    0    0  97.5 12 13 12 13 13 13 12 13  0  0  0  0  0  0  0  0 10.4 -------------
+MIX  0.0   2.3    0    0 100.0 15 14 12  9 10 13 13 12  0  0  0  0  0  0  0  0  2.5 ---
 GET  0.0   0.0    0    0 100.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
-GET  0.0   0.4    0    0 100.5 12 13 12 13 13 13 10 13  0  0  0  0  0  0  0  0  0.5
-GET  0.0   0.0    0    0 112.8 12 13 13 13 13 12 13 12  0  0  0  0  0  0  0  0 12.3 ----------------
-GET  0.0   0.0    0    0 125.0 13 13 12 13 13 12 12 12  0  0  0  0  0  0  0  0 12.2 ----------------
-GET  0.0   0.0    0    0 137.2 13 13 12 13 13 13 12 12  0  0  0  0  0  0  0  0 12.2 ----------------
-GET  0.0   0.0    0    0 149.3 12 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0 12.1 ----------------
-GET  0.0   0.0    0    0 150.0  8  4 19  0  0  6 28 35  0  0  0  0  0  0  0  0  0.7
+GET  0.0   0.3    0    0 108.3 13 13 12 13 13 13 13 12  0  0  0  0  0  0  0  0  8.3 -----------
+GET  0.0   0.0    0    0 119.4 12 13 12 13 13 13 13 12  0  0  0  0  0  0  0  0 11.2 --------------
+GET  0.0   0.0    0    0 130.9 12 13 12 13 13 13 13 13  0  0  0  0  0  0  0  0 11.5 ---------------
+GET  0.0   0.0    0    0 142.4 12 12 12 13 13 12 13 13  0  0  0  0  0  0  0  0 11.5 ---------------
+GET  0.0   0.0    0    0 150.0 15 12 15 10 11 13 12 13  0  0  0  0  0  0  0  0  7.6 ----------
 * MIX is 2% (1000000) del/put, 98% (6050327) get
 make: compiling: release/test.a.shf.o
 make: linking: release/test.a.shf.t
 make: running: release/test.a.shf.t
 1..22
-ok 1 - new SharedHashFile returned object as expected
-ok 2 - ->AttachExisting() fails for non-existing file as expected
-ok 3 - ->Attach()         works for non-existing file as expected
-ok 4 - ->GetCopyViaKey() could not find unput key as expected
-ok 5 - ->DelKey()        could not find unput key as expected
-ok 6 - ->PutVal()                         put key as expected
-ok 7 - ->GetCopyViaKey() could     find   put key as expected
-ok 8 - shf_val_len                                as expected
-ok 9 - shf_val                                    as expected
-ok 10 - ->DelKey()        could     find   put key as expected
-ok 11 - ->GetCopyViaKey() could not find   del key as expected
-ok 12 - ->DelKey()        could not find   del key as expected
-ok 13 - ->PutVal()                       reput key as expected
-ok 14 - ->GetCopyViaKey() could     find reput key as expected
-ok 15 - shf_val_len                                as expected
-ok 16 - shf_val                                    as expected
-ok 17 - put expected number of              keys // estimate 4021107 keys per second
-ok 18 - got expected number of non-existing keys // estimate 5255414 keys per second
-ok 19 - got expected number of     existing keys // estimate 5274607 keys per second
-ok 20 - graceful growth cleans up after itself as expected
-ok 21 - del expected number of     existing keys // estimate 5312581 keys per second
-ok 22 - del does not   clean  up after itself as expected
+ok 1 - c++: new SharedHashFile returned object as expected
+ok 2 - c++: ->AttachExisting() fails for non-existing file as expected
+ok 3 - c++: ->Attach()         works for non-existing file as expected
+ok 4 - c++: ->GetCopyViaKey() could not find unput key as expected
+ok 5 - c++: ->DelKey()        could not find unput key as expected
+ok 6 - c++: ->PutVal()                         put key as expected
+ok 7 - c++: ->GetCopyViaKey() could     find   put key as expected
+ok 8 - c++: shf_val_len                                as expected
+ok 9 - c++: shf_val                                    as expected
+ok 10 - c++: ->DelKey()        could     find   put key as expected
+ok 11 - c++: ->GetCopyViaKey() could not find   del key as expected
+ok 12 - c++: ->DelKey()        could not find   del key as expected
+ok 13 - c++: ->PutVal()                       reput key as expected
+ok 14 - c++: ->GetCopyViaKey() could     find reput key as expected
+ok 15 - c++: shf_val_len                                as expected
+ok 16 - c++: shf_val                                    as expected
+ok 17 - c++: put expected number of              keys // estimate 3593549 keys per second
+ok 18 - c++: got expected number of non-existing keys // estimate 4824011 keys per second
+ok 19 - c++: got expected number of     existing keys // estimate 5025743 keys per second
+ok 20 - c++: graceful growth cleans up after itself as expected
+ok 21 - c++: del expected number of     existing keys // estimate 5180916 keys per second
+ok 22 - c++: del does not    clean  up after itself as expected
+make: archiving: release/SharedHashFile.a
+ar: creating release/SharedHashFile.a
+a - release/murmurhash3.o
+a - release/shf.o
+a - release/tap.o
+a - release/SharedHashFile.o
+make: building: release/SharedHashFile.node
+gyp info it worked if it ends with ok
+gyp info using node-gyp@0.10.9
+gyp info using node@0.10.15 | linux | x64
+gyp info spawn python
+gyp info spawn args [ '/usr/share/node-gyp/gyp/gyp',
+gyp info spawn args   'binding.gyp',
+gyp info spawn args   '-f',
+gyp info spawn args   'make',
+gyp info spawn args   '-I',
+gyp info spawn args   '/home/simon/sharedhashfile/wrappers/nodejs/build/config.gypi',
+gyp info spawn args   '-I',
+gyp info spawn args   '/usr/share/node-gyp/addon.gypi',
+gyp info spawn args   '-I',
+gyp info spawn args   '/usr/include/nodejs/common.gypi',
+gyp info spawn args   '-Dlibrary=shared_library',
+gyp info spawn args   '-Dvisibility=default',
+gyp info spawn args   '-Dnode_root_dir=/usr/include/nodejs',
+gyp info spawn args   '-Dmodule_root_dir=/home/simon/sharedhashfile/wrappers/nodejs',
+gyp info spawn args   '--depth=.',
+gyp info spawn args   '--generator-output',
+gyp info spawn args   'build',
+gyp info spawn args   '-Goutput_dir=.' ]
+gyp info spawn make
+gyp info spawn args [ 'BUILDTYPE=Release', '-C', 'build' ]
+make[1]: Entering directory `/home/simon/sharedhashfile/wrappers/nodejs/build'
+  CXX(target) Release/obj.target/SharedHashFile/SharedHashFile.o
+  SOLINK_MODULE(target) Release/obj.target/SharedHashFile.node
+  SOLINK_MODULE(target) Release/obj.target/SharedHashFile.node: Finished
+  COPY Release/SharedHashFile.node
+make[1]: Leaving directory `/home/simon/sharedhashfile/wrappers/nodejs/build'
+gyp info ok
+make: copying node wrapper & test program to release build folder
+make: running test
+1..17
+nodejs: debug: about to require  SharedHashFile
+nodejs: debug:          required SharedHashFile
+ok 1 - nodejs: .attachExisting() fails for non-existing file as expected
+ok 2 - nodejs: .attach()         works for non-existing file as expected
+ok 3 - nodejs: .getKeyVal() could not find unput key as expected
+ok 4 - nodejs: .delKey()    could not find unput key as expected
+ok 5 - nodejs: .putKeyVal()                  put key as expected
+ok 6 - nodejs: .getKeyVal() could     find   put key as expected
+ok 7 - nodejs: .delKey()    could     find   put key as expected
+ok 8 - nodejs: .getKeyVal() could not find   del key as expected
+ok 9 - nodejs: .delKey()    could not find   del key as expected
+ok 10 - nodejs: .putKeyVal()                reput key as expected
+ok 11 - nodejs: .getKeyVal() could     find reput key as expected
+ok 12 - nodejs: put expected number of              keys // estimate 1201923 keys per second
+ok 13 - nodejs: got expected number of non-existing keys // estimate 1953125 keys per second
+ok 14 - nodejs: got expected number of     existing keys // estimate 1572328 keys per second
+ok 15 - nodejs: graceful growth cleans up after itself as expected
+ok 16 - nodejs: del expected number of     existing keys // estimate 1968502 keys per second
+ok 17 - nodejs: del does not    clean  up after itself as expected
 make: built and tested release version
 ```
 
 ## TODO
 
-* Tune for faster performance.
 * Test performance on flash drives.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.

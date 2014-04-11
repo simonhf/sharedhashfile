@@ -40,6 +40,8 @@ public:
     uint32_t PutVal(const char * val, uint32_t val_len);
     bool     DelKey();
     uint64_t DebugGetBytesMarkedAsDeleted();
+    void     DebugVerbosityLess();
+    void     DebugVerbosityMore();
 
 private:
     SHF * shf;

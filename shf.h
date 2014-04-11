@@ -85,5 +85,7 @@ extern int        shf_get_copy_via_key(SHF * shf);
 extern int        shf_del_key(SHF * shf);
 extern void       shf_del(SHF * shf);
 extern uint64_t   shf_debug_get_bytes_marked_as_deleted(SHF * shf);
+extern void       shf_debug_verbosity_less(void);
+extern void       shf_debug_verbosity_more(void);
 
 #endif /* __SHF_H__ */
