@@ -35,12 +35,10 @@ main(/* int argc,char **argv */)
 {
     plan_tests(22);
 
-    char testShfFolder[] = "/dev/shm";
-    pid_t pid = getpid();
-    char testShfName[256];
-    int result = snprintf(testShfName, sizeof(testShfName) , "test-%05u", pid);
-    SHF_ASSERT(result >= 0                                 , "%d=snprintf() too small!", result);
-    SHF_ASSERT(result <= SHF_CAST(int, sizeof(testShfName)), "%d=snprintf() too big!"  , result);
+    char  testShfName[256];
+    char  testShfFolder[] = "/dev/shm";
+    pid_t pid             = getpid();
+    SHF_SNPRINTF(1, testShfName, "test-%05u", pid);
 
     SharedHashFile   * myShf = new SharedHashFile;
     ok(                myShf                                                    , "c++: new SharedHashFile returned object as expected");

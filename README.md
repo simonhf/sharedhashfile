@@ -326,13 +326,13 @@ make: built and tested release version
 
 ## TODO
 
-* Test performance on flash drives.
+* Support access of previously added keys via UID instead of key.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.
 * Support stack key types, e.g. push, pop, shift, unshift.
-* Support access of previously added keys via UID instead of key.
 * Support detaching from a hash table.
+* Add API documentation.
 * Add LRU mechanism for using SharedHashFile to e.g. accelerate network based hash tables such as redis, memcached, and/or Aerospike.
 * Add logging.
 * Add networking layer for distributed hash table.
@@ -340,5 +340,6 @@ make: built and tested release version
 * Add command line utility tools.
 * Port to Linux-like OSs which do not support mremap().
 * Port to Windows.
+* Test performance on flash drives.
 * Email feedback [@] sharedhashfile [.] com with more wishes!
 
