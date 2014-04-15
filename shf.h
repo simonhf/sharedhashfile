@@ -83,6 +83,8 @@ extern void       shf_make_hash(const char * key, uint32_t key_len);
 extern uint32_t   shf_put_key_val(SHF * shf, const char * val, uint32_t val_len);
 extern int        shf_get_key_val_copy(SHF * shf);
 extern int        shf_get_uid_val_copy(SHF * shf, uint32_t uid);
+extern uint8_t  * shf_get_key_val_addr(SHF * shf);
+extern uint8_t  * shf_get_uid_val_addr(SHF * shf, uint32_t uid);
 extern int        shf_del_key_val(SHF * shf);
 extern int        shf_del_uid_val(SHF * shf, uint32_t uid);
 extern void       shf_del(SHF * shf);
