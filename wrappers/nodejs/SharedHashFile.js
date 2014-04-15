@@ -37,7 +37,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(17);
+plan_tests(18);
 
 console.log('nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -45,75 +45,79 @@ console.log('nodejs: debug:          required SharedHashFile');
 
 var testShfFolder = "/dev/shm";
 var testShfName   = "test-js-"+process.pid;
+var shfUidNone    = 4294967295;
 
-var myShf = new SharedHashFile.sharedHashFile();
-ok(0           ==         myShf.attachExisting(testShfFolder, testShfName), "nodejs: .attachExisting() fails for non-existing file as expected");
-ok(0           !=         myShf.attach        (testShfFolder, testShfName), "nodejs: .attach()         works for non-existing file as expected");
-ok('undefined' === typeof myShf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could not find unput key as expected");
-ok(0           ==         myShf.delKey        ("key"                     ), "nodejs: .delKey()    could not find unput key as expected");
-ok(0           !=         myShf.putKeyVal     ("key", "val"              ), "nodejs: .putKeyVal()                  put key as expected");
-ok('val'       ===        myShf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could     find   put key as expected");
-ok(1           ==         myShf.delKey        ("key"                     ), "nodejs: .delKey()    could     find   put key as expected");
-ok('undefined' === typeof myShf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could not find   del key as expected");
-ok(0           ==         myShf.delKey        ("key"                     ), "nodejs: .delKey()    could not find   del key as expected");
-ok(0           !=         myShf.putKeyVal     ("key", "val2"             ), "nodejs: .putKeyVal()                reput key as expected");
-ok('val2'      ===        myShf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could     find reput key as expected");
+var        shf =      new SharedHashFile.sharedHashFile();
+ok(0           ==         shf.attachExisting(testShfFolder, testShfName), "nodejs: .attachExisting() fails for non-existing file as expected");
+ok(0           !=         shf.attach        (testShfFolder, testShfName), "nodejs: .attach()         works for non-existing file as expected");
+ok('undefined' === typeof shf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could not find unput key as expected"        );
+ok(0           ==         shf.delKeyVal     ("key"                     ), "nodejs: .delKeyVal() could not find unput key as expected"        );
+var        uid =          shf.putKeyVal     ("key", "val"              )                                                                      ;
+ok(        uid !=         shfUidNone                                    , "nodejs: .putKeyVal()                  put key as expected"        );
+ok('val'       ===        shf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could     find   put key as expected"        );
+ok(1           ==         shf.delUidVal     ( uid                      ), "nodejs: .delUidVal() could     find   put key as expected"        );
+ok('undefined' === typeof shf.getKeyVal     ("key"                     ), "nodejs: .getKeyVal() could not find   del key as expected"        );
+ok(0           ==         shf.delUidVal     ( uid                      ), "nodejs: .delUidVal() could not find   del key as expected"        );
+           uid =          shf.putKeyVal     ("key", "val2"             )                                                                      ;
+ok(        uid !=         shfUidNone                                    , "nodejs: .putKeyVal()                reput key as expected"        );
+ok('val2'      ===        shf.getUidVal     ( uid                      ), "nodejs: .getUidVal() could     find reput key as expected"        );
+ok(1           ==         shf.delKeyVal     ("key"                     ), "nodejs: .delKeyVal() could     find reput key as expected"        );
 
 var test_keys = 250000;
 
 {
-    myShf.debugVerbosityLess();
+    shf.debugVerbosityLess();
     var test_start_time = Date.now() / 1000;
     for (var i = 0; i < test_keys; i++) {
-        myShf.putKeyVal("key"+i, "val"+i);
+        shf.putKeyVal("key"+i, "val"+i);
     }
     var test_elapsed_time = (Date.now() / 1000 - test_start_time);
     ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
-    myShf.debugVerbosityMore();
+    shf.debugVerbosityMore();
 }
 
 {
-    myShf.debugVerbosityLess();
+    shf.debugVerbosityLess();
     var test_start_time = Date.now() / 1000;
     for (var i = (test_keys * 2); i < (test_keys * 3); i++) {
-        var value = myShf.getKeyVal("key"+i);
+        var value = shf.getKeyVal("key"+i);
         if ('undefined' === typeof value) { /**/ }
         else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
     var test_elapsed_time = (Date.now() / 1000 - test_start_time);
     ok(1, "nodejs: got expected number of non-existing keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
-    myShf.debugVerbosityMore();
+    shf.debugVerbosityMore();
 }
 
 {
-    myShf.debugVerbosityLess();
+    shf.debugVerbosityLess();
     var test_start_time = Date.now() / 1000;
     for (var i = 0; i < test_keys; i++) {
-        var value = myShf.getKeyVal("key"+i);
+        var value = shf.getKeyVal("key"+i);
         if (value === "val"+i) { /**/ }
         else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
     var test_elapsed_time = (Date.now() / 1000 - test_start_time);
     ok(1, "nodejs: got expected number of     existing keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
-    myShf.debugVerbosityMore();
+    shf.debugVerbosityMore();
 }
 
-ok(0 == myShf.debugGetBytesMarkedAsDeleted(), "nodejs: graceful growth cleans up after itself as expected");
+ok(0 == shf.debugGetBytesMarkedAsDeleted(), "nodejs: graceful growth cleans up after itself as expected");
 
 {
-    myShf.debugVerbosityLess();
+    shf.debugVerbosityLess();
     var test_start_time = Date.now() / 1000;
     for (var i = 0; i < test_keys; i++) {
-        var value = myShf.delKey("key"+i);
+        var value = shf.delKeyVal("key"+i);
         if (value != 1) { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
     var test_elapsed_time = (Date.now() / 1000 - test_start_time);
     ok(1, "nodejs: del expected number of     existing keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
-    myShf.debugVerbosityMore();
+    shf.debugVerbosityMore();
 }
 
-ok(0 != myShf.debugGetBytesMarkedAsDeleted(), "nodejs: del does not    clean  up after itself as expected");
+ok(0 != shf.debugGetBytesMarkedAsDeleted(), "nodejs: del does not    clean  up after itself as expected");
 
-// todo: delete myShf;
+// todo: delete shf;
 
 exit_status();

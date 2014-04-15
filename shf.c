@@ -560,7 +560,7 @@ shf_tab_part(SHF * shf, uint32_t win, uint16_t tab_old)
 } /* shf_tab_part() */
 
 uint32_t /* SHF_UID; SHF_UID_NONE means something went wrong and key not appended */
-shf_put_val(
+shf_put_key_val(
     SHF        * shf    ,
     const char * val    ,
     uint32_t     val_len)
@@ -635,96 +635,139 @@ typedef enum SHF_FIND_KEY_AND {
 static int /* 0 means key does not exist, 1 means key found */
 shf_find_key_internal(
     SHF              * shf ,
+    uint32_t           uid ,
     SHF_FIND_KEY_AND   what)
 {
-    int result = 0;
-    SHF_UID uid;
+    int           result = 0;
+    SHF_UID       tmp_uid   ;
+    uint32_t      win       ;
+    uint32_t      tab2      ;
+    uint32_t      row       ;
+    uint32_t      rnd       ;
+    uint16_t      tab       ;
+    SHF_DATA_TYPE data_type ;
+    uint32_t      ref       ;
+    uint32_t      pos       ;
+    uint32_t      key_len   ;
+    uint32_t      val_len   ;
 
-    uint32_t win  = uid.as_part.win = shf_hash.u16[0] %             SHF_WINS_PER_SHF       ;
-    uint32_t tab2 = uid.as_part.tab = shf_hash.u16[1] %             SHF_TABS_PER_WIN       ;
-    uint32_t row  = uid.as_part.row = shf_hash.u16[2] %             SHF_ROWS_PER_TAB       ;
-    uint32_t rnd  =                   shf_hash.u32[2] % (1 << (32 - SHF_TABS_PER_WIN_BITS));
+    if (SHF_UID_NONE == uid) {
+        win  = tmp_uid.as_part.win = shf_hash.u16[0] %             SHF_WINS_PER_SHF       ;
+        tab2 = tmp_uid.as_part.tab = shf_hash.u16[1] %             SHF_TABS_PER_WIN       ;
+        row  = tmp_uid.as_part.row = shf_hash.u16[2] %             SHF_ROWS_PER_TAB       ;
+        rnd  =                       shf_hash.u32[2] % (1 << (32 - SHF_TABS_PER_WIN_BITS));
+    }
+    else {
+               tmp_uid.as_u32 = uid;
+        win  = tmp_uid.as_part.win;
+        tab2 = tmp_uid.as_part.tab;
+        row  = tmp_uid.as_part.row;
+    }
 
     if   (SHF_FIND_KEY_AND_COPY_VAL == what) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }
     else                                     { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
-    uint16_t tab = shf->shf_mmap->wins[win].tabs[tab2].tab;
+    tab = shf->shf_mmap->wins[win].tabs[tab2].tab; /* important that this is looked up after the lock! */
 
     SHF_TAB_MMAP * tab_mmap;
     SHF_GET_TAB_MMAP(shf, tab);
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
-    for (uint32_t ref = 0; ref < SHF_REFS_PER_ROW; ref ++) {
-        if ((tab_mmap->row[row].ref[ref].pos != 0   )
-        &&  (tab_mmap->row[row].ref[ref].rnd == rnd )
+    if (SHF_UID_NONE == uid) {
+        for (ref = 0; ref < SHF_REFS_PER_ROW; ref ++) { /* search for ref in row */
+            if ((tab_mmap->row[row].ref[ref].pos != 0   ) /* if ref in row is valid looking key... */
+            &&  (tab_mmap->row[row].ref[ref].rnd == rnd )
+            &&  (tab_mmap->row[row].ref[ref].tab == tab2)) {
+                SHF_DEBUG("- todo: use SHF_DATA_TYPE instead of hard coding\n");
+                pos              = tab_mmap->row[row].ref[ref].pos      ; SHF_ASSERT(pos < tab_mmap->tab_size, "INTERNAL: expected pos < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos, win, tab);
+                data_type.as_u08 = SHF_U08_AT(tab_mmap, pos            );
+                key_len          = SHF_U32_AT(tab_mmap, pos+1          ); SHF_ASSERT(pos+1+4+key_len           <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos+1+4+key_len          , win, tab);
+                val_len          = SHF_U32_AT(tab_mmap, pos+1+4+key_len); SHF_ASSERT(pos+1+4+key_len+4+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos+1+4+key_len+4+val_len, win, tab);
+                SHF_UNUSE(data_type); // todo: remove hard coding of types
+                if (key_len != shf_key_len                                        ) { shf->shf_mmap->wins[win].keylen_misses ++; continue; }
+                if (0       != SHF_CMP_AT(tab_mmap, pos+1+4, shf_key_len, shf_key)) { shf->shf_mmap->wins[win].memcmp_misses ++; continue; }
+                result = 1; /* aka key found */
+                break;
+            }
+        }
+    }
+    else {
+        ref  = tmp_uid.as_part.ref;
+        if ((tab_mmap->row[row].ref[ref].pos != 0   ) /* if uid points to valid looking ref... */
         &&  (tab_mmap->row[row].ref[ref].tab == tab2)) {
             SHF_DEBUG("- todo: use SHF_DATA_TYPE instead of hard coding\n");
-            uint32_t        pos   = tab_mmap->row[row].ref[ref].pos;
-            SHF_ASSERT(pos < tab_mmap->tab_size, "INTERNAL: expected pos < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos, win, tab);
-            SHF_DATA_TYPE   data_type;
-                            data_type.as_u08 = SHF_U08_AT(tab_mmap, pos            );
-            uint32_t        key_len          = SHF_U32_AT(tab_mmap, pos+1          );
-            uint32_t        val_len          = SHF_U32_AT(tab_mmap, pos+1+4+key_len);
-            SHF_ASSERT(pos+1+4+key_len           <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos+1+4+key_len          , win, tab);
-            SHF_ASSERT(pos+1+4+key_len+4+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos+1+4+key_len+4+val_len, win, tab);
+            pos              = tab_mmap->row[row].ref[ref].pos      ; SHF_ASSERT(pos < tab_mmap->tab_size, "INTERNAL: expected pos < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos, win, tab);
+            data_type.as_u08 = SHF_U08_AT(tab_mmap, pos            );
+            key_len          = SHF_U32_AT(tab_mmap, pos+1          ); SHF_ASSERT(pos+1+4+key_len           <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos+1+4+key_len          , win, tab);
+            val_len          = SHF_U32_AT(tab_mmap, pos+1+4+key_len); SHF_ASSERT(pos+1+4+key_len+4+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos+1+4+key_len+4+val_len, win, tab);
             SHF_UNUSE(data_type); // todo: remove hard coding of types
-            if (key_len != shf_key_len) {
-                shf->shf_mmap->wins[win].keylen_misses ++;
-                continue;
-            }
-            if (0 != SHF_CMP_AT(tab_mmap, pos+1+4, shf_key_len, shf_key)) {
-                shf->shf_mmap->wins[win].memcmp_misses ++;
-                continue;
-            }
-            SHF_DEBUG("- found %lu bytes for key @ 0x%02x-%03x[%03x]-%03x-%x // key,value are %u,%u bytes @ pos %u\n", sizeof(SHF_DATA_TYPE) + sizeof(uint8_t) + key_len + sizeof(uint8_t) + val_len, win, tab2, tab, row, ref, key_len, val_len, pos);
-            if (SHF_FIND_KEY_AND_COPY_VAL == what) {
-                if (val_len > shf_val_size) {
-                    SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                    shf_val = mremap(shf_val, shf_val_size, SHF_MOD_PAGE(val_len), MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_val, "mremap(): %u: ", errno);
-                    shf_val_size = SHF_MOD_PAGE(val_len);
-                    SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                }
-                memcpy(shf_val, &SHF_U08_AT(tab_mmap, pos+1+4+key_len+4), val_len);
-                shf_val_len = val_len;
+            result = 1; /* aka uid found */
+        }
+    }
 
-                if (tab_mmap->tab_data_free > (tab_mmap->tab_data_used / 4)) {
-                    SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: shrink after get\n", getpid(), win, tab);
-                    SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                    shf_tab_shrink(shf, win, tab);
-                    SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                }
-            }
-            else if (SHF_FIND_KEY_AND_DELETE == what) {
+    if (1 == result) {
+        SHF_DEBUG("- found %lu bytes for key @ 0x%02x-%03x[%03x]-%03x-%x // key,value are %u,%u bytes @ pos %u\n", sizeof(SHF_DATA_TYPE) + sizeof(uint8_t) + key_len + sizeof(uint8_t) + val_len, win, tab2, tab, row, ref, key_len, val_len, pos);
+        if (SHF_FIND_KEY_AND_COPY_VAL == what) {
+            if (val_len > shf_val_size) {
                 SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                SHF_TAB_REF_MARK_AS_DELETED(tab_mmap);
+                shf_val = mremap(shf_val, shf_val_size, SHF_MOD_PAGE(val_len), MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_val, "mremap(): %u: ", errno);
+                shf_val_size = SHF_MOD_PAGE(val_len);
                 SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
             }
-            result = 1;
-            break;
+            memcpy(shf_val, &SHF_U08_AT(tab_mmap, pos+1+4+key_len+4), val_len);
+            shf_val_len = val_len;
+
+            if (tab_mmap->tab_data_free > (tab_mmap->tab_data_used / 4)) {
+                SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: shrink after get\n", getpid(), win, tab);
+                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
+                shf_tab_shrink(shf, win, tab);
+                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
+            }
+        }
+        else if (SHF_FIND_KEY_AND_DELETE == what) {
+            SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
+            SHF_TAB_REF_MARK_AS_DELETED(tab_mmap);
+            SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
         }
     }
 
     if   (SHF_FIND_KEY_AND_COPY_VAL == what) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }
     else                                     { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
 
-    SHF_DEBUG("%s(shf=?){} // return 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, uid.as_u32, uid.as_part.win, uid.as_part.tab, tab, uid.as_part.row, uid.as_part.ref, result ? "exists" : "not exists");
+    SHF_DEBUG("%s(shf=?){} // return 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, tmp_uid.as_u32, tmp_uid.as_part.win, tmp_uid.as_part.tab, tab, tmp_uid.as_part.row, tmp_uid.as_part.ref, result ? "exists" : "not exists");
 
     return result;
 } /* shf_find_key_internal() */
 
 int /* 0 means key does not exist, 1 means key found */
-shf_get_copy_via_key(
+shf_get_key_val_copy(
     SHF * shf)
 {
-    return shf_find_key_internal(shf, SHF_FIND_KEY_AND_COPY_VAL);
+    return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_AND_COPY_VAL);
+} /* shf_get_copy_via_key() */
+
+int /* 0 means uid does not exist, 1 means uid found */
+shf_get_uid_val_copy(
+    SHF      * shf,
+    uint32_t   uid)
+{
+    return shf_find_key_internal(shf, uid, SHF_FIND_KEY_AND_COPY_VAL);
 } /* shf_get_copy_via_key() */
 
 int /* 0 means key does not exist, 1 means key deleted */
-shf_del_key(
+shf_del_key_val(
     SHF * shf)
 {
-    return shf_find_key_internal(shf, SHF_FIND_KEY_AND_DELETE);
+    return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_AND_DELETE);
+} /* shf_del_key() */
+
+int /* 0 means key does not exist, 1 means key deleted */
+shf_del_uid_val(
+    SHF      * shf,
+    uint32_t   uid)
+{
+    return shf_find_key_internal(shf, uid, SHF_FIND_KEY_AND_DELETE);
 } /* shf_del_key() */
 
 void

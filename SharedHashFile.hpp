@@ -36,9 +36,11 @@ public:
     bool     AttachExisting(const char * path, const char * name);
     bool     Attach(const char * path, const char * name);
     void     MakeHash(const char * key, uint32_t key_len);
-    bool     GetCopyViaKey();
-    uint32_t PutVal(const char * val, uint32_t val_len);
-    bool     DelKey();
+    bool     GetKeyValCopy();
+    bool     GetUidValCopy(uint32_t uid);
+    uint32_t PutKeyVal(const char * val, uint32_t val_len);
+    bool     DelKeyVal();
+    bool     DelUidVal(uint32_t uid);
     uint64_t DebugGetBytesMarkedAsDeleted();
     void     DebugVerbosityLess();
     void     DebugVerbosityMore();

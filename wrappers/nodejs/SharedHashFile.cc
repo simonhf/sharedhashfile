@@ -56,6 +56,13 @@ using namespace v8;
         return scope.Close(Undefined()); \
     }
 
+#define SHF_VALIDATE_ARG_IS_INT32(ARG) \
+    if (!args[ARG]->IsNumber()) { \
+        ThrowException(Exception::TypeError(String::New("Wrong argument type; must be number; int32"))); \
+        return scope.Close(Undefined()); \
+    } \
+    uint32_t arg##ARG = args[ARG]->ToInt32()->Value();
+
 #define SHF_GET_SHAREDHASHFILE_OBJ() \
     sharedHashFile * obj = ObjectWrap::Unwrap<sharedHashFile>(args.This());
 
@@ -74,9 +81,11 @@ private:
     static v8::Handle<v8::Value> AttachExisting              (const v8::Arguments& args);
     static v8::Handle<v8::Value> Attach                      (const v8::Arguments& args);
     static v8::Handle<v8::Value> MakeHash                    (const v8::Arguments& args);
-    static v8::Handle<v8::Value> DelKey                      (const v8::Arguments& args);
+    static v8::Handle<v8::Value> DelKeyVal                   (const v8::Arguments& args);
+    static v8::Handle<v8::Value> DelUidVal                   (const v8::Arguments& args);
     static v8::Handle<v8::Value> PutKeyVal                   (const v8::Arguments& args);
     static v8::Handle<v8::Value> GetKeyVal                   (const v8::Arguments& args);
+    static v8::Handle<v8::Value> GetUidVal                   (const v8::Arguments& args);
     static v8::Handle<v8::Value> DebugVerbosityLess          (const v8::Arguments& args);
     static v8::Handle<v8::Value> DebugVerbosityMore          (const v8::Arguments& args);
     static v8::Handle<v8::Value> DebugGetBytesMarkedAsDeleted(const v8::Arguments& args);
@@ -100,9 +109,11 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attachExisting"              ), FunctionTemplate::New(AttachExisting              )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attach"                      ), FunctionTemplate::New(Attach                      )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("makeHash"                    ), FunctionTemplate::New(MakeHash                    )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("delKey"                      ), FunctionTemplate::New(DelKey                      )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("delKeyVal"                   ), FunctionTemplate::New(DelKeyVal                   )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("delUidVal"                   ), FunctionTemplate::New(DelUidVal                   )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("putKeyVal"                   ), FunctionTemplate::New(PutKeyVal                   )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("getKeyVal"                   ), FunctionTemplate::New(GetKeyVal                   )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("getUidVal"                   ), FunctionTemplate::New(GetUidVal                   )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityLess"          ), FunctionTemplate::New(DebugVerbosityLess          )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityMore"          ), FunctionTemplate::New(DebugVerbosityMore          )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugGetBytesMarkedAsDeleted"), FunctionTemplate::New(DebugGetBytesMarkedAsDeleted)->GetFunction());
@@ -175,13 +186,13 @@ sharedHashFile::PutKeyVal(const Arguments& args) {
     SHF_GET_SHAREDHASHFILE_OBJ();
 
     obj->shf->MakeHash(*arg0, arg0.length());
-    obj->shf->PutVal(*arg1, arg1.length()); // todo: make a ::PutKeyVal version that returns the UID
+    uint32_t uid = obj->shf->PutKeyVal(*arg1, arg1.length());
 
-    return scope.Close(Undefined());
+    return scope.Close(Number::New(uid));
 }
 
 Handle<Value>
-sharedHashFile::DelKey(const Arguments& args) {
+sharedHashFile::DelKeyVal(const Arguments& args) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     SHF_HANDLE_SCOPE();
     SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
@@ -189,7 +200,21 @@ sharedHashFile::DelKey(const Arguments& args) {
     SHF_GET_SHAREDHASHFILE_OBJ();
 
     obj->shf->MakeHash(*arg0, arg0.length());
-    uint32_t value = obj->shf->DelKey();
+    uint32_t value = obj->shf->DelKeyVal();
+
+    return scope.Close(Number::New(value));
+}
+
+Handle<Value>
+sharedHashFile::DelUidVal(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    uint32_t uid = arg0;
+    uint32_t value = obj->shf->DelUidVal(uid);
 
     return scope.Close(Number::New(value));
 }
@@ -215,8 +240,21 @@ sharedHashFile::GetKeyVal(const Arguments& args) {
     SHF_GET_SHAREDHASHFILE_OBJ();
 
     obj->shf->MakeHash(*arg0, arg0.length());
-    if (0 == obj->shf->GetCopyViaKey()) { return scope.Close(Undefined()); }
+    if (0 == obj->shf->GetKeyValCopy()) { return scope.Close(Undefined()); }
     else                                { return scope.Close(String::New(shf_val, shf_val_len)); }
+}
+
+Handle<Value>
+sharedHashFile::GetUidVal(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t uid = arg0;
+    if (0 == obj->shf->GetUidValCopy(uid)) { return scope.Close(Undefined()); }
+    else                                   { return scope.Close(String::New(shf_val, shf_val_len)); }
 }
 
 Handle<Value>

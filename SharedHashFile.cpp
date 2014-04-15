@@ -69,26 +69,40 @@ SharedHashFile::MakeHash( // todo: warn in docs that ::MakeHash works __thread g
 }
 
 bool
-SharedHashFile::GetCopyViaKey()
+SharedHashFile::GetKeyValCopy()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_get_copy_via_key(shf);
+    return shf_get_key_val_copy(shf);
+}
+
+bool
+SharedHashFile::GetUidValCopy(uint32_t uid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_get_uid_val_copy(shf, uid);
 }
 
 uint32_t
-SharedHashFile::PutVal(
+SharedHashFile::PutKeyVal(
     const char * val    ,
     uint32_t     val_len)
 {
     SHF_DEBUG("%s(val=?, val_len=%u)\n", __FUNCTION__, val_len);
-    return shf_put_val(shf, val, val_len);
+    return shf_put_key_val(shf, val, val_len);
 }
 
 bool
-SharedHashFile::DelKey()
+SharedHashFile::DelKeyVal()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_del_key(shf);
+    return shf_del_key_val(shf);
+}
+
+bool
+SharedHashFile::DelUidVal(uint32_t uid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_del_uid_val(shf, uid);
 }
 
 uint64_t

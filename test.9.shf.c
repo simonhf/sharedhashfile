@@ -31,30 +31,33 @@
 
 int main(void)
 {
-    plan_tests(21);
+    plan_tests(22);
 
     char  test_shf_name[256];
     char  test_shf_folder[] = "/dev/shm";
     pid_t pid               = getpid();
     SHF_SNPRINTF(1, test_shf_name, "test-%05u", pid);
 
-                       shf_init            ();
-    SHF *       shf =  shf_attach_existing (test_shf_folder, test_shf_name); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
-                shf =  shf_attach          (test_shf_folder, test_shf_name); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
-                       SHF_MAKE_HASH       (         "key"    );
-    ok(0            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could not find unput key as expected");
-    ok(0            == shf_del_key         (shf               ), "c: shf_del_key()          could not find unput key as expected");
-    ok(SHF_UID_NONE != shf_put_val         (shf    , "val" , 3), "c: shf_put_val()                           put key as expected");
-    ok(1            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could     find   put key as expected");
-    ok(3            == shf_val_len                             , "c: shf_val_len                                     as expected");
-    ok(0            == memcmp              (shf_val, "val" , 3), "c: shf_val                                         as expected");
-    ok(1            == shf_del_key         (shf               ), "c: shf_del_key()          could     find   put key as expected");
-    ok(0            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could not find   del key as expected");
-    ok(0            == shf_del_key         (shf               ), "c: shf_del_key()          could not find   del key as expected");
-    ok(SHF_UID_NONE != shf_put_val         (shf    , "val2", 4), "c: shf_put_val()                         reput key as expected");
-    ok(1            == shf_get_copy_via_key(shf               ), "c: shf_get_copy_via_key() could     find reput key as expected");
-    ok(4            == shf_val_len                             , "c: shf_val_len                                     as expected");
-    ok(0            == memcmp              (shf_val, "val2", 4), "c: shf_val                                         as expected");
+                    shf_init            ();
+    SHF    * shf =  shf_attach_existing (test_shf_folder, test_shf_name); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
+             shf =  shf_attach          (test_shf_folder, test_shf_name); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
+                    SHF_MAKE_HASH       (         "key"    );
+    ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find unput key as expected");
+    ok(0         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could not find unput key as expected");
+    uint32_t uid =  shf_put_key_val     (shf    , "val" , 3)                                                                   ;
+    ok(      uid != SHF_UID_NONE                            , "c: shf_put_val()                           put key as expected");
+    ok(1         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could     find   put key as expected");
+    ok(3         == shf_val_len                             , "c: shf_val_len                                     as expected");
+    ok(0         == memcmp              (shf_val, "val" , 3), "c: shf_val                                         as expected");
+    ok(1         == shf_del_uid_val     (shf,uid           ), "c: shf_del_uid_val()      could     find   put key as expected");
+    ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find   del key as expected");
+    ok(0         == shf_del_uid_val     (shf,uid           ), "c: shf_del_uid_val()      could not find   del key as expected");
+             uid =  shf_put_key_val     (shf    , "val2", 4)                                                                   ;
+    ok(      uid != SHF_UID_NONE                            , "c: shf_put_key_val()                     reput key as expected");
+    ok(1         == shf_get_uid_val_copy(shf,uid           ), "c: shf_get_uid_val_copy() could     find reput key as expected");
+    ok(4         == shf_val_len                             , "c: shf_val_len                                     as expected");
+    ok(0         == memcmp              (shf_val, "val2", 4), "c: shf_val                                         as expected");
+    ok(1         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could     find reput key as expected");
 
     uint32_t test_keys = 250000;
     {
@@ -62,7 +65,7 @@ int main(void)
         double test_start_time = shf_get_time_in_seconds();
         for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-            shf_put_val(shf, SHF_CAST(const char *, &i), sizeof(i));
+            shf_put_key_val(shf, SHF_CAST(const char *, &i), sizeof(i));
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         ok(1, "c: put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
@@ -75,7 +78,7 @@ int main(void)
         uint32_t keys_found = 0;
         for (uint32_t i = (test_keys * 2); i < (test_keys * 3); i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-            keys_found += shf_get_copy_via_key(shf);
+            keys_found += shf_get_key_val_copy(shf);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         ok(0 == keys_found, "c: got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
@@ -88,7 +91,7 @@ int main(void)
         uint32_t keys_found = 0;
         for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-            keys_found += shf_get_copy_via_key(shf);
+            keys_found += shf_get_key_val_copy(shf);
             SHF_ASSERT(sizeof(i) == shf_val_len, "INTERNAL: expected shf_val_len to be %lu but got %u\n", sizeof(i), shf_val_len);
             SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
@@ -105,7 +108,7 @@ int main(void)
         uint32_t keys_found = 0;
         for (uint32_t i = 0; i < test_keys; i++) {
             shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-            keys_found += shf_del_key(shf);
+            keys_found += shf_del_key_val(shf);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         ok(test_keys == keys_found, "c: del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);

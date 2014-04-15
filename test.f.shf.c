@@ -23,7 +23,7 @@
 
 #define _GNU_SOURCE   /* See feature_test_macros(7) */
 #include <sys/mman.h> /* for mremap() */
-#include <string.h>   /* for memcmp() */
+// #include <string.h>   /* for memcmp() */
 
 #include "shf.private.h"
 #include "shf.h"
@@ -91,7 +91,7 @@ int main(void)
                     uint32_t key = test_keys / processes * process + i;
                     put_counts[process] ++;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
-                    shf_put_val(shf, SHF_CAST(const char *, &key), sizeof(key));
+                    shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key));
                 }
                 usleep(2000000); /* one second */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
@@ -100,12 +100,12 @@ int main(void)
                     uint32_t key = test_keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
                     if (0 == i % 50) {
-                        shf_del_key(shf);
-                        shf_put_val(shf, SHF_CAST(const char *, &key), sizeof(key));
+                        shf_del_key_val(shf);
+                        shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key));
                         mix_counts[process] ++;
                     }
                     else {
-                        mix_counts[process] += shf_get_copy_via_key(shf);
+                        mix_counts[process] += shf_get_key_val_copy(shf);
                     }
                 }
                 usleep(2000000); /* one second */
@@ -114,7 +114,7 @@ int main(void)
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
                     uint32_t key = test_keys / processes * process + i;
                     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
-                    get_counts[process] += shf_get_copy_via_key(shf);
+                    get_counts[process] += shf_get_key_val_copy(shf);
                 }
                 exit(0);
             }
