@@ -62,6 +62,8 @@ int main(void)
 
 #define TEST_MAX_PROCESSES (16)
 
+    shf_set_data_need_factor(250);
+
              uint32_t   test_keys = 50 * 1000000;
              uint32_t   process;
              uint32_t   cpu_count = test_get_cpu_count();

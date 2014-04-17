@@ -113,16 +113,13 @@ typedef union SHF_UID {
     uint32_t as_u32;
 } __attribute__((packed)) SHF_UID;
 
-// todo: typedef struct SHF_LINK {
-// todo:     SHF_UID last;
-// todo:     SHF_UID next;
-// todo: } __attribute__((packed)) SHF_LINK;
-
 typedef union SHF_HASH { // todo: just use uid instead
     uint64_t u64[2];
     uint32_t u32[4];
     uint16_t u16[8];
     uint8_t  u08[16];
 } __attribute__((packed)) SHF_HASH;
+
+extern __thread SHF_HASH shf_hash;
 
 #endif /* __SHF_PRIVATE_H__ */

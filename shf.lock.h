@@ -136,6 +136,27 @@ shf_spin_lock(SHF_SPIN_LOCK * lock)
     return SHF_SPIN_LOCK_STATUS_LOCKED;
 } /* shf_spin_lock() */
 
+static inline SHF_LOCK_STATUS
+shf_spin_lock_try(SHF_SPIN_LOCK * lock)
+{
+    long our_tid = SHF_GETTID();
+    long old_tid;
+
+    if ((old_tid = InterlockedCompareExchange(&lock->lock, our_tid, 0)) != 0) {
+        if (old_tid == our_tid) {
+            fprintf(stderr, "lock %p already held by our tid %ld\n", &lock->lock, our_tid);
+            return SHF_SPIN_LOCK_STATUS_LOCKED_ALREADY;
+        }
+#ifdef SHF_DEBUG_VERSION
+        lock->conflicts ++;
+#endif
+        return SHF_SPIN_LOCK_STATUS_FAILED;
+    }
+
+    lock->pid = getpid();
+    return SHF_SPIN_LOCK_STATUS_LOCKED;
+} /* shf_spin_lock_try() */
+
 static inline void
 shf_spin_unlock(SHF_SPIN_LOCK * lock)
 {

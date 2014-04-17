@@ -46,7 +46,9 @@
 static                 FILE    * shf_debug_file            = 0   ;
 #endif
 
-       __thread       SHF_HASH   shf_hash;
+       __thread       SHF_HASH   shf_hash                        ;
+
+       __thread       uint32_t   shf_uid                         ;
 
 static __thread       uint8_t  * shf_val_addr                    ;
 static __thread       uint32_t   shf_val_size                    ; /* mmap() size */
@@ -55,6 +57,8 @@ static __thread       uint32_t   shf_val_size                    ; /* mmap() siz
 
 static __thread const char     * shf_key                         ; /* used by shf_make_hash() */
 static __thread       uint32_t   shf_key_len                     ; /* used by shf_make_hash() */
+
+static __thread       uint32_t   shf_data_needed_factor    = 1   ;
 
 static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
 static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
@@ -361,7 +365,7 @@ shf_make_hash(
     SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 1); \
     if (data_needed > data_available) { \
         SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 2); \
-        uint32_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + data_needed); \
+        uint32_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
         char file_tab[256]; \
         SHF_SNPRINTF(0, file_tab, "%s/%s.shf/%03u/%04u.tab", SHF->path, SHF->name, win, TAB); \
         SHF_DEBUG("- grow tab from %u to %u; need %u bytes but %u bytes available in '%s'\n", TAB_MMAP->tab_size, new_tab_size, data_needed, data_available, file_tab); \
@@ -374,6 +378,7 @@ shf_make_hash(
         } \
         else { \
             TAB_MMAP = mremap(SHF->tabs[win][TAB].tab_mmap, SHF->tabs[win][TAB].tab_size, new_tab_size, MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != TAB_MMAP, "mremap(): %u: ", errno); \
+            madvise(TAB_MMAP, new_tab_size, MADV_RANDOM | MADV_DONTDUMP); /* todo: test if madvise() makes any performance difference */ \
             SHF->shf_mmap->wins[win].tabs_mremaps ++; \
         } \
         /* debug paranoia */ SHF_U08_AT(TAB_MMAP, new_tab_size - 1) ++; \
@@ -748,15 +753,15 @@ shf_find_key_internal(
     return result;
 } /* shf_find_key_internal() */
 
-uint8_t * shf_get_key_val_addr(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                     */ // todo: add shf_freeze() to make addr safer to use
-uint8_t * shf_get_uid_val_addr(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                     */ // todo: add shf_freeze() to make addr safer to use
-int       shf_get_key_val_copy(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* 0 means key does not exist, 1 means key found   */
-int       shf_get_uid_val_copy(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* 0 means key does not exist, 1 means key found   */
-int       shf_del_key_val     (SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* 0 means key does not exist, 1 means key deleted */
-int       shf_del_uid_val     (SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* 0 means key does not exist, 1 means key deleted */
+void * shf_get_key_val_addr(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                     */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+void * shf_get_uid_val_addr(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                     */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+int    shf_get_key_val_copy(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* 0 means key does not exist, 1 means key found   */
+int    shf_get_uid_val_copy(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* 0 means key does not exist, 1 means key found   */
+int    shf_del_key_val     (SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* 0 means key does not exist, 1 means key deleted */
+int    shf_del_uid_val     (SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* 0 means key does not exist, 1 means key deleted */
 
-void      shf_debug_verbosity_less(void) { shf_debug_disabled ++; }
-void      shf_debug_verbosity_more(void) { shf_debug_disabled --; }
+void   shf_debug_verbosity_less(void) { shf_debug_disabled ++; }
+void   shf_debug_verbosity_more(void) { shf_debug_disabled --; }
 
 void
 shf_del(
@@ -779,3 +784,11 @@ shf_debug_get_bytes_marked_as_deleted(
     }
     return all_data_free;
 } /* shf_debug_get_bytes_marked_as_deleted() */
+
+void
+shf_set_data_need_factor(
+    uint32_t data_needed_factor)
+{
+    SHF_ASSERT(shf_data_needed_factor > 0, "ERROR: data_needed_factor must be > 0");
+    shf_data_needed_factor = data_needed_factor;
+} /* shf_set_data_need_factor() */

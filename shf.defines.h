@@ -54,6 +54,7 @@ extern int32_t shf_debug_disabled;
 #define SHF_MOD_PAGE(BYTES) ((((BYTES - 1) / SHF_SIZE_PAGE) + 1) * SHF_SIZE_PAGE)
 
 #define SHF_MAKE_HASH(KEY) shf_make_hash(KEY, sizeof(KEY) - 1)
+#define SHF_CONST_STR_AND_SIZE(KEY) KEY, (sizeof(KEY) - 1)
 
 #define SHF_U08_AT(BASE, OFFSET)                                        SHF_CAST(uint8_t *, BASE)[OFFSET]
 #define SHF_U32_AT(BASE, OFFSET)                 SHF_CAST(uint32_t *, &(SHF_CAST(uint8_t *, BASE)[OFFSET]))[0]

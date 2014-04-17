@@ -70,6 +70,7 @@ typedef union SHF_DATA_TYPE {
 #define SHF_DATA_TYPE_DELETED (0xff)
 #define SHF_UID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
 
+extern __thread uint32_t   shf_uid    ;
 extern __thread char     * shf_val    ;
 extern __thread uint32_t   shf_val_len;
 
@@ -83,13 +84,15 @@ extern void       shf_make_hash(const char * key, uint32_t key_len);
 extern uint32_t   shf_put_key_val(SHF * shf, const char * val, uint32_t val_len);
 extern int        shf_get_key_val_copy(SHF * shf);
 extern int        shf_get_uid_val_copy(SHF * shf, uint32_t uid);
-extern uint8_t  * shf_get_key_val_addr(SHF * shf);
-extern uint8_t  * shf_get_uid_val_addr(SHF * shf, uint32_t uid);
+extern void     * shf_get_key_val_addr(SHF * shf);
+extern void     * shf_get_uid_val_addr(SHF * shf, uint32_t uid);
 extern int        shf_del_key_val(SHF * shf);
 extern int        shf_del_uid_val(SHF * shf, uint32_t uid);
 extern void       shf_del(SHF * shf);
 extern uint64_t   shf_debug_get_bytes_marked_as_deleted(SHF * shf);
 extern void       shf_debug_verbosity_less(void);
 extern void       shf_debug_verbosity_more(void);
+extern void       shf_set_data_need_factor(uint32_t data_needed_factor);
+
 
 #endif /* __SHF_H__ */
