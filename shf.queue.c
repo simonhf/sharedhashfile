@@ -233,7 +233,8 @@ shf_queue_pull_tail( /* note: safe before shf_freeze() if single threaded access
     const char * debug = "";
 #endif
 
-    shf_uid = SHF_UID_NONE;
+    shf_uid  = SHF_UID_NONE;
+    shf_addr = NULL;
 
     SHF_QUEUE_GET_UID_VAL_ADDR(head, uid_head);
     SHF_QUEUE_NAME_ITEM * name_item = SHF_CAST(SHF_QUEUE_NAME_ITEM *, &head->data[0]);
@@ -250,8 +251,9 @@ shf_queue_pull_tail( /* note: safe before shf_freeze() if single threaded access
     else {
         SHF_QUEUE_GET_UID_VAL_ADDR(item, tail->uid_next);
         SHF_QUEUE_GET_UID_VAL_ADDR(next, item->uid_next);
-        result_item    = item;
-        shf_uid        = tail->uid_next;
+        result_item    =  item;
+        shf_addr       = &item->data[0];
+        shf_uid        =  tail->uid_next;
         if (item->uid_next == uid_head) {
 #ifdef SHF_DEBUG_VERSION
             debug = "pulled 1 of 1  item  from queue ";

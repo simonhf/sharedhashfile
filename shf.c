@@ -49,6 +49,7 @@ static                 FILE    * shf_debug_file            = 0   ;
        __thread       SHF_HASH   shf_hash                        ;
 
        __thread       uint32_t   shf_uid                         ;
+       __thread       void     * shf_addr                        ;
 
 static __thread       uint8_t  * shf_val_addr                    ;
 static __thread       uint32_t   shf_val_size                    ; /* mmap() size */

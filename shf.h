@@ -71,6 +71,7 @@ typedef union SHF_DATA_TYPE {
 #define SHF_UID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
 
 extern __thread uint32_t   shf_uid    ;
+extern __thread void     * shf_addr   ;
 extern __thread char     * shf_val    ;
 extern __thread uint32_t   shf_val_len;
 

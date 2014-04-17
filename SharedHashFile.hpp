@@ -50,7 +50,7 @@ public:
     uint32_t   QueueNewName      (const char * key, uint32_t key_len);
     uint32_t   QueueGetName      (const char * key, uint32_t key_len);
     void       QueuePushHead     (uint32_t uid_head, uint32_t uid);
-    void     * QueuePullTail     (uint32_t uid_head);
+    void     * QueuePullTail     (uint32_t uid_head); /* sets both shf_uid & shf_addr */
     void     * QueueTakeItem     (uint32_t uid_head, uint32_t uid);
 
 private:

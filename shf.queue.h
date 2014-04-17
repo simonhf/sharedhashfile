@@ -30,7 +30,7 @@ extern uint32_t   shf_queue_new_item (SHF * shf, uint32_t data_size             
 extern uint32_t   shf_queue_new_name (SHF * shf, const char * key, uint32_t key_len);
 extern uint32_t   shf_queue_get_name (SHF * shf, const char * key, uint32_t key_len);
 extern void       shf_queue_push_head(SHF * shf, uint32_t uid_head, uint32_t uid   );
-extern void     * shf_queue_pull_tail(SHF * shf, uint32_t uid_head                 );
+extern void     * shf_queue_pull_tail(SHF * shf, uint32_t uid_head                 ); /* sets both shf_uid & shf_addr */
 extern void     * shf_queue_take_item(SHF * shf, uint32_t uid_head, uint32_t uid   );
 
 #endif /* __SHF_QUEUE_H__ */

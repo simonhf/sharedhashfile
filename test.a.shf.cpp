@@ -80,6 +80,7 @@ main(/* int argc,char **argv */)
     test_pull_items = 0;
     while(NULL != shf->QueuePullTail(uid_queue_unused         )) { /* e.g. items transferred from unused to a2b queue by process a */
                   shf->QueuePushHead(uid_queue_a2b   , shf_uid);
+                  SHF_CAST(uint32_t *, shf_addr)[0] = test_pull_items;
                   test_pull_items ++;
     }
     ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from unused to a2b    as expected");
@@ -87,6 +88,7 @@ main(/* int argc,char **argv */)
     test_pull_items = 0;
     while(NULL != shf->QueuePullTail(uid_queue_a2b         )) { /* e.g. items transferred from a2b to b2a queue by process b */
                   shf->QueuePushHead(uid_queue_b2a, shf_uid);
+                  SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_addr)[0], "INTERNAL: test expected %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_addr)[0]);
                   test_pull_items ++;
     }
     ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from a2b    to b2a    as expected");
@@ -94,6 +96,7 @@ main(/* int argc,char **argv */)
     test_pull_items = 0;
     while(NULL != shf->QueuePullTail(uid_queue_b2a            )) { /* e.g. items transferred from b2a to unused queue by process a */
                   shf->QueuePushHead(uid_queue_unused, shf_uid);
+                  SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_addr)[0], "INTERNAL: test expected %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_addr)[0]);
                   test_pull_items ++;
     }
     ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from b2a    to unused as expected");
