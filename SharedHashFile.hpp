@@ -27,23 +27,31 @@
 extern "C" {
 #include <shf.private.h>
 #include <shf.h>
+#include <shf.queue.h>
 }
 
 class SharedHashFile {
 public:
     SharedHashFile();
     ~SharedHashFile();
-    bool     AttachExisting(const char * path, const char * name);
-    bool     Attach(const char * path, const char * name);
-    void     MakeHash(const char * key, uint32_t key_len);
-    bool     GetKeyValCopy();
-    bool     GetUidValCopy(uint32_t uid);
-    uint32_t PutKeyVal(const char * val, uint32_t val_len);
-    bool     DelKeyVal();
-    bool     DelUidVal(uint32_t uid);
-    uint64_t DebugGetBytesMarkedAsDeleted();
-    void     DebugVerbosityLess();
-    void     DebugVerbosityMore();
+    bool       AttachExisting    (const char * path, const char * name);
+    bool       Attach            (const char * path, const char * name);
+    void       MakeHash          (const char * key, uint32_t key_len);
+    bool       GetKeyValCopy     ();
+    bool       GetUidValCopy     (uint32_t uid);
+    uint32_t   PutKeyVal         (const char * val, uint32_t val_len);
+    bool       DelKeyVal         ();
+    bool       DelUidVal         (uint32_t uid);
+    uint64_t   DebugGetGarbage   ();
+    void       DebugVerbosityLess();
+    void       DebugVerbosityMore();
+    void       SetDataNeedFactor (uint32_t data_needed_factor);
+    uint32_t   QueueNewItem      (uint32_t data_size);
+    uint32_t   QueueNewName      (const char * key, uint32_t key_len);
+    uint32_t   QueueGetName      (const char * key, uint32_t key_len);
+    void       QueuePushHead     (uint32_t uid_head, uint32_t uid);
+    void     * QueuePullTail     (uint32_t uid_head);
+    void     * QueueTakeItem     (uint32_t uid_head, uint32_t uid);
 
 private:
     SHF * shf;

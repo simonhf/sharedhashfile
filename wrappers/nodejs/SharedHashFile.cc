@@ -77,18 +77,18 @@ private:
     sharedHashFile();
     ~sharedHashFile();
 
-    static v8::Handle<v8::Value> New                         (const v8::Arguments& args);
-    static v8::Handle<v8::Value> AttachExisting              (const v8::Arguments& args);
-    static v8::Handle<v8::Value> Attach                      (const v8::Arguments& args);
-    static v8::Handle<v8::Value> MakeHash                    (const v8::Arguments& args);
-    static v8::Handle<v8::Value> DelKeyVal                   (const v8::Arguments& args);
-    static v8::Handle<v8::Value> DelUidVal                   (const v8::Arguments& args);
-    static v8::Handle<v8::Value> PutKeyVal                   (const v8::Arguments& args);
-    static v8::Handle<v8::Value> GetKeyVal                   (const v8::Arguments& args);
-    static v8::Handle<v8::Value> GetUidVal                   (const v8::Arguments& args);
-    static v8::Handle<v8::Value> DebugVerbosityLess          (const v8::Arguments& args);
-    static v8::Handle<v8::Value> DebugVerbosityMore          (const v8::Arguments& args);
-    static v8::Handle<v8::Value> DebugGetBytesMarkedAsDeleted(const v8::Arguments& args);
+    static v8::Handle<v8::Value> New               (const v8::Arguments& args);
+    static v8::Handle<v8::Value> AttachExisting    (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Attach            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> MakeHash          (const v8::Arguments& args);
+    static v8::Handle<v8::Value> DelKeyVal         (const v8::Arguments& args);
+    static v8::Handle<v8::Value> DelUidVal         (const v8::Arguments& args);
+    static v8::Handle<v8::Value> PutKeyVal         (const v8::Arguments& args);
+    static v8::Handle<v8::Value> GetKeyVal         (const v8::Arguments& args);
+    static v8::Handle<v8::Value> GetUidVal         (const v8::Arguments& args);
+    static v8::Handle<v8::Value> DebugVerbosityLess(const v8::Arguments& args);
+    static v8::Handle<v8::Value> DebugVerbosityMore(const v8::Arguments& args);
+    static v8::Handle<v8::Value> DebugGetGarbage   (const v8::Arguments& args);
 
     SharedHashFile * shf;
 };
@@ -106,17 +106,17 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->InstanceTemplate()->SetInternalFieldCount(1); // todo: figure out what this is good for! see: http://stackoverflow.com/questions/16600735/what-is-an-internal-field-count-and-what-is-setinternalfieldcount-used-for
 
     // Prototype
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("attachExisting"              ), FunctionTemplate::New(AttachExisting              )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("attach"                      ), FunctionTemplate::New(Attach                      )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("makeHash"                    ), FunctionTemplate::New(MakeHash                    )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("delKeyVal"                   ), FunctionTemplate::New(DelKeyVal                   )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("delUidVal"                   ), FunctionTemplate::New(DelUidVal                   )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("putKeyVal"                   ), FunctionTemplate::New(PutKeyVal                   )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("getKeyVal"                   ), FunctionTemplate::New(GetKeyVal                   )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("getUidVal"                   ), FunctionTemplate::New(GetUidVal                   )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityLess"          ), FunctionTemplate::New(DebugVerbosityLess          )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityMore"          ), FunctionTemplate::New(DebugVerbosityMore          )->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugGetBytesMarkedAsDeleted"), FunctionTemplate::New(DebugGetBytesMarkedAsDeleted)->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("attachExisting"    ), FunctionTemplate::New(AttachExisting    )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("attach"            ), FunctionTemplate::New(Attach            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("makeHash"          ), FunctionTemplate::New(MakeHash          )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("delKeyVal"         ), FunctionTemplate::New(DelKeyVal         )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("delUidVal"         ), FunctionTemplate::New(DelUidVal         )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("putKeyVal"         ), FunctionTemplate::New(PutKeyVal         )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("getKeyVal"         ), FunctionTemplate::New(GetKeyVal         )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("getUidVal"         ), FunctionTemplate::New(GetUidVal         )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityLess"), FunctionTemplate::New(DebugVerbosityLess)->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityMore"), FunctionTemplate::New(DebugVerbosityMore)->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugGetGarbage"   ), FunctionTemplate::New(DebugGetGarbage   )->GetFunction());
 
     Persistent<Function> constructor = Persistent<Function>::New(tpl->GetFunction());
     target->Set(String::NewSymbol("sharedHashFile"), constructor);
@@ -220,13 +220,13 @@ sharedHashFile::DelUidVal(const Arguments& args) {
 }
 
 Handle<Value>
-sharedHashFile::DebugGetBytesMarkedAsDeleted(const Arguments& args) {
+sharedHashFile::DebugGetGarbage(const Arguments& args) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     SHF_HANDLE_SCOPE();
     SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
     SHF_GET_SHAREDHASHFILE_OBJ();
 
-    uint64_t value = obj->shf->DebugGetBytesMarkedAsDeleted();
+    uint64_t value = obj->shf->DebugGetGarbage();
 
     return scope.Close(Number::New(value));
 }

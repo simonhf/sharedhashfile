@@ -772,7 +772,7 @@ shf_del(
 } /* shf_del() */
 
 uint64_t
-shf_debug_get_bytes_marked_as_deleted(
+shf_debug_get_garbage( /* get total bytes marked as deleted aka garbage */
     SHF * shf)
 {
     uint64_t all_data_free = 0;
@@ -783,7 +783,7 @@ shf_debug_get_bytes_marked_as_deleted(
         }
     }
     return all_data_free;
-} /* shf_debug_get_bytes_marked_as_deleted() */
+} /* shf_debug_get_garbage() */
 
 void
 shf_set_data_need_factor(

@@ -106,10 +106,10 @@ SharedHashFile::DelUidVal(uint32_t uid)
 }
 
 uint64_t
-SharedHashFile::DebugGetBytesMarkedAsDeleted()
+SharedHashFile::DebugGetGarbage()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_debug_get_bytes_marked_as_deleted(shf);
+    return shf_debug_get_garbage(shf);
 }
 
 void
@@ -122,4 +122,53 @@ void
 SharedHashFile::DebugVerbosityMore()
 {
     shf_debug_verbosity_more();
+}
+
+void
+SharedHashFile::SetDataNeedFactor(uint32_t data_needed_factor)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_set_data_need_factor(data_needed_factor);
+}
+
+uint32_t
+SharedHashFile::QueueNewItem(uint32_t data_size)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_queue_new_item(shf, data_size);
+}
+
+uint32_t
+SharedHashFile::QueueNewName(const char * key, uint32_t key_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_queue_new_name(shf, key, key_len);
+}
+
+uint32_t
+SharedHashFile::QueueGetName(const char * key, uint32_t key_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_queue_get_name (shf, key, key_len);
+}
+
+void
+SharedHashFile::QueuePushHead(uint32_t uid_head, uint32_t uid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_queue_push_head(shf, uid_head, uid);
+}
+
+void *
+SharedHashFile::QueuePullTail(uint32_t uid_head)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_queue_pull_tail(shf, uid_head);
+}
+
+void *
+SharedHashFile::QueueTakeItem(uint32_t uid_head, uint32_t uid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_queue_take_item(shf, uid_head, uid);
 }

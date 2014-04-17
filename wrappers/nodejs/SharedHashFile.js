@@ -102,7 +102,7 @@ var test_keys = 250000;
     shf.debugVerbosityMore();
 }
 
-ok(0 == shf.debugGetBytesMarkedAsDeleted(), "nodejs: graceful growth cleans up after itself as expected");
+ok(0 == shf.debugGetGarbage(), "nodejs: graceful growth cleans up after itself as expected");
 
 {
     shf.debugVerbosityLess();
@@ -116,7 +116,7 @@ ok(0 == shf.debugGetBytesMarkedAsDeleted(), "nodejs: graceful growth cleans up a
     shf.debugVerbosityMore();
 }
 
-ok(0 != shf.debugGetBytesMarkedAsDeleted(), "nodejs: del does not    clean  up after itself as expected");
+ok(0 != shf.debugGetGarbage(), "nodejs: del does not    clean  up after itself as expected");
 
 // todo: delete shf;
 

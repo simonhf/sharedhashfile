@@ -63,9 +63,9 @@ int main(void)
     uint32_t uid_queue_unused =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused")); /* e.g. queue names created by process a */
     uint32_t uid_queue_a2b    =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
     uint32_t uid_queue_b2a    =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
-    ok(      uid_queue_unused == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused")), "c: shf_queue_get('queue-unused') returned uid as expected");  /* e.g. queue names got by process b */
-    ok(      uid_queue_a2b    == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   )), "c: shf_queue_get('queue-a2b'   ) returned uid as expected");
-    ok(      uid_queue_b2a    == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   )), "c: shf_queue_get('queue-b2a'   ) returned uid as expected");
+    ok(      uid_queue_unused == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused")), "c: shf_queue_get_name('queue-unused') returned uid as expected");  /* e.g. queue names got by process b */
+    ok(      uid_queue_a2b    == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   )), "c: shf_queue_get_name('queue-a2b'   ) returned uid as expected");
+    ok(      uid_queue_b2a    == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   )), "c: shf_queue_get_name('queue-b2a'   ) returned uid as expected");
 
     uint32_t test_pull_items;
     uint32_t test_queue_items = 10;
@@ -139,7 +139,7 @@ int main(void)
         shf_debug_verbosity_more();
     }
 
-    ok(0 == shf_debug_get_bytes_marked_as_deleted(shf), "c: graceful growth cleans up after itself as expected");
+    ok(0 == shf_debug_get_garbage(shf), "c: graceful growth cleans up after itself as expected");
 
     {
         shf_debug_verbosity_less();
@@ -154,7 +154,7 @@ int main(void)
         shf_debug_verbosity_more();
     }
 
-    ok(0 != shf_debug_get_bytes_marked_as_deleted(shf), "c: del does not    clean  up after itself as expected");
+    ok(0 != shf_debug_get_garbage(shf), "c: del does not    clean  up after itself as expected");
 
     {
         shf_debug_verbosity_less();
@@ -177,7 +177,7 @@ int main(void)
                       test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(10 + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_queue_items + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -190,7 +190,7 @@ int main(void)
                       test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(10 + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_queue_items + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -203,7 +203,7 @@ int main(void)
                       test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(10 + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_queue_items + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
