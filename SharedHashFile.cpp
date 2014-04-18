@@ -138,6 +138,13 @@ SharedHashFile::QueueNewItem(uint32_t data_size)
     return shf_queue_new_item(shf, data_size);
 }
 
+void
+SharedHashFile::QueuePutItem(uint32_t uid, const char * data, uint32_t data_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_queue_put_item(shf, uid, data, data_len);
+}
+
 uint32_t
 SharedHashFile::QueueNewName(const char * key, uint32_t key_len)
 {

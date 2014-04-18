@@ -70,10 +70,11 @@ typedef union SHF_DATA_TYPE {
 #define SHF_DATA_TYPE_DELETED (0xff)
 #define SHF_UID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
 
-extern __thread uint32_t   shf_uid    ;
-extern __thread void     * shf_addr   ;
-extern __thread char     * shf_val    ;
-extern __thread uint32_t   shf_val_len;
+extern __thread uint32_t   shf_uid          ;
+extern __thread void     * shf_item_addr    ;
+extern __thread uint32_t   shf_item_addr_len;
+extern __thread char     * shf_val          ;
+extern __thread uint32_t   shf_val_len      ;
 
 extern char     * shf_backticks           (const char * command);
 extern double     shf_get_time_in_seconds (void);

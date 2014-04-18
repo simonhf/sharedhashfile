@@ -86,9 +86,18 @@ private:
     static v8::Handle<v8::Value> PutKeyVal         (const v8::Arguments& args);
     static v8::Handle<v8::Value> GetKeyVal         (const v8::Arguments& args);
     static v8::Handle<v8::Value> GetUidVal         (const v8::Arguments& args);
+    static v8::Handle<v8::Value> DebugGetGarbage   (const v8::Arguments& args);
     static v8::Handle<v8::Value> DebugVerbosityLess(const v8::Arguments& args);
     static v8::Handle<v8::Value> DebugVerbosityMore(const v8::Arguments& args);
-    static v8::Handle<v8::Value> DebugGetGarbage   (const v8::Arguments& args);
+    static v8::Handle<v8::Value> SetDataNeedFactor (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueueNewItem      (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueuePutItem      (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueueNewName      (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueueGetName      (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueuePushHead     (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueuePushHeadData (const v8::Arguments& args); /* QueuePutItem() + QueuePushHead() */
+    static v8::Handle<v8::Value> QueuePullTail     (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QueueTakeItem     (const v8::Arguments& args);
 
     SharedHashFile * shf;
 };
@@ -114,9 +123,18 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("putKeyVal"         ), FunctionTemplate::New(PutKeyVal         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("getKeyVal"         ), FunctionTemplate::New(GetKeyVal         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("getUidVal"         ), FunctionTemplate::New(GetUidVal         )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugGetGarbage"   ), FunctionTemplate::New(DebugGetGarbage   )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityLess"), FunctionTemplate::New(DebugVerbosityLess)->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityMore"), FunctionTemplate::New(DebugVerbosityMore)->GetFunction());
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("debugGetGarbage"   ), FunctionTemplate::New(DebugGetGarbage   )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("setDataNeedFactor" ), FunctionTemplate::New(SetDataNeedFactor )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queueNewItem"      ), FunctionTemplate::New(QueueNewItem      )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queuePutItem"      ), FunctionTemplate::New(QueuePutItem      )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queueNewName"      ), FunctionTemplate::New(QueueNewName      )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queueGetName"      ), FunctionTemplate::New(QueueGetName      )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queuePushHead"     ), FunctionTemplate::New(QueuePushHead     )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queuePushHeadData" ), FunctionTemplate::New(QueuePushHeadData )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queuePullTail"     ), FunctionTemplate::New(QueuePullTail     )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("queueTakeItem"     ), FunctionTemplate::New(QueueTakeItem     )->GetFunction());
 
     Persistent<Function> constructor = Persistent<Function>::New(tpl->GetFunction());
     target->Set(String::NewSymbol("sharedHashFile"), constructor);
@@ -220,18 +238,6 @@ sharedHashFile::DelUidVal(const Arguments& args) {
 }
 
 Handle<Value>
-sharedHashFile::DebugGetGarbage(const Arguments& args) {
-    SHF_DEBUG("%s()\n", __FUNCTION__);
-    SHF_HANDLE_SCOPE();
-    SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
-    SHF_GET_SHAREDHASHFILE_OBJ();
-
-    uint64_t value = obj->shf->DebugGetGarbage();
-
-    return scope.Close(Number::New(value));
-}
-
-Handle<Value>
 sharedHashFile::GetKeyVal(const Arguments& args) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     SHF_HANDLE_SCOPE();
@@ -258,6 +264,18 @@ sharedHashFile::GetUidVal(const Arguments& args) {
 }
 
 Handle<Value>
+sharedHashFile::DebugGetGarbage(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    uint64_t bytes_marked_as_deleted = obj->shf->DebugGetGarbage();
+
+    return scope.Close(Number::New(bytes_marked_as_deleted));
+}
+
+Handle<Value>
 sharedHashFile::DebugVerbosityLess(const Arguments& args) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     SHF_HANDLE_SCOPE();
@@ -279,6 +297,149 @@ sharedHashFile::DebugVerbosityMore(const Arguments& args) {
     obj->shf->DebugVerbosityLess();
 
     return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::SetDataNeedFactor(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    obj->shf->SetDataNeedFactor(arg0);
+
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::QueueNewItem(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t data_size = arg0;
+    int32_t uid = obj->shf->QueueNewItem(data_size);
+
+    return scope.Close(Number::New(uid));
+}
+
+Handle<Value>
+sharedHashFile::QueuePutItem(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(2);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_STRING(1);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t uid = arg0;
+    obj->shf->QueuePutItem(uid, *arg1, arg1.length());
+
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::QueueNewName(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_STRING(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t uid = obj->shf->QueueNewName(*arg0, arg0.length());
+
+    return scope.Close(Number::New(uid));
+}
+
+Handle<Value>
+sharedHashFile::QueueGetName(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_STRING(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t uid = obj->shf->QueueGetName(*arg0, arg0.length());
+
+    return scope.Close(Number::New(uid));
+}
+
+Handle<Value>
+sharedHashFile::QueuePushHead(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(2);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t uid_head = arg0;
+    int32_t uid_item = arg1;
+    obj->shf->QueuePushHead(uid_head, uid_item);
+
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::QueuePushHeadData(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_STRING(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    int32_t uid_head = arg0;
+    int32_t uid_item = arg1;
+    obj->shf->QueuePutItem (uid_item, *arg2, arg2.length());
+    obj->shf->QueuePushHead(uid_head, uid_item);
+
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::QueuePullTail(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    obj->shf->QueuePullTail(arg0);
+
+    if (SHF_UID_NONE == shf_uid)
+        return scope.Close(Undefined());
+
+    Local<v8::Array> result = v8::Array::New(2);
+    result->Set(0, v8::Integer::New(shf_uid));
+    result->Set(1, v8::String::New(SHF_CAST(char *, shf_item_addr), shf_item_addr_len));
+    return scope.Close(result);
+}
+
+Handle<Value>
+sharedHashFile::QueueTakeItem(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(2);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    ThrowException(Exception::TypeError(String::New("Function not implemented yet!")));
+
+    obj->shf->QueueTakeItem(arg0, arg1);
+
+    if (SHF_UID_NONE == shf_uid)
+        return scope.Close(Undefined());
+
+    Local<v8::Array> result = v8::Array::New(2);
+    result->Set(0, v8::Integer::New(shf_uid));
+    result->Set(1, v8::String::New(SHF_CAST(char *, shf_item_addr), shf_item_addr_len));
+    return scope.Close(result);
 }
 
 void

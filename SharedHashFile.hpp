@@ -47,10 +47,11 @@ public:
     void       DebugVerbosityMore();
     void       SetDataNeedFactor (uint32_t data_needed_factor);
     uint32_t   QueueNewItem      (uint32_t data_size);
+    void       QueuePutItem      (uint32_t uid, const char * data, uint32_t data_len); /* used to set item data from scripting languages */
     uint32_t   QueueNewName      (const char * key, uint32_t key_len);
     uint32_t   QueueGetName      (const char * key, uint32_t key_len);
     void       QueuePushHead     (uint32_t uid_head, uint32_t uid);
-    void     * QueuePullTail     (uint32_t uid_head); /* sets both shf_uid & shf_addr */
+    void     * QueuePullTail     (uint32_t uid_head); /* sets both shf_uid & shf_item_addr & shf_item_addr_len */
     void     * QueueTakeItem     (uint32_t uid_head, uint32_t uid);
 
 private:

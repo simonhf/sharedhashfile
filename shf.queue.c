@@ -28,13 +28,14 @@
 #include "shf.queue.h"
 
 typedef struct SHF_QUEUE_ITEM {
-    volatile uint32_t uid_last;
-    volatile uint32_t uid_next;
 #ifdef SHF_DEBUG_VERSION
     /* todo: consider adding debug magic number */
 #endif
-    uint32_t          data_size;
-    char              data[];
+    volatile uint32_t uid_last;
+    volatile uint32_t uid_next;
+             uint32_t data_used; /* data[] used          */
+             uint32_t data_size; /* data[] maximum size  */
+             char     data[]   ;
 } __attribute__((packed)) SHF_QUEUE_ITEM;
 
 static uint32_t shf_queue_win = 0;
@@ -91,6 +92,34 @@ shf_queue_new_item(
     return shf_queue_new_item_internal(shf, data_size, 0 /* do not force win */);
 } /* shf_queue_new_item() */
 
+#define SHF_QUEUE_GET_UID_VAL_ADDR(ADDR,UID) \
+    shf_debug_verbosity_less(); \
+    SHF_QUEUE_ITEM * ADDR = shf_get_uid_val_addr(shf, UID); \
+    SHF_ASSERT(NULL != ADDR, "ERROR: could not find addr for " #UID ": 0x%08x", UID); \
+    shf_debug_verbosity_more();
+
+void
+shf_queue_put_item(
+    SHF        * shf     ,
+    uint32_t     uid_item,
+    const char * data    ,
+    uint32_t     data_len)
+{
+    SHF_DEBUG("%s(shf=?, uid_item=0x%08x, data='%.*s', data_len=%u){}\n", __FUNCTION__, uid_item, data_len, data, data_len);
+
+    shf_debug_verbosity_less();
+
+    SHF_QUEUE_GET_UID_VAL_ADDR(item, uid_item);
+    SHF_ASSERT(SHF_UID_NONE == item->uid_next, "ERROR: expected uid_item 0x%08x to have ->uid_next SHF_UID_NONE", uid_item);
+    SHF_ASSERT(SHF_UID_NONE == item->uid_last, "ERROR: expected uid_item 0x%08x to have ->uid_last SHF_UID_NONE", uid_item);
+
+    shf_debug_verbosity_more();
+
+    SHF_ASSERT(item->data_size >= data_len, "ERROR: tried to put %u bytes into item with only %u bytes", data_len, item->data_size);
+    item->data_used = data_len;
+    memcpy(&item->data[0], data, data_len);
+} /* shf_queue_put_item() */
+
 typedef struct SHF_QUEUE_NAME {
     uint32_t uid;
 } __attribute__((packed)) SHF_QUEUE_NAME;
@@ -104,13 +133,13 @@ typedef struct SHF_QUEUE_NAME_ITEM {
 
 uint32_t /* SHF_UID; SHF_UID_NONE means something went wrong */
 shf_queue_new_name(
-    SHF        * shf    ,
-    const char * key    ,
-    uint32_t     key_len)
+    SHF        * shf     ,
+    const char * name    ,
+    uint32_t     name_len)
 {
     shf_debug_verbosity_less();
 
-    uint32_t              name_item_len  = sizeof(SHF_QUEUE_NAME_ITEM) + key_len;
+    uint32_t              name_item_len  = sizeof(SHF_QUEUE_NAME_ITEM) + name_len;
     SHF_QUEUE_NAME        queue_name;
                           queue_name.uid = shf_queue_new_item_internal(shf, name_item_len, 1 /* force win */);
     SHF_QUEUE_ITEM      * item           = shf_get_uid_val_addr(shf, queue_name.uid);
@@ -118,33 +147,33 @@ shf_queue_new_name(
     SHF_ASSERT(name_item_len == item->data_size, "INTERNAL: expected item->data_size %u but got %u", name_item_len, item->data_size);
             name_item->tail.uid_last = SHF_UID_NONE;
             name_item->tail.uid_next = SHF_UID_NONE;
-            name_item->name_len      = key_len;
-    memcpy(&name_item->name[0], key, key_len); /* copy queue name */
+            name_item->name_len      = name_len;
+    memcpy(&name_item->name[0], name, name_len); /* copy queue name */
 
-    shf_make_hash(key, key_len);
+    shf_make_hash(name, name_len);
     shf_put_key_val(shf, SHF_CAST(const char *, &queue_name), sizeof(queue_name));
 
     shf_debug_verbosity_more();
 
-    SHF_DEBUG("%s(shf=?, val='%.*s', val_len=%u){} // uid 0x%08x\n", __FUNCTION__, key_len, key, key_len, queue_name.uid);
+    SHF_DEBUG("%s(shf=?, name='%.*s', name_len=%u){} // uid 0x%08x\n", __FUNCTION__, name_len, name, name_len, queue_name.uid);
 
     return queue_name.uid;
 } /* shf_queue_new_name() */
 
 uint32_t /* SHF_UID; SHF_UID_NONE means something went wrong */
 shf_queue_get_name(
-    SHF        * shf    ,
-    const char * key    ,
-    uint32_t     key_len)
+    SHF        * shf     ,
+    const char * name    ,
+    uint32_t     name_len)
 {
     shf_debug_verbosity_less();
 
-    shf_make_hash(key, key_len);
-    SHF_QUEUE_NAME * queue_name = shf_get_key_val_addr(shf); SHF_ASSERT(NULL != queue_name, "ERROR: could not find addr for queue: %.*s", key_len, key);
+    shf_make_hash(name, name_len);
+    SHF_QUEUE_NAME * queue_name = shf_get_key_val_addr(shf); SHF_ASSERT(NULL != queue_name, "ERROR: could not find addr for queue: %.*s", name_len, name);
 
     shf_debug_verbosity_more();
 
-    SHF_DEBUG("%s(shf=?, val='%.*s', val_len=%u){} // return queue_uid=0x%08x\n", __FUNCTION__, key_len, key, key_len, queue_name->uid);
+    SHF_DEBUG("%s(shf=?, name='%.*s', name_len=%u){} // return queue_uid=0x%08x\n", __FUNCTION__, name_len, name, name_len, queue_name->uid);
 
     return queue_name->uid;
 } /* shf_queue_get_name() */
@@ -158,12 +187,6 @@ shf_queue_get_name(
 // after :                  ----     ----     ----     ----
 // after : SHF_UID_NONE <-- last <-- last <-- last <-- last
 // after :                  next --> next --> next --> next --> SHF_UID_NONE
-
-#define SHF_QUEUE_GET_UID_VAL_ADDR(ADDR,UID) \
-    shf_debug_verbosity_less(); \
-    SHF_QUEUE_ITEM * ADDR = shf_get_uid_val_addr(shf, UID); \
-    SHF_ASSERT(NULL != ADDR, "ERROR: could not find addr for " #UID ": 0x%08x", UID); \
-    shf_debug_verbosity_more();
 
 void
 shf_queue_push_head( /* note: safe before shf_freeze() if single threaded access */
@@ -233,8 +256,9 @@ shf_queue_pull_tail( /* note: safe before shf_freeze() if single threaded access
     const char * debug = "";
 #endif
 
-    shf_uid  = SHF_UID_NONE;
-    shf_addr = NULL;
+    shf_uid           = SHF_UID_NONE;
+    shf_item_addr     = NULL;
+    shf_item_addr_len = 0;
 
     SHF_QUEUE_GET_UID_VAL_ADDR(head, uid_head);
     SHF_QUEUE_NAME_ITEM * name_item = SHF_CAST(SHF_QUEUE_NAME_ITEM *, &head->data[0]);
@@ -251,9 +275,10 @@ shf_queue_pull_tail( /* note: safe before shf_freeze() if single threaded access
     else {
         SHF_QUEUE_GET_UID_VAL_ADDR(item, tail->uid_next);
         SHF_QUEUE_GET_UID_VAL_ADDR(next, item->uid_next);
-        result_item    =  item;
-        shf_addr       = &item->data[0];
-        shf_uid        =  tail->uid_next;
+        result_item       =  item;
+        shf_item_addr     = &item->data[0];
+        shf_item_addr_len =  item->data_size;
+        shf_uid           =  tail->uid_next;
         if (item->uid_next == uid_head) {
 #ifdef SHF_DEBUG_VERSION
             debug = "pulled 1 of 1  item  from queue ";
