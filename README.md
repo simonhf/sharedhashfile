@@ -326,7 +326,6 @@ make: built and tested release version
 
 ## TODO
 
-* Support access of previously added keys via UID instead of key.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.
@@ -338,6 +337,8 @@ make: built and tested release version
 * Add networking layer for distributed hash table.
 * Add more tests & enforce 100% code coverage.
 * Add command line utility tools.
+* Fix force lock bug in old spin lock implementation; thanks Eyal for spotting this!
+* Ensure client can crash at any time without corrupting hash table.
 * Port to Linux-like OSs which do not support mremap().
 * Port to Windows.
 * Test performance on flash drives.
