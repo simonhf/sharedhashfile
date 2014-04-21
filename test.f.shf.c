@@ -28,6 +28,160 @@
 #include "shf.private.h"
 #include "shf.h"
 
+#ifdef TEST_LMDB
+
+#include "lmdb.h"
+
+#define TEST_WHAT "LMDB aka Lightning MDB"
+
+#define TEST_INIT() \
+    pid_t pid = getpid(); \
+    char test_db_folder[256]   ; SHF_SNPRINTF(1, test_db_folder   , "/dev/shm/test-lmdb-%05u", pid           ); \
+    char test_mkdir_folder[256]; SHF_SNPRINTF(1, test_mkdir_folder, "mkdir %s"               , test_db_folder); \
+    shf_backticks(test_mkdir_folder); \
+    int rc; \
+    MDB_env *env; \
+    MDB_dbi dbi; \
+    MDB_val lmdb_key, data; \
+    MDB_txn *txn; \
+    MDB_cursor *cursor; \
+    char sval1[32]; \
+    char sval2[32]; \
+    rc = mdb_env_create(&env); \
+         mdb_env_set_mapsize(env, 4096 * 1000000L); \
+    rc = mdb_env_open(env, test_db_folder, 0, 0664); \
+    rc = mdb_txn_begin(env, NULL, 0, &txn); \
+    rc = mdb_open(txn, NULL, 0, &dbi); \
+    lmdb_key.mv_size = sizeof(uint32_t); \
+    lmdb_key.mv_data = sval1           ; \
+    data.mv_size     = sizeof(uint32_t); \
+    data.mv_data     = sval2           ; \
+    /* mdb_txn_abort(txn); */ \
+    rc = mdb_txn_commit(txn); if (rc) { fprintf(stderr, "mdb_txn_commit: (%d) %s\n", rc, mdb_strerror(rc)); exit(1); } \
+    mdb_close(env, dbi); \
+    mdb_env_close(env)
+
+#define TEST_INIT_CHILD() \
+    rc = mdb_env_create     (&env                        ); if (rc) { fprintf(stderr, "mdb_env_create(): (%d) %s\n", rc, mdb_strerror(rc)); exit(1); } \
+         mdb_env_set_mapsize(env, 4096 * 1000000L        ); \
+    rc = mdb_env_open       (env, test_db_folder, 0, 0664); if (rc) { fprintf(stderr, "mdb_env_open(): (%d) %s\n"  , rc, mdb_strerror(rc)); exit(1); } \
+    rc = mdb_txn_begin      (env, NULL, 0, &txn          ); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s\n" , rc, mdb_strerror(rc)); exit(1); } \
+    rc = mdb_open           (txn, NULL, 0, &dbi          ); if (rc) { fprintf(stderr, "mdb_open(): (%d) %s\n"      , rc, mdb_strerror(rc)); exit(1); }
+
+#define TEST_PUT() \
+    ((uint32_t *)sval1)[0] = key     ; \
+    ((uint32_t *)sval2)[0] = key + 10; \
+    if (0 == i % 1000) { \
+        rc = mdb_txn_commit(txn               ); if (rc) { fprintf(stderr, "mdb_txn_commit: (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_txn_begin (env, NULL, 0, &txn); if (rc) { fprintf(stderr, "mdb_txn_begin: (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+    } \
+    rc = mdb_put(txn, dbi, &lmdb_key, &data, 0);  if (rc) { fprintf(stderr, "mdb_put: (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); }
+
+#define TEST_PUT_POST() \
+    rc = mdb_txn_commit(txn)
+
+#define TEST_MIX_PRE()
+
+#define TEST_MIX() \
+    if (0 == i % 50) { \
+        ((uint32_t *)sval1)[0] = key; \
+        rc = mdb_txn_begin(env, NULL, 0, &txn       ); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_del      (txn, dbi, &lmdb_key, NULL); if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1a)\n", process, key); exit(1); } \
+        ((uint32_t *)sval1)[0] = key     ; \
+        ((uint32_t *)sval2)[0] = key + 10; \
+        /* need to re-init these after del or corruption occurs */ \
+        lmdb_key.mv_size = sizeof(uint32_t); \
+        lmdb_key.mv_data = sval1           ; \
+        data.mv_size     = sizeof(uint32_t); \
+        data.mv_data     = sval2           ; \
+        rc = mdb_put       (txn, dbi, &lmdb_key, &data, 0); if (rc) { fprintf(stderr, "mdb_put(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_txn_commit(txn                          ); if (rc) { fprintf(stderr, "mdb_txn_commit(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
+    } \
+    else { \
+        ((uint32_t *)sval1)[0] = key; \
+        rc = mdb_txn_begin (env, NULL, MDB_RDONLY, &txn); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_get       (txn, dbi, &lmdb_key, &data ); if (rc) { fprintf(stderr, "mdb_get(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_txn_commit(txn                        ); if (rc) { fprintf(stderr, "mdb_txn_commit(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
+        if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1b)\n", process, key); exit(1); } \
+        if (((uint32_t *)lmdb_key.mv_data)[0] != key) { printf("ERROR: process #%u: key i=%u not returned; got %u instead (1)\n", process, key, ((uint32_t *)lmdb_key.mv_data)[0]); exit(1); } \
+        if (((uint32_t *)data.mv_data)[0] != key + 10) { printf("ERROR: process #%u: data i=%u not returned; got %u instead (1)\n", process, key + 10, ((uint32_t *)data.mv_data)[0]); exit(1); } \
+    } \
+    mix_counts[process] ++;
+
+#define TEST_MIX_POST()
+
+#define TEST_GET_PRE()
+
+#define TEST_GET() \
+    ((uint32_t *)sval1)[0] = key; \
+    rc = mdb_txn_begin (env, NULL, MDB_RDONLY, &txn); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+    rc = mdb_get       (txn, dbi, &lmdb_key, &data ); if (rc) { fprintf(stderr, "mdb_get(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
+    rc = mdb_txn_commit(txn                        ); if (rc) { fprintf(stderr, "mdb_txn_commit(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
+    if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (2)\n", process, key); exit(1); } \
+    if (((uint32_t *)lmdb_key.mv_data)[0] != key     ) { printf("ERROR: process #%u: key i=%u not returned; got %u instead (2)\n" , process, key     , ((uint32_t *)lmdb_key.mv_data)[0]); exit(1); } \
+    if (((uint32_t *)data.mv_data)[0]     != key + 10) { printf("ERROR: process #%u: data i=%u not returned; got %u instead (2)\n", process, key + 10, ((uint32_t *)data.mv_data)[0]    ); exit(1); } \
+    get_counts[process] ++;
+
+#define TEST_GET_POST()
+
+#define TEST_FINI() \
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s", test_db_folder); \
+    fprintf(stderr, "DB size: %s\n", shf_backticks(test_du_folder));
+
+#else
+
+#define TEST_SHF 1
+
+#define TEST_WHAT "SharedHashFile"
+
+#define TEST_INIT() \
+    char  test_db_name[256]; \
+    char  test_db_folder[] = "/dev/shm"; \
+    pid_t pid              = getpid(); \
+    SHF_SNPRINTF(1, test_db_name, "test-shf-%05u", pid); \
+                shf_init  (); \
+    SHF * shf = shf_attach(test_db_folder, test_db_name); \
+                shf_set_data_need_factor(250)
+
+#define TEST_INIT_CHILD() \
+    shf_debug_verbosity_less(); \
+    shf = shf_attach_existing(test_db_folder, test_db_name)
+
+#define TEST_PUT() \
+    shf_make_hash       (SHF_CAST(const char *, &key), sizeof(key)); \
+    shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key))
+
+#define TEST_PUT_POST()
+
+#define TEST_MIX_PRE()
+
+#define TEST_MIX() \
+    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key)); \
+    if (0 == i % 50) { \
+        shf_del_key_val(shf); \
+        shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key)); \
+        mix_counts[process] ++; \
+    } \
+    else { \
+        mix_counts[process] += shf_get_key_val_copy(shf); \
+    }
+
+#define TEST_MIX_POST()
+
+#define TEST_GET_PRE()
+
+#define TEST_GET() \
+    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key)); \
+    get_counts[process] += shf_get_key_val_copy(shf)
+
+#define TEST_GET_POST()
+
+#define TEST_FINI() \
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf", test_db_folder, test_db_name); \
+    fprintf(stderr, "DB size: %s\n", shf_backticks(test_du_folder));
+
+#endif
+
 static uint32_t
 test_get_cpu_count(void)
 {
@@ -45,13 +199,7 @@ test_get_cpu_count(void)
 
 int main(void)
 {
-    char  test_shf_name[256];
-    char  test_shf_folder[] = "/dev/shm";
-    pid_t pid               = getpid();
-    SHF_SNPRINTF(1, test_shf_name, "test-%05u", pid);
-
-                shf_init  ();
-    SHF * shf = shf_attach(test_shf_folder, test_shf_name);
+    TEST_INIT();
 
     if (getenv("SHF_ENABLE_PERFORMANCE_TEST") && atoi(getenv("SHF_ENABLE_PERFORMANCE_TEST"))) {
     }
@@ -62,9 +210,7 @@ int main(void)
 
 #define TEST_MAX_PROCESSES (16)
 
-    shf_set_data_need_factor(250);
-
-             uint32_t   test_keys = 50 * 1000000;
+             uint32_t   test_keys = 100 * 1000000;
              uint32_t   process;
              uint32_t   cpu_count = test_get_cpu_count();
              uint32_t   processes = cpu_count > TEST_MAX_PROCESSES ? TEST_MAX_PROCESSES : cpu_count;
@@ -76,12 +222,10 @@ int main(void)
     SHF_ASSERT(sizeof(uint64_t) == sizeof(long), "INTERNAL: expected sizeof(uint64_t) == sizeof(long), but got %lu == %lu", sizeof(uint64_t), sizeof(long));
     start_line[0] = 0;
     start_line[1] = 0;
-    start_line[3] = 0;
+    start_line[2] = 0;
     for (process = 0; process < processes; process++) {
         pid_t fork_pid = fork();
         if (fork_pid == 0) {     /*child*/
-            shf_debug_verbosity_less();
-            shf = shf_attach_existing(test_shf_folder, test_shf_name);
             SHF_DEBUG("test process #%u with pid %5u\n", process, getpid());
             {
                 long previous_long_value;
@@ -89,35 +233,31 @@ int main(void)
 
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1);
                 while (processes != start_line[0]) { SHF_YIELD(); }
+                TEST_INIT_CHILD();
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
                     uint32_t key = test_keys / processes * process + i;
                     put_counts[process] ++;
-                    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
-                    shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key));
+                    TEST_PUT();
                 }
-                usleep(2000000); /* one second */
+                TEST_PUT_POST();
+                TEST_MIX_PRE();
+                usleep(2000000); /* 2 seconds */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
                 while (processes != start_line[1]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
                     uint32_t key = test_keys / processes * process + i;
-                    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
-                    if (0 == i % 50) {
-                        shf_del_key_val(shf);
-                        shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key));
-                        mix_counts[process] ++;
-                    }
-                    else {
-                        mix_counts[process] += shf_get_key_val_copy(shf);
-                    }
+                    TEST_MIX();
                 }
-                usleep(2000000); /* one second */
+                TEST_MIX_POST();
+                TEST_GET_PRE();
+                usleep(2000000); /* 2 seconds */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
                 while (processes != start_line[2]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
                     uint32_t key = test_keys / processes * process + i;
-                    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key));
-                    get_counts[process] += shf_get_key_val_copy(shf);
+                    TEST_GET();
                 }
+                TEST_GET_POST();
                 exit(0);
             }
             break;
@@ -141,6 +281,7 @@ int main(void)
     uint64_t lock_conflicts_old = 0;
 #endif
     char graph_100[] = "----------------------------------------------------------------------------------------------------";
+    fprintf(stderr, "perf testing: " TEST_WHAT "\n");
     fprintf(stderr, "running tests on: via command: '%s'\n",               "cat /proc/cpuinfo | egrep 'model name' | head -n 1" );
     fprintf(stderr, "running tests on: `%s`\n"             , shf_backticks("cat /proc/cpuinfo | egrep 'model name' | head -n 1"));
     do {
@@ -172,12 +313,14 @@ int main(void)
             uint64_t tabs_mremaps = 0;
             uint64_t tabs_shrunk  = 0;
             uint64_t tabs_parted  = 0;
+#ifdef TEST_SHF
             for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
                 tabs_mmaps   += shf->shf_mmap->wins[win].tabs_mmaps  ;
                 tabs_mremaps += shf->shf_mmap->wins[win].tabs_mremaps;
                 tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk ;
                 tabs_parted  += shf->shf_mmap->wins[win].tabs_parted ;
             }
+#endif
             fprintf(stderr, "%5.1f %5.1f %4lu %4lu",
                 (tabs_mmaps   - tabs_mmaps_old  ) / 1000.0,
                 (tabs_mremaps - tabs_mremaps_old) / 1000.0,
@@ -209,6 +352,8 @@ int main(void)
         usleep(1000000); /* one second */
     } while (key_total < (3 * test_keys));
     fprintf(stderr, "* MIX is 2%% (%u) del/put, 98%% (%u) get\n", test_keys * 2 / 100, test_keys * 98 / 100);
+
+    TEST_FINI();
 
 EARLY_EXIT:;
 

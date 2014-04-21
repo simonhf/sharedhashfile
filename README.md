@@ -147,181 +147,151 @@ Notes:
 
 ## Performance
 
-Here's an example on an 8 core Lenovo W530 laptop showing a hash table with 50 million keys, and then doing 2% delete/insert and 98% read at a rate of over 10 million operations per second:
+Here's an example on an 8 core Lenovo W530 laptop showing a hash table with 100 million keys, and then doing 2% delete/insert and 98% read at a rate of over 10 million operations per second:
 
 ```
 $ make clean ; rm -rf /dev/shm/test-*/ ; SHF_ENABLE_PERFORMANCE_TEST=1 make
-rm -rf release debug wrappers/nodejs/build
-make: variable: DEPS_H=murmurhash3.h shf.defines.h shf.h shf.lock.h shf.private.h tap.h
-make: variable: DEPS_HPP=SharedHashFile.hpp
-make: variable: PROD_SRCS_C=murmurhash3.c shf.c tap.c
-make: variable: PROD_OBJS_C=release/murmurhash3.o release/shf.o release/tap.o
-make: variable: PROD_SRCS_CPP=SharedHashFile.cpp
-make: variable: PROD_OBJS_CPP=release/SharedHashFile.o
-make: variable: TEST_SRCS_C=test.1.tap.c test.9.shf.c
-make: variable: TEST_OBJS_C=
-make: variable: TEST_SRCS_CPP=test.a.shf.cpp
-make: variable: TEST_OBJS_CPP=
-make: variable: TEST_EXES=release/test.1.tap.t release/test.9.shf.t release/test.a.shf.t
-make: variable: BUILD_TYPE=release
-make: variable: BUILD_TYPE_NODE=Release
-make: variable: NODEJS=/usr/bin/nodejs
-make: variable: NODE_GYP=/usr/bin/node-gyp
-make: variable: NODE_SRCS=./wrappers/nodejs/binding.gyp ./wrappers/nodejs/package.json ./wrappers/nodejs/SharedHashFile.cc ./wrappers/nodejs/SharedHashFile.js
-make: compiling: release/test.1.tap.o
-make: compiling: release/murmurhash3.o
-make: compiling: release/shf.o
-make: compiling: release/tap.o
-make: compiling: release/SharedHashFile.o
-make: linking: release/test.1.tap.t
-make: running: release/test.1.tap.t
-1..1
-ok 1 - All passed
-make: compiling: release/test.9.shf.o
-make: linking: release/test.9.shf.t
-make: running: release/test.9.shf.t
-1..21
-ok 1 - c: shf_attach_existing() fails for non-existing file as expected
-ok 2 - c: shf_attach()          works for non-existing file as expected
-ok 3 - c: shf_get_copy_via_key() could not find unput key as expected
-ok 4 - c: shf_del_key()          could not find unput key as expected
-ok 5 - c: shf_put_val()                           put key as expected
-ok 6 - c: shf_get_copy_via_key() could     find   put key as expected
-ok 7 - c: shf_val_len                                     as expected
-ok 8 - c: shf_val                                         as expected
-ok 9 - c: shf_del_key()          could     find   put key as expected
-ok 10 - c: shf_get_copy_via_key() could not find   del key as expected
-ok 11 - c: shf_del_key()          could not find   del key as expected
-ok 12 - c: shf_put_val()                         reput key as expected
-ok 13 - c: shf_get_copy_via_key() could     find reput key as expected
-ok 14 - c: shf_val_len                                     as expected
-ok 15 - c: shf_val                                         as expected
-ok 16 - c: put expected number of              keys // estimate 3868899 keys per second
-ok 17 - c: got expected number of non-existing keys // estimate 5242513 keys per second
-ok 18 - c: got expected number of     existing keys // estimate 5110592 keys per second
-ok 19 - c: graceful growth cleans up after itself as expected
-ok 20 - c: del expected number of     existing keys // estimate 5570657 keys per second
-ok 21 - c: del does not    clean  up after itself as expected
+...
+perf testing: SharedHashFile
 running tests on: via command: 'cat /proc/cpuinfo | egrep 'model name' | head -n 1'
 running tests on: `model name   : Intel(R) Core(TM) i7-3720QM CPU @ 2.60GHz`
 -OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS
 --- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s
-PUT  2.6   3.1  257    0   0.1  9 10 17 11 15 13 11 13  0  0  0  0  0  0  0  0  0.1
-PUT 16.6 125.6 1049 1049   3.5 12 13 12 13 12 13 13 13  0  0  0  0  0  0  0  0  3.4 ----
-PUT 25.8 149.9 1628 1628   7.4 13 12 13 12 12 12 13 13  0  0  0  0  0  0  0  0  3.9 -----
-PUT 21.7 155.4 1342 1342  11.6 12 13 12 13 12 13 13 12  0  0  0  0  0  0  0  0  4.2 -----
-PUT 27.1 132.6 1746 1746  14.9 12 13 12 13 13 13 12 12  0  0  0  0  0  0  0  0  3.3 ----
-PUT 32.1 105.9 1968 1968  17.5 13 12 13 12 12 13 13 12  0  0  0  0  0  0  0  0  2.6 ---
-PUT  6.3 182.2  383  384  22.3 12 13 13 12 12 12 13 12  0  0  0  0  0  0  0  0  4.9 ------
-PUT 17.1 145.4 1118 1117  26.6 12 12 13 12 13 12 13 13  0  0  0  0  0  0  0  0  4.3 -----
-PUT 29.8 110.3 1903 1905  29.2 12 12 13 12 13 13 12 12  0  0  0  0  0  0  0  0  2.6 ---
-PUT 35.6 108.1 2235 2233  31.6 12 12 13 13 12 13 13 12  0  0  0  0  0  0  0  0  2.4 ---
-PUT 32.5 103.4 1996 1996  34.1 13 12 12 13 12 13 12 13  0  0  0  0  0  0  0  0  2.6 ---
-PUT 14.1 144.0  814  814  38.1 13 12 12 13 12 12 13 13  0  0  0  0  0  0  0  0  4.0 -----
-PUT  4.2 220.7  266  266  44.0 13 12 13 12 12 13 13 12  0  0  0  0  0  0  0  0  5.9 -------
-PUT 12.2 173.8  801  801  48.9 12 13 12 12 13 13 12 12  0  0  0  0  0  0  0  0  4.9 ------
-PUT  4.5  18.3  295  295  50.0 16 13 12 12 16 10  9 13  0  0  0  0  0  0  0  0  1.1 -
-MIX  0.0   0.0    0    0  50.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
-MIX  1.1   6.6    0    0  57.5 13 12 13 13 13 12 12 12  0  0  0  0  0  0  0  0  7.5 ----------
-MIX  0.0   5.4    0    0  67.7 12 13 12 13 13 12 13 13  0  0  0  0  0  0  0  0 10.1 -------------
-MIX  0.0   6.2    0    0  76.8 12 12 13 13 13 13 12 12  0  0  0  0  0  0  0  0  9.2 ------------
-MIX  0.0   8.3    0    0  87.1 12 12 13 13 13 12 12 13  0  0  0  0  0  0  0  0 10.3 -------------
-MIX  0.0   9.7    0    0  97.5 12 13 12 13 13 13 12 13  0  0  0  0  0  0  0  0 10.4 -------------
-MIX  0.0   2.3    0    0 100.0 15 14 12  9 10 13 13 12  0  0  0  0  0  0  0  0  2.5 ---
-GET  0.0   0.0    0    0 100.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
-GET  0.0   0.3    0    0 108.3 13 13 12 13 13 13 13 12  0  0  0  0  0  0  0  0  8.3 -----------
-GET  0.0   0.0    0    0 119.4 12 13 12 13 13 13 13 12  0  0  0  0  0  0  0  0 11.2 --------------
-GET  0.0   0.0    0    0 130.9 12 13 12 13 13 13 13 13  0  0  0  0  0  0  0  0 11.5 ---------------
-GET  0.0   0.0    0    0 142.4 12 12 12 13 13 12 13 13  0  0  0  0  0  0  0  0 11.5 ---------------
-GET  0.0   0.0    0    0 150.0 15 12 15 10 11 13 12 13  0  0  0  0  0  0  0  0  7.6 ----------
-* MIX is 2% (1000000) del/put, 98% (6050327) get
-make: compiling: release/test.a.shf.o
-make: linking: release/test.a.shf.t
-make: running: release/test.a.shf.t
-1..22
-ok 1 - c++: new SharedHashFile returned object as expected
-ok 2 - c++: ->AttachExisting() fails for non-existing file as expected
-ok 3 - c++: ->Attach()         works for non-existing file as expected
-ok 4 - c++: ->GetCopyViaKey() could not find unput key as expected
-ok 5 - c++: ->DelKey()        could not find unput key as expected
-ok 6 - c++: ->PutVal()                         put key as expected
-ok 7 - c++: ->GetCopyViaKey() could     find   put key as expected
-ok 8 - c++: shf_val_len                                as expected
-ok 9 - c++: shf_val                                    as expected
-ok 10 - c++: ->DelKey()        could     find   put key as expected
-ok 11 - c++: ->GetCopyViaKey() could not find   del key as expected
-ok 12 - c++: ->DelKey()        could not find   del key as expected
-ok 13 - c++: ->PutVal()                       reput key as expected
-ok 14 - c++: ->GetCopyViaKey() could     find reput key as expected
-ok 15 - c++: shf_val_len                                as expected
-ok 16 - c++: shf_val                                    as expected
-ok 17 - c++: put expected number of              keys // estimate 3593549 keys per second
-ok 18 - c++: got expected number of non-existing keys // estimate 4824011 keys per second
-ok 19 - c++: got expected number of     existing keys // estimate 5025743 keys per second
-ok 20 - c++: graceful growth cleans up after itself as expected
-ok 21 - c++: del expected number of     existing keys // estimate 5180916 keys per second
-ok 22 - c++: del does not    clean  up after itself as expected
-make: archiving: release/SharedHashFile.a
-ar: creating release/SharedHashFile.a
-a - release/murmurhash3.o
-a - release/shf.o
-a - release/tap.o
-a - release/SharedHashFile.o
-make: building: release/SharedHashFile.node
-gyp info it worked if it ends with ok
-gyp info using node-gyp@0.10.9
-gyp info using node@0.10.15 | linux | x64
-gyp info spawn python
-gyp info spawn args [ '/usr/share/node-gyp/gyp/gyp',
-gyp info spawn args   'binding.gyp',
-gyp info spawn args   '-f',
-gyp info spawn args   'make',
-gyp info spawn args   '-I',
-gyp info spawn args   '/home/simon/sharedhashfile/wrappers/nodejs/build/config.gypi',
-gyp info spawn args   '-I',
-gyp info spawn args   '/usr/share/node-gyp/addon.gypi',
-gyp info spawn args   '-I',
-gyp info spawn args   '/usr/include/nodejs/common.gypi',
-gyp info spawn args   '-Dlibrary=shared_library',
-gyp info spawn args   '-Dvisibility=default',
-gyp info spawn args   '-Dnode_root_dir=/usr/include/nodejs',
-gyp info spawn args   '-Dmodule_root_dir=/home/simon/sharedhashfile/wrappers/nodejs',
-gyp info spawn args   '--depth=.',
-gyp info spawn args   '--generator-output',
-gyp info spawn args   'build',
-gyp info spawn args   '-Goutput_dir=.' ]
-gyp info spawn make
-gyp info spawn args [ 'BUILDTYPE=Release', '-C', 'build' ]
-make[1]: Entering directory `/home/simon/sharedhashfile/wrappers/nodejs/build'
-  CXX(target) Release/obj.target/SharedHashFile/SharedHashFile.o
-  SOLINK_MODULE(target) Release/obj.target/SharedHashFile.node
-  SOLINK_MODULE(target) Release/obj.target/SharedHashFile.node: Finished
-  COPY Release/SharedHashFile.node
-make[1]: Leaving directory `/home/simon/sharedhashfile/wrappers/nodejs/build'
-gyp info ok
-make: copying node wrapper & test program to release build folder
-make: running test
-1..17
-nodejs: debug: about to require  SharedHashFile
-nodejs: debug:          required SharedHashFile
-ok 1 - nodejs: .attachExisting() fails for non-existing file as expected
-ok 2 - nodejs: .attach()         works for non-existing file as expected
-ok 3 - nodejs: .getKeyVal() could not find unput key as expected
-ok 4 - nodejs: .delKey()    could not find unput key as expected
-ok 5 - nodejs: .putKeyVal()                  put key as expected
-ok 6 - nodejs: .getKeyVal() could     find   put key as expected
-ok 7 - nodejs: .delKey()    could     find   put key as expected
-ok 8 - nodejs: .getKeyVal() could not find   del key as expected
-ok 9 - nodejs: .delKey()    could not find   del key as expected
-ok 10 - nodejs: .putKeyVal()                reput key as expected
-ok 11 - nodejs: .getKeyVal() could     find reput key as expected
-ok 12 - nodejs: put expected number of              keys // estimate 1201923 keys per second
-ok 13 - nodejs: got expected number of non-existing keys // estimate 1953125 keys per second
-ok 14 - nodejs: got expected number of     existing keys // estimate 1572328 keys per second
-ok 15 - nodejs: graceful growth cleans up after itself as expected
-ok 16 - nodejs: del expected number of     existing keys // estimate 1968502 keys per second
-ok 17 - nodejs: del does not    clean  up after itself as expected
-make: built and tested release version
+PUT  0.2   0.0    0    0   0.0 32 30  0  0  0  0  0 38  0  0  0  0  0  0  0  0  0.0
+PUT 30.0  89.4 1767 1767   4.5 13 13 13 12 13 12 12 13  0  0  0  0  0  0  0  0  4.5 -----
+PUT 30.6  70.8 1925 1925   8.6 13 12 13 13 13 12 13 12  0  0  0  0  0  0  0  0  4.1 -----
+PUT 17.1 103.3 1090 1090  13.7 12 12 13 13 13 12 13 13  0  0  0  0  0  0  0  0  5.1 ------
+PUT 37.2  47.6 2334 2334  16.4 13 12 13 13 13 12 12 13  0  0  0  0  0  0  0  0  2.6 ---
+PUT 15.7  88.1  944  944  21.4 13 12 13 12 12 12 13 12  0  0  0  0  0  0  0  0  5.0 ------
+PUT 15.6 105.9 1035 1035  26.1 13 12 13 12 13 12 13 13  0  0  0  0  0  0  0  0  4.7 ------
+PUT 34.3  63.6 2180 2181  29.3 13 12 13 12 12 13 12 13  0  0  0  0  0  0  0  0  3.1 ----
+PUT 39.7  48.8 2478 2478  31.9 13 12 13 12 13 13 13 12  0  0  0  0  0  0  0  0  2.7 ---
+PUT 32.1  47.3 1950 1949  35.0 12 12 12 12 13 13 12 12  0  0  0  0  0  0  0  0  3.0 ----
+PUT  9.2 108.6  542  542  40.6 13 13 13 12 13 12 13 13  0  0  0  0  0  0  0  0  5.7 -------
+PUT  8.4 132.2  552  552  46.4 13 12 13 12 12 12 13 12  0  0  0  0  0  0  0  0  5.8 -------
+PUT 18.1  44.8 1184 1184  51.0 12 12 13 12 12 13 12 13  0  0  0  0  0  0  0  0  4.6 ------
+PUT 25.3  98.8 1622 1622  54.4 13 12 13 12 13 12 13 13  0  0  0  0  0  0  0  0  3.4 ----
+PUT 27.0  52.5 1730 1730  56.9 12 13 12 13 13 12 12 13  0  0  0  0  0  0  0  0  2.5 ---
+PUT 35.4  67.9 2260 2260  59.4 13 13 13 13 13 13 12 12  0  0  0  0  0  0  0  0  2.5 ---
+PUT 38.1  52.3 2382 2383  61.9 13 12 12 13 13 13 13 12  0  0  0  0  0  0  0  0  2.5 ---
+PUT 37.2  18.8 2306 2306  64.4 13 13 12 13 13 13 12 12  0  0  0  0  0  0  0  0  2.5 ---
+PUT 33.7  25.1 2059 2059  67.1 13 12 12 13 12 13 13 12  0  0  0  0  0  0  0  0  2.8 ---
+PUT 23.8  75.4 1427 1426  70.1 13 12 12 13 13 13 13 12  0  0  0  0  0  0  0  0  3.0 ---
+PUT 12.2 191.3  705  706  73.9 12 13 13 13 13 13 12 12  0  0  0  0  0  0  0  0  3.8 -----
+PUT  4.5  15.7  270  269  80.8 12 12 13 13 13 13 12 12  0  0  0  0  0  0  0  0  6.9 ---------
+PUT  5.2 129.8  347  347  87.0 13 12 13 12 13 13 12 12  0  0  0  0  0  0  0  0  6.2 --------
+PUT  8.4 133.8  557  557  92.4 13 13 12 13 12 13 12 13  0  0  0  0  0  0  0  0  5.4 -------
+PUT 14.3   6.2  933  933  97.3 13 12 12 13 12 13 13 12  0  0  0  0  0  0  0  0  4.9 ------
+PUT 11.5  16.5  777  777 100.0 11 15 10 13 11 12 13 15  0  0  0  0  0  0  0  0  2.7 ---
+MIX  0.0   0.0    0    0 100.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
+MIX  2.3   5.6    0    0 101.2 12 14 11 12 12 12 13 13  0  0  0  0  0  0  0  0  1.2 -
+MIX  0.3   3.9    0    0 110.4 12 13 13 13 12 13 12 13  0  0  0  0  0  0  0  0  9.2 ------------
+MIX  0.0   4.1    0    0 119.7 13 13 13 12 12 13 13 13  0  0  0  0  0  0  0  0  9.3 ------------
+MIX  0.0   5.3    0    0 129.4 13 13 12 13 12 13 12 13  0  0  0  0  0  0  0  0  9.8 -------------
+MIX  0.0   5.6    0    0 139.0 13 13 12 12 12 13 13 12  0  0  0  0  0  0  0  0  9.6 ------------
+MIX  0.0   6.3    0    0 148.5 13 13 13 12 12 12 13 12  0  0  0  0  0  0  0  0  9.5 ------------
+MIX  0.0   7.0    0    0 158.4 13 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0  9.9 -------------
+MIX  0.0   7.0    0    0 167.7 12 13 13 12 12 13 12 13  0  0  0  0  0  0  0  0  9.3 ------------
+MIX  0.0   7.9    0    0 176.7 13 13 13 13 12 13 12 13  0  0  0  0  0  0  0  0  9.1 ------------
+MIX  0.0   8.7    0    0 186.5 13 12 13 13 12 13 12 13  0  0  0  0  0  0  0  0  9.8 -------------
+MIX  0.0   8.7    0    0 196.0 13 13 13 12 12 12 12 13  0  0  0  0  0  0  0  0  9.5 ------------
+MIX  0.0   3.5    0    0 200.0 10  8 12 15 17 11 15 11  0  0  0  0  0  0  0  0  4.0 -----
+GET  0.0   0.0    0    0 200.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
+GET  0.0   0.6    0    0 206.5 13 13 13 12 10 13 13 13  0  0  0  0  0  0  0  0  6.5 --------
+GET  0.0   0.0    0    0 217.9 13 12 13 13 12 12 12 13  0  0  0  0  0  0  0  0 11.4 ---------------
+GET  0.0   0.0    0    0 229.3 13 12 13 13 13 11 12 13  0  0  0  0  0  0  0  0 11.4 ---------------
+GET  0.0   0.0    0    0 240.6 13 13 13 13 13 12 12 13  0  0  0  0  0  0  0  0 11.3 ---------------
+GET  0.0   0.0    0    0 251.9 13 13 13 12 13 13 10 13  0  0  0  0  0  0  0  0 11.3 ---------------
+GET  0.0   0.0    0    0 263.2 12 12 13 12 13 13 12 13  0  0  0  0  0  0  0  0 11.3 ---------------
+GET  0.0   0.0    0    0 274.4 13 13 13 13 12 13 13 11  0  0  0  0  0  0  0  0 11.2 --------------
+GET  0.0   0.0    0    0 285.9 12 13 13 13 12 12 13 13  0  0  0  0  0  0  0  0 11.5 ---------------
+GET  0.0   0.0    0    0 297.3 12 13 13 13 12 12 13 12  0  0  0  0  0  0  0  0 11.4 ---------------
+GET  0.0   0.0    0    0 300.0  6  9  0 11 22 21 24  6  0  0  0  0  0  0  0  0  2.7 ---
+* MIX is 2% (2000000) del/put, 98% (12100654) get
+DB size: 3.9G   /dev/shm/test-shf-19973.shf
+```
+
+## Performance comparison with LMDB aka Lightning MDB
+
+Here's the same test as above but using LMDB instead of SharedHashFile:
+
+Notes:
+
+* To make the test a more apples to apples hash table comparison:
+* mdb_get() & mdb_put() are used (instead of faster cursor functions) to test LMDB as a hash table.
+* The LMDB DB file is stored in /dev/shm so that disk performance does not effect the results.
+* PUT & MIX disclaimer: LMDB is designed to be fast at reading, not writing.
+* PUT is done using LMDBs transactions (read: global lock?)
+* Pro: Without transactions then PUT only manages about 0.1M per second but all threads get to join in.
+* Con: With transactions then typically only one thread gets to PUT.
+* Con: Transaction locking does not appear to be fair and so although all processes are trying to write a transaction, one thread tends to always win.
+* Con: The PUT write starts off at a healthy 1.1M per second but slowly goes down to 0.2M per second.
+* MIX used only 50% CPU. Presumably due to a heavy weight global lock?
+* GET works very fast at 5.xM per second, but about half the speed of SharedHashFile.
+* LMDB only used 2.6G versus 3.9G for SharedHashFile.
+
+```
+$ perl perf-test-lmdb.pl
+...
+perf testing: LMDB aka Lightning MDB
+running tests on: via command: 'cat /proc/cpuinfo | egrep 'model name' | head -n 1'
+running tests on: `model name   : Intel(R) Core(TM) i7-3720QM CPU @ 2.60GHz`
+-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS
+--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s
+PUT  0.0   0.0    0    0   0.0  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
+PUT  0.0   0.0    0    0   1.1  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1.1 -
+PUT  0.0   0.0    0    0   1.9  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.8 -
+PUT  0.0   0.0    0    0   2.6  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.7
+PUT  0.0   0.0    0    0   3.3  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.7
+PUT  0.0   0.0    0    0   3.9  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.6
+PUT  0.0   0.0    0    0   4.4  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.6
+PUT  0.0   0.0    0    0   5.0  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.5
+PUT  0.0   0.0    0    0   5.4  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.5
+PUT  0.0   0.0    0    0   5.9  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.5
+PUT  0.0   0.0    0    0   6.3  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.4
+PUT  0.0   0.0    0    0   6.8  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.4
+PUT  0.0   0.0    0    0   7.2  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.4
+PUT  0.0   0.0    0    0   7.6  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.4
+PUT  0.0   0.0    0    0   7.9  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.4
+PUT  0.0   0.0    0    0   8.3  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.3
+PUT  0.0   0.0    0    0   8.6  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.3
+...
+PUT  0.0   0.0    0    0  72.1  0  0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0.3
+PUT  0.0   0.0    0    0  72.3  5  0 93  2  0  0  0  0  0  0  0  0  0  0  0  0  0.2
+...
+PUT  0.0   0.0    0    0 100.0100  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.2
+MIX  0.0   0.0    0    0 100.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
+MIX  0.0   0.0    0    0 100.3 13 12 12 13 13 12 12 13  0  0  0  0  0  0  0  0  0.3
+MIX  0.0   0.0    0    0 101.3 12 12 12 13 12 12 13 13  0  0  0  0  0  0  0  0  1.0 -
+MIX  0.0   0.0    0    0 102.3 13 12 13 13 12 13 12 12  0  0  0  0  0  0  0  0  1.0 -
+...
+MIX  0.0   0.0    0    0 198.3 13 13 12 13 13 12 12 12  0  0  0  0  0  0  0  0  1.0 -
+MIX  0.0   0.0    0    0 199.4 12 12 12 12 13 13 13 13  0  0  0  0  0  0  0  0  1.1 -
+MIX  0.0   0.0    0    0 200.0 13 27 10  3 17  8 11 11  0  0  0  0  0  0  0  0  0.6
+GET  0.0   0.0    0    0 200.0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0.0
+GET  0.0   0.0    0    0 203.0 13 13 12 13 11 13 12 13  0  0  0  0  0  0  0  0  3.0 ---
+GET  0.0   0.0    0    0 208.1 13 12 13 13 12 13 11 13  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 213.4 12 11 14 12 13 13 13 11  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 218.6 13 11 14 12 13 12 13 12  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 223.8 13 11 13 13 13 13 12 12  0  0  0  0  0  0  0  0  5.3 -------
+GET  0.0   0.0    0    0 229.2 12 12 12 13 14 14 12 12  0  0  0  0  0  0  0  0  5.4 -------
+GET  0.0   0.0    0    0 234.3 12 13 12 12 11 13 13 13  0  0  0  0  0  0  0  0  5.1 ------
+GET  0.0   0.0    0    0 239.6 11 12 14 12 12 13 14 12  0  0  0  0  0  0  0  0  5.3 -------
+GET  0.0   0.0    0    0 244.9 12 12 14 10 13 13 14 13  0  0  0  0  0  0  0  0  5.3 -------
+GET  0.0   0.0    0    0 250.1 11 11 13 13 13 13 14 13  0  0  0  0  0  0  0  0  5.3 -------
+GET  0.0   0.0    0    0 255.3 13 12 12 12 13 12 13 12  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 260.5 13 12 11 13 12 14 13 11  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 265.8 13 12 12 11 13 13 14 11  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 270.8 14 12 12 12 13 13 13 12  0  0  0  0  0  0  0  0  5.1 ------
+GET  0.0   0.0    0    0 275.9 12 14 13 13 13 12 14 10  0  0  0  0  0  0  0  0  5.1 ------
+GET  0.0   0.0    0    0 281.3 12 14 13 12 12 13 14 10  0  0  0  0  0  0  0  0  5.4 -------
+GET  0.0   0.0    0    0 286.4 14 13 12 13 12 13 13 12  0  0  0  0  0  0  0  0  5.2 ------
+GET  0.0   0.0    0    0 291.7 13 12 11 11 13 13 13 13  0  0  0  0  0  0  0  0  5.3 -------
+GET  0.0   0.0    0    0 296.7 12 13 12 13 13 14 11 13  0  0  0  0  0  0  0  0  5.0 ------
+GET  0.0   0.0    0    0 300.0 12 22 11 19 10  0  0 25  0  0  0  0  0  0  0  0  3.2 ----
+GET  0.0   0.0    0    0 300.0  0  0  0  0  0  0  0100  0  0  0  0  0  0  0  0  0.0
+* MIX is 2% (2000000) del/put, 98% (12100654) get
+DB size: 2.6G   /dev/shm/test-lmdb-20848
 ```
 
 ## TODO
