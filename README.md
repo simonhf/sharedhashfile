@@ -301,6 +301,7 @@ DB size: 2.6G   /dev/shm/test-lmdb-20848
 * Support walking of all key,value pairs in the hash table.
 * Support stack key types, e.g. push, pop, shift, unshift.
 * Support detaching from a hash table.
+* Support auto delete hash table when creating process ends.
 * Add API documentation.
 * Add LRU mechanism for using SharedHashFile to e.g. accelerate network based hash tables such as redis, memcached, and/or Aerospike.
 * Add logging.
