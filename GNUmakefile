@@ -100,9 +100,11 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cd ./wrappers/nodejs && SHF_BUILD_TYPE=$(BUILD_TYPE) NODE_DEBUG=mymod node-gyp --$(BUILD_TYPE) rebuild
 	@echo "make: copying node wrapper & test program to $(BUILD_TYPE) build folder"
 	@cp ./wrappers/nodejs/build/$(BUILD_TYPE_NODE)/SharedHashFile.node $(BUILD_TYPE)/.
-	@cp ./wrappers/nodejs/SharedHashFile.js $(BUILD_TYPE)/.
+	@cp ./wrappers/nodejs/SharedHashFile*.js $(BUILD_TYPE)/.
 	@echo "make: running test"
 	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod nodejs ./SharedHashFile.js
+	@echo "make: running test: perf test calling dummy C++ functions"
+	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod nodejs ./SharedHashFileDummy.js
 	@echo "make: building and running test: IPC: Unix Domain Socket"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcSocket.* .
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcSocket.c

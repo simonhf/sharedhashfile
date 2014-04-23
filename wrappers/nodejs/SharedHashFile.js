@@ -21,6 +21,8 @@
  * ============================================================================
  */
 
+var assert = require('assert');
+
 var ok_tests = 0;
 var ok_tests_expected;
 function ok(condition, what) {

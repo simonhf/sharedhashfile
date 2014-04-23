@@ -113,6 +113,10 @@ size_t CustomExternalStringResource::length() const {
 #define SHF_HANDLE_SCOPE() \
     HandleScope scope;
 
+#define SHF_DUMMY_BYTES (4096)
+
+static char dummyBytes[SHF_DUMMY_BYTES];
+
 class sharedHashFile : public node::ObjectWrap {
 public:
     static void Init(v8::Handle<v8::Object> target);
@@ -144,6 +148,15 @@ private:
     static v8::Handle<v8::Value> QueuePushPull     (const v8::Arguments& args);
     static v8::Handle<v8::Value> QueuePullTail     (const v8::Arguments& args);
     static v8::Handle<v8::Value> QueueTakeItem     (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy1            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy2            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy3            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy4            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy5            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy6            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy7            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy8            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Dummy9            (const v8::Arguments& args);
 
     SharedHashFile * shf;
 };
@@ -183,6 +196,15 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("queuePushPull"     ), FunctionTemplate::New(QueuePushPull     )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("queuePullTail"     ), FunctionTemplate::New(QueuePullTail     )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("queueTakeItem"     ), FunctionTemplate::New(QueueTakeItem     )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy1"            ), FunctionTemplate::New(Dummy1            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy2"            ), FunctionTemplate::New(Dummy2            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy3"            ), FunctionTemplate::New(Dummy3            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy4"            ), FunctionTemplate::New(Dummy4            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy5"            ), FunctionTemplate::New(Dummy5            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy6"            ), FunctionTemplate::New(Dummy6            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy7"            ), FunctionTemplate::New(Dummy7            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy8"            ), FunctionTemplate::New(Dummy8            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy9"            ), FunctionTemplate::New(Dummy9            )->GetFunction());
 
     Persistent<Function> constructor = Persistent<Function>::New(tpl->GetFunction());
     target->Set(String::NewSymbol("sharedHashFile"), constructor);
@@ -528,6 +550,113 @@ sharedHashFile::QueueTakeItem(const Arguments& args) {
     result->Set(0, v8::Integer::New(shf_uid));
     result->Set(1, v8::String::New(SHF_CAST(char *, shf_item_addr), shf_item_addr_len));
     return scope.Close(result);
+}
+
+Handle<Value>
+sharedHashFile::Dummy1(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::Dummy2(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(obj);
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::Dummy3(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::Dummy4(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(Number::New(123));
+}
+
+Handle<Value>
+sharedHashFile::Dummy5(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(String::New(dummyBytes, 8));
+}
+
+Handle<Value>
+sharedHashFile::Dummy6(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(String::New(dummyBytes, SHF_DUMMY_BYTES));
+}
+
+Handle<Value>
+sharedHashFile::Dummy7(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(String::NewExternal(new CustomExternalStringResource(dummyBytes, SHF_DUMMY_BYTES)));
+}
+
+Handle<Value>
+sharedHashFile::Dummy8(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(Buffer::New(dummyBytes, SHF_DUMMY_BYTES)->handle_); /* ->handle_? see https://groups.google.com/d/msg/nodejs/yHXD-z5nfoI/jvYLuahEqrEJ */
+}
+
+Handle<Value>
+sharedHashFile::Dummy9(const Arguments& args) { /* Example function to show how fast simple C++ functions can be called */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_VALIDATE_ARG_IS_INT32(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+    SHF_UNUSE(arg0); SHF_UNUSE(arg1); SHF_UNUSE(arg2); SHF_UNUSE(obj);
+    return scope.Close(Buffer::New(dummyBytes, SHF_DUMMY_BYTES, [](char*, void*) -> void { /* Don't need to do anything here, because the data is shared memory */ }, NULL)->handle_);
 }
 
 void
