@@ -51,7 +51,7 @@ Unlike other hash tables, every key stored in SharedHashFile gets assigned its o
 
 What are UIDs useful for? UIDs don't take up any extra resources and can be thought of as resource 'free'. Accessing a key by its UID is faster than accessing the key via its key. Because a UID is only 32bits in size then it can be easily stored as a reference to a key in your program, or embedded in the values of of key,value pairs, or even embedded within other keys.
 
-Example usage: If uid1 points to key "user-id-<xyz>", and uid2 points to key "facebook.com", then another 'mash up' key might be "<uid1><uid2>". Want to find out if "user-id-<xyz>" has "facebook.com" in their personal URL whitelist? Just see if key "<uid1><uid2>" exists.
+Example usage: If uid1 points to key ```"user-id-<xyz>"```, and uid2 points to key ```"facebook.com"```, then another 'mash up' key might be ```"<uid1><uid2>"```. Want to find out if ```"user-id-<xyz>"``` has ```"facebook.com"``` in their personal URL whitelist? Just see if key ```"<uid1><uid2>"``` exists.
 
 ## Building
 
