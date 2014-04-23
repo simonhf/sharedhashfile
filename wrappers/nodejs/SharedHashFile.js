@@ -108,43 +108,43 @@ while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueu
 }
 ok(testQueueItemsTotal == testPullItemsTotal, "nodejs: pulled & pushed items from b2a    to unused as expected");
 
-var test_keys = 100000;
+var testKeys = 100000;
 shf.setDataNeedFactor(250);
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
-    for (var i = 0; i < test_keys; i++) {
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
         shf.putKeyVal("key"+i, "val"+i);
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
-    for (var i = (test_keys * 2); i < (test_keys * 3); i++) {
+    var testStartTime = Date.now() / 1000;
+    for (var i = (testKeys * 2); i < (testKeys * 3); i++) {
         var value = shf.getKeyVal("key"+i);
         if ('undefined' === typeof value) { /**/ }
         else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(1, "nodejs: got expected number of non-existing keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: got expected number of non-existing keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
-    for (var i = 0; i < test_keys; i++) {
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
         var value = shf.getKeyVal("key"+i);
         if (value === "val"+i) { /**/ }
         else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(1, "nodejs: got expected number of     existing keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: got expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
@@ -152,13 +152,13 @@ ok(0 == shf.debugGetGarbage(), "nodejs: graceful growth cleans up after itself a
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
-    for (var i = 0; i < test_keys; i++) {
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
         var value = shf.delKeyVal("key"+i);
         if (value != 1) { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(1, "nodejs: del expected number of     existing keys // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: del expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
@@ -166,55 +166,55 @@ ok(0 != shf.debugGetGarbage(), "nodejs: del does not    clean  up after itself a
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
-    for (var i = 0; i < test_keys; i++) {
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
         uid = shf.queueNewItem (testQueueItemDataSize);
               shf.queuePushHeadData(uidQueueUnused, uid, i.toString());
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
+    var testStartTime = Date.now() / 1000;
     testPullItemsTotal = 0;
     var testUidItem = shfUidNone;
     while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueA2b, uidQueueUnused))) {
         testUidItem = shf.uid();
         testPullItemsTotal ++;
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(testQueueItemsTotal + test_keys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(testQueueItemsTotal + testKeys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
+    var testStartTime = Date.now() / 1000;
     testPullItemsTotal = 0;
     var testUidItem = shfUidNone;
     while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueB2a, uidQueueA2b))) {
         testUidItem = shf.uid();
         testPullItemsTotal ++;
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(testQueueItemsTotal + test_keys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(testQueueItemsTotal + testKeys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 
 {
     shf.debugVerbosityLess();
-    var test_start_time = Date.now() / 1000;
+    var testStartTime = Date.now() / 1000;
     testPullItemsTotal = 0;
     var testUidItem = shfUidNone;
     while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueUnused, uidQueueB2a))) {
         testUidItem = shf.uid();
         testPullItemsTotal ++;
     }
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(testQueueItemsTotal + test_keys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(test_keys / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(testQueueItemsTotal + testKeys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
 }
 

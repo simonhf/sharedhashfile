@@ -45,6 +45,14 @@ Can multiple threads in multiple processes also access SharedHashFile hash table
 
 Hash tables are stored in memory mapped files in `/dev/shm` which means the data persists even when no processes are using hash tables. However, the hash tables will not survive rebooting.
 
+### Unique Identifers
+
+Unlike other hash tables, every key stored in SharedHashFile gets assigned its own UID, e.g. ```shf_make_hash("key", 3); uint32_t uid =  shf_put_key_val(shf, "val", 3)```. To get the same key in the future, choose between accessing the key via its key, or via its UID, e.g. ```shf_make_hash("key", 3); shf_get_key_val_copy(shf)``` or ```shf_get_uid_val_copy(shf, uid)```.
+
+What are UIDs useful for? UIDs don't take up any extra resources and can be thought of as resource 'free'. Accessing a key by its UID is faster than accessing the key via its key. Because a UID is only 32bits in size then it can be easily stored as a reference to a key in your program, or embedded in the values of of key,value pairs, or even embedded within other keys.
+
+Example usage: If uid1 points to key "user-id-<xyz>", and uid2 points to key "facebook.com", then another 'mash up' key might be "<uid1><uid2>". Want to find out if "user-id-<xyz>" has "facebook.com" in their personal URL whitelist? Just see if key "<uid1><uid2>" exists.
+
 ## Building
 
 ```

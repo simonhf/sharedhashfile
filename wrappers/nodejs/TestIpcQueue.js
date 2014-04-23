@@ -67,18 +67,18 @@ ok( uidQueueB2a    != shfUidNone, "nodejs: .queueGetName('queue-b2a'   ) returne
 var testKeysExpected = 100000;
 
 {
-    var test_start_time;
+    var testStartTime;
     testPullItemsTotal = 0;
     var testUidItem = shfUidNone;
     do {
         while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueB2a, uidQueueA2b))) {
             testUidItem = shf.uid();
             testPullItemsTotal ++;
-            if (testKeysExpected == testPullItemsTotal) { test_start_time = Date.now() / 1000; } /* start timing once testKeysExpected have done 1st loop */
+            if (testKeysExpected == testPullItemsTotal) { testStartTime = Date.now() / 1000; } /* start timing once testKeysExpected have done 1st loop */
         }
     } while (testPullItemsTotal < 500000);
-    var test_elapsed_time = (Date.now() / 1000 - test_start_time);
-    ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItemsTotal / test_elapsed_time)+" keys per second");
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItemsTotal / testElapsedTime)+" keys per second");
 }
 
 exit_status();
