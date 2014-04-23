@@ -81,12 +81,12 @@ shf_backticks(const char * command) /* e.g. buf_used = shf_backticks("ls -la | g
 
     shf_backticks_buffer_used = 0;
     while ((bytes_read = fread(&shf_backticks_buffer[shf_backticks_buffer_used], sizeof(char), (shf_backticks_buffer_size - shf_backticks_buffer_used - 1), fp)) != 0) {
-        SHF_DEBUG("read %u bytes from the pipe\n", bytes_read);
+        SHF_DEBUG("%s() read %u bytes from the pipe\n", __FUNCTION__, bytes_read);
         shf_backticks_buffer_used += bytes_read;
         if (shf_backticks_buffer_size - shf_backticks_buffer_used <= 1) {
             shf_backticks_buffer       = mremap(shf_backticks_buffer, shf_backticks_buffer_size, SHF_SIZE_PAGE + shf_backticks_buffer_size, MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_backticks_buffer, "mremap(): %u: ", errno);
             shf_backticks_buffer_size += SHF_SIZE_PAGE;
-            SHF_DEBUG("shf_backticks() increased buffer size to %u\n", shf_backticks_buffer_size);
+            SHF_DEBUG("%s() increased buffer size to %u\n", __FUNCTION__, shf_backticks_buffer_size);
         }
     }
 

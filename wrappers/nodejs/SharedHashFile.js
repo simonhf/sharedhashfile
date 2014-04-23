@@ -108,7 +108,7 @@ while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueu
 }
 ok(testQueueItemsTotal == testPullItemsTotal, "nodejs: pulled & pushed items from b2a    to unused as expected");
 
-var test_keys = 250000;
+var test_keys = 100000;
 shf.setDataNeedFactor(250);
 
 {

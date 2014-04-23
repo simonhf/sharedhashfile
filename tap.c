@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-/* FIXME: The real fix is an asprintf module. */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -506,7 +505,7 @@ tap_plan(unsigned tests, unsigned flags, FILE * output)
 void
 plan_tests(unsigned int tests)
 {
-	tap_plan(tests, 0, NULL);
+    tap_plan(tests, 0, NULL);
 }
 
 int

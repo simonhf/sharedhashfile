@@ -103,13 +103,26 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cp ./wrappers/nodejs/SharedHashFile.js $(BUILD_TYPE)/.
 	@echo "make: running test"
 	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod nodejs ./SharedHashFile.js
+	@echo "make: building and running test: IPC: Unix Domain Socket"
+	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcSocket.* .
+	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcSocket.c
+	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket TestIpcSocket.o shf.o murmurhash3.o
+	@cd $(BUILD_TYPE) && ./TestIpcSocket
+	@echo "make: building and running test: IPC: SharedHashFile Queue"
+	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.* .
+	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcQueue.c
+	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue TestIpcQueue.o shf.queue.o shf.o murmurhash3.o tap.o
+	@cd $(BUILD_TYPE) && ./TestIpcQueue
 else
 	@echo "make: note: !!! node-gyp not found; cannot build nodejs interface; e.g. install via: sudo apt-get install nodejs && sudo apt-get install node-gyp !!!"
 endif
 
 debug: all
 
-.PHONY: all clean debug
+fixme:
+	find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js)" | xargs egrep -i fixme
+
+.PHONY: all clean debug fixme
 
 clean:
 	rm -rf release debug wrappers/nodejs/build

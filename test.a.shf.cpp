@@ -101,7 +101,7 @@ main(/* int argc,char **argv */)
     }
     ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from b2a    to unused as expected");
 
-    uint32_t test_keys = 250000;
+    uint32_t test_keys = 100000;
     shf->SetDataNeedFactor(250);
 
     {
