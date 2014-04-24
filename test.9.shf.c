@@ -46,7 +46,7 @@ int main(void)
     ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find unput key as expected");
     ok(0         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could not find unput key as expected");
     uint32_t uid =  shf_put_key_val     (shf    , "val" , 3)                                                                   ;
-    ok(      uid != SHF_UID_NONE                            , "c: shf_put_val()                           put key as expected");
+    ok(      uid != SHF_UID_NONE                            , "c: shf_put_key_val()                       put key as expected");
     ok(1         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could     find   put key as expected");
     ok(3         == shf_val_len                             , "c: shf_val_len                                     as expected");
     ok(0         == memcmp              (shf_val, "val" , 3), "c: shf_val                                         as expected");

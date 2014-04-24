@@ -71,26 +71,26 @@ main(int argc, char **argv) {
     SHF_UNUSE(argc);
     SHF_UNUSE(argv);
 
-    SHF_ASSERT(argc >= 2, "ERROR: please supply an argument; c2js, c2c, or fromc");
-    SHF_ASSERT((0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" )))
-    ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"  )))
-    ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("fromc"))), "ERROR: please supply an argument; c2js, c2c, or fromc; got: '%s'", argv[1]);
+    SHF_ASSERT(argc >= 2, "ERROR: please supply an argument; c2js, c2c, or 4c");
+    SHF_ASSERT((0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js")))
+    ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" )))
+    ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))), "ERROR: please supply an argument; c2js, c2c, or 4c; got: '%s'", argv[1]);
 
-         if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" ))) { plan_tests(5); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"  ))) { plan_tests(4); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("fromc"))) { plan_tests(5); }
+         if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests(5); }
+    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests(9); }
+    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests(8); }
 
     pid_t pid = getpid();
     SHF_DEBUG("pid %u started\n", pid);
 
-    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" ))) { /* just for fun, test C to C call speed; useful for comparing to V8 to C call speed */
+    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { /* just for fun, test C to C call speed; useful for comparing to V8 to C call speed */
         double test_start_time = shf_get_time_in_seconds();
         double test_iterations = 0;
         do {
             test_iterations += test_dummy();
-        } while (test_iterations < 100000000);
+        } while (test_iterations < 10000000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: called  expected number to dummy function  // estimate %.0f keys per second", test_iterations / test_elapsed_time);
+        ok(1, "     c: called  expected number to dummy function  // estimate %.0f keys per second", test_iterations / test_elapsed_time);
     }
 
     char  test_shf_name[256];
@@ -102,20 +102,20 @@ main(int argc, char **argv) {
     uint32_t   test_keys = 100000;
     uint32_t   test_queue_item_data_size = 4096;
 
-    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("fromc"))) {
+    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"))) {
         SHF_DEBUG("behaving as client\n", pid);
-        SHF_ASSERT(argc == 3, "ERROR: please supply arguments; fromc <name of shf>");
+        SHF_ASSERT(argc == 3, "ERROR: please supply arguments; 4c <name of shf>");
 
               shf_debug_verbosity_less();
               shf_init                ();
-        shf = shf_attach_existing     (test_shf_folder, argv[2]); ok(NULL != shf, "fromc: shf_attach_existing() works for existing file as expected");
+        shf = shf_attach_existing     (test_shf_folder, argv[2]); ok(NULL != shf, "    4c: shf_attach_existing() works for existing file as expected");
 
         uint32_t uid_queue_unused  =  shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused"));
         uint32_t uid_queue_a2b     =  shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
         uint32_t uid_queue_b2a     =  shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
-        ok(      uid_queue_unused != SHF_UID_NONE, "fromc: shf_queue_get_name('queue-unused') returned uid as expected");
-        ok(      uid_queue_a2b    != SHF_UID_NONE, "fromc: shf_queue_get_name('queue-a2b'   ) returned uid as expected");
-        ok(      uid_queue_b2a    != SHF_UID_NONE, "fromc: shf_queue_get_name('queue-b2a'   ) returned uid as expected");
+        ok(      uid_queue_unused != SHF_UID_NONE, "    4c: shf_queue_get_name('queue-unused') returned uid as expected");
+        ok(      uid_queue_a2b    != SHF_UID_NONE, "    4c: shf_queue_get_name('queue-a2b'   ) returned uid as expected");
+        ok(      uid_queue_b2a    != SHF_UID_NONE, "    4c: shf_queue_get_name('queue-b2a'   ) returned uid as expected");
 
         {
             double   test_start_time = 0;
@@ -126,23 +126,58 @@ main(int argc, char **argv) {
                               test_pull_items ++;
                               if (test_keys == test_pull_items) { test_start_time = shf_get_time_in_seconds(); } /* start timing once test_keys have done 1st loop */
                 }
-                usleep(1000); /* 1/1000th of a second */
             } while (test_pull_items < 500000);
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-            ok(1, "fromc: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+            ok(1, "    4c: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+        }
+
+        {
+                                            SHF_MAKE_HASH       ("lock");
+            SHF_LOCK         * lock  =      shf_get_key_val_addr(shf   );
+            ok(                lock != NULL                             , "    4c: got lock value address as expected");
+                                            SHF_MAKE_HASH       ("line");
+            volatile uint8_t * line  =      shf_get_key_val_addr(shf   );
+            ok(                line != NULL                             , "    4c: got line value address as expected");
+
+            __sync_fetch_and_add_8(line, 1); /* atomic increment */
+            while (2 != *line) { SHF_CPU_PAUSE(); }
+
+            double test_start_time = shf_get_time_in_seconds();
+            double test_lock_iterations = 0;
+            do {
+                SHF_LOCK_WRITER(lock);
+                SHF_UNLOCK_WRITER(lock);
+                test_lock_iterations ++;
+            } while (test_lock_iterations < 2000000);
+            double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+            ok(1, "    4c: rw lock expected number of times           // estimate %.0f locks per second", test_lock_iterations / test_elapsed_time);
         }
 
         goto EARLY_OUT;
-    } /* fromc */
+    } /* 4c */
 
           shf_debug_verbosity_less();
           shf_init                ();
           shf_set_data_need_factor(250);
-    shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
+    shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "     c: shf_attach()          works for non-existing file as expected");
 
-    uint32_t uid_queue_unused =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused"));
-    uint32_t uid_queue_a2b    =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
-    uint32_t uid_queue_b2a    =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
+    {
+        SHF_LOCK lock;
+        uint8_t  line = 0; /* note: this memory does not get shared, but the memory in the hash key,value gets shared */
+        if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
+            memset(&lock, 0, sizeof(lock));
+                      SHF_MAKE_HASH  (                            "lock"              );
+               uid =  shf_put_key_val(shf, SHF_CAST(const char *, &lock), sizeof(lock));
+            ok(uid != SHF_UID_NONE                                                     , "     c: put lock in value as expected");
+                      SHF_MAKE_HASH  (                            "line"              );
+               uid =  shf_put_key_val(shf, SHF_CAST(const char *, &line), sizeof(line));
+            ok(uid != SHF_UID_NONE                                                     , "     c: put line in value as expected");
+        }
+    }
+
+    uint32_t uid_queue_unused = shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused"));
+    uint32_t uid_queue_a2b    = shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
+    uint32_t uid_queue_b2a    = shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
 
     {
         double test_start_time = shf_get_time_in_seconds();
@@ -151,7 +186,7 @@ main(int argc, char **argv) {
                   shf_queue_push_head(shf, uid_queue_unused, uid);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(1, "     c: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
     }
 
     {
@@ -163,12 +198,12 @@ main(int argc, char **argv) {
                       test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_keys == test_pull_items, "     c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
     }
 
     pid_t child_pid = 0;
     if      (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = test_exec_child(shf_backticks("which nodejs"  ), "nodejs"      , "TestIpcQueue.js", test_shf_name); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = test_exec_child(              "./TestIpcQueue" , "TestIpcQueue", "fromc"          , test_shf_name); }
+    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = test_exec_child(              "./TestIpcQueue" , "TestIpcQueue", "4c"             , test_shf_name); }
     else                                                           { SHF_ASSERT(0, "ERROR: should never get here!"); }
 
     {
@@ -180,10 +215,34 @@ main(int argc, char **argv) {
                           test_pull_items ++;
                           if (test_keys == test_pull_items) { test_start_time = shf_get_time_in_seconds(); } /* start timing once test_keys have done 1st loop */
             }
-            usleep(1000); /* 1/1000th of a second */
+            if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" ))) { /* the rw spin locks are fair but don't create unnecessary contention for javascript client */
+                usleep(1000); /* 1/1000th of a second */
+            }
         } while (test_pull_items < 500000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+        ok(1, "     c: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+    }
+
+    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
+                                        SHF_MAKE_HASH       ("lock");
+        SHF_LOCK         * lock  =      shf_get_key_val_addr(shf   );
+        ok(                lock != NULL                             , "     c: got lock value address as expected");
+                                        SHF_MAKE_HASH       ("line");
+        volatile uint8_t * line  =      shf_get_key_val_addr(shf   );
+        ok(                line != NULL                             , "     c: got line value address as expected");
+
+        __sync_fetch_and_add_8(line, 1); /* atomic increment */
+        while (2 != *line) { SHF_CPU_PAUSE(); }
+
+        double test_start_time = shf_get_time_in_seconds();
+        double test_lock_iterations = 0;
+        do {
+            SHF_LOCK_WRITER(lock);
+            SHF_UNLOCK_WRITER(lock);
+            test_lock_iterations ++;
+        } while (test_lock_iterations < 2000000);
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(1, "     c: rw lock expected number of times           // estimate %.0f locks per second", test_lock_iterations / test_elapsed_time);
     }
 
     shf_debug_verbosity_more();
