@@ -114,7 +114,8 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.* .
 	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcQueue.c
 	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue TestIpcQueue.o shf.queue.o shf.o murmurhash3.o tap.o
-	@cd $(BUILD_TYPE) && ./TestIpcQueue
+	@cd $(BUILD_TYPE) && ./TestIpcQueue c2js
+	@cd $(BUILD_TYPE) && ./TestIpcQueue c2c
 else
 	@echo "make: note: !!! node-gyp not found; cannot build nodejs interface; e.g. install via: sudo apt-get install nodejs && sudo apt-get install node-gyp !!!"
 endif
@@ -122,7 +123,7 @@ endif
 debug: all
 
 fixme:
-	find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js)" | xargs egrep -i fixme
+	find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep -i fixme | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){exit 1}else{print qq[make: fixme not found in any source file!]}}'
 
 .PHONY: all clean debug fixme
 
