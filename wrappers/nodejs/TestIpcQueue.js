@@ -73,8 +73,9 @@ var testKeysExpected = 100000;
     do {
         while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueB2a, uidQueueA2b))) {
             testUidItem = shf.uid();
+            if (testPullItemsTotal  < testKeysExpected) { if (testPullItemsTotal != parseInt(testValue.substr(0,8), 10)) { console.log("INTERNAL: test expected "+testPullItemsTotal.toString()+" but got "+testValue.substr(0,8)); process.exit(1); } }
+            if (testPullItemsTotal == testKeysExpected) { testStartTime = Date.now() / 1000; } /* start timing once testKeysExpected have done 1st loop */
             testPullItemsTotal ++;
-            if (testKeysExpected == testPullItemsTotal) { testStartTime = Date.now() / 1000; } /* start timing once testKeysExpected have done 1st loop */
         }
     } while (testPullItemsTotal < 500000);
     var testElapsedTime = (Date.now() / 1000 - testStartTime);

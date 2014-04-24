@@ -35,6 +35,8 @@
 #include <sys/time.h> /* for gettimeofday() */
 #include <string.h> /* for memset() */
 
+#include <wchar.h> /* for swprintf() // fixme */
+
 #include <shf.private.h>
 #include <shf.h>
 #include "shf.queue.h"
@@ -55,12 +57,18 @@ exec_nodejs(char * nodejs_argument) {
    return pid_child;
 } /* exec_nodejs() */
 
+static double
+test_dummy(void)
+{
+    return 1;
+} /* test_dummy() */
+
 int
 main(int argc, char **argv) {
     SHF_UNUSE(argc);
     SHF_UNUSE(argv);
 
-    plan_tests(4);
+    plan_tests(5);
 
     pid_t pid = getpid();
     SHF_DEBUG("pid %u started\n", pid);
@@ -98,6 +106,7 @@ main(int argc, char **argv) {
         uint32_t test_pull_items = 0;
         while(NULL != shf_queue_pull_tail(shf, uid_queue_unused         )) {
                       shf_queue_push_head(shf, uid_queue_a2b   , shf_uid);
+                      snprintf(shf_item_addr, shf_item_addr_len, "%08u", test_pull_items);
                       test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
@@ -119,6 +128,16 @@ main(int argc, char **argv) {
         } while (test_pull_items < 500000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         ok(1, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+    }
+
+    {
+        double test_start_time = shf_get_time_in_seconds();
+        double test_iterations = 0;
+        do {
+            test_iterations += test_dummy();
+        } while (test_iterations < 100000000);
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(1, "c: called  expected number to dummy function  // estimate %.0f keys per second", test_iterations / test_elapsed_time);
     }
 
     shf_debug_verbosity_more();
