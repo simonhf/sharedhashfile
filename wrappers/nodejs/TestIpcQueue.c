@@ -90,7 +90,7 @@ main(int argc, char **argv) {
             test_iterations += test_dummy();
         } while (test_iterations < 10000000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "     c: called  expected number to dummy function  // estimate %.0f keys per second", test_iterations / test_elapsed_time);
+        ok(1, "   c2*: called  expected number to dummy function  // estimate %.0f keys per second", test_iterations / test_elapsed_time);
     }
 
     char  test_shf_name[256];
@@ -103,7 +103,7 @@ main(int argc, char **argv) {
     uint32_t   test_queue_item_data_size = 4096;
 
     if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"))) {
-        SHF_DEBUG("behaving as client\n", pid);
+        SHF_DEBUG("'4c' mode; behaving as client\n");
         SHF_ASSERT(argc == 3, "ERROR: please supply arguments; 4c <name of shf>");
 
               shf_debug_verbosity_less();
@@ -159,7 +159,7 @@ main(int argc, char **argv) {
           shf_debug_verbosity_less();
           shf_init                ();
           shf_set_data_need_factor(250);
-    shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "     c: shf_attach()          works for non-existing file as expected");
+    shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
 
     {
         SHF_LOCK lock;
@@ -168,10 +168,10 @@ main(int argc, char **argv) {
             memset(&lock, 0, sizeof(lock));
                       SHF_MAKE_HASH  (                            "lock"              );
                uid =  shf_put_key_val(shf, SHF_CAST(const char *, &lock), sizeof(lock));
-            ok(uid != SHF_UID_NONE                                                     , "     c: put lock in value as expected");
+            ok(uid != SHF_UID_NONE                                                     , "   c2*: put lock in value as expected");
                       SHF_MAKE_HASH  (                            "line"              );
                uid =  shf_put_key_val(shf, SHF_CAST(const char *, &line), sizeof(line));
-            ok(uid != SHF_UID_NONE                                                     , "     c: put line in value as expected");
+            ok(uid != SHF_UID_NONE                                                     , "   c2*: put line in value as expected");
         }
     }
 
@@ -186,7 +186,7 @@ main(int argc, char **argv) {
                   shf_queue_push_head(shf, uid_queue_unused, uid);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "     c: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(1, "   c2*: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
     }
 
     {
@@ -198,7 +198,7 @@ main(int argc, char **argv) {
                       test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == test_pull_items, "     c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_keys == test_pull_items, "   c2*: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
     }
 
     pid_t child_pid = 0;
@@ -220,16 +220,16 @@ main(int argc, char **argv) {
             }
         } while (test_pull_items < 500000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "     c: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+        ok(1, "   c2*: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
     }
 
     if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
                                         SHF_MAKE_HASH       ("lock");
         SHF_LOCK         * lock  =      shf_get_key_val_addr(shf   );
-        ok(                lock != NULL                             , "     c: got lock value address as expected");
+        ok(                lock != NULL                             , "   c2*: got lock value address as expected");
                                         SHF_MAKE_HASH       ("line");
         volatile uint8_t * line  =      shf_get_key_val_addr(shf   );
-        ok(                line != NULL                             , "     c: got line value address as expected");
+        ok(                line != NULL                             , "   c2*: got line value address as expected");
 
         __sync_fetch_and_add_8(line, 1); /* atomic increment */
         while (2 != *line) { SHF_CPU_PAUSE(); }
@@ -242,7 +242,7 @@ main(int argc, char **argv) {
             test_lock_iterations ++;
         } while (test_lock_iterations < 2000000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "     c: rw lock expected number of times           // estimate %.0f locks per second", test_lock_iterations / test_elapsed_time);
+        ok(1, "   c2*: rw lock expected number of times           // estimate %.0f locks per second", test_lock_iterations / test_elapsed_time);
     }
 
     shf_debug_verbosity_more();
