@@ -1,6 +1,6 @@
 # SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
 
-SharedHashFile is a lightweight NoSQL hash table library written in C for Linux, operating fully in memory.  There is no server process.  Data is read and written directly from/to shared memory; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & nodejs.
+SharedHashFile is a lightweight NoSQL hash table library written in C for Linux, operating fully in memory.  There is no server process.  Data is read and written directly from/to shared memory; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
 
 ## Project Goals
 
