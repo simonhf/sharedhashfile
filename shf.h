@@ -69,32 +69,45 @@ typedef union SHF_DATA_TYPE {
 
 #define SHF_DATA_TYPE_DELETED (0xff)
 #define SHF_UID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
+#define SHF_QID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
+#define SHF_QIID_NONE         (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
 
 extern __thread uint32_t   shf_uid          ;
-extern __thread void     * shf_item_addr    ;
-extern __thread uint32_t   shf_item_addr_len;
 extern __thread char     * shf_val          ;
 extern __thread uint32_t   shf_val_len      ;
+extern __thread uint32_t   shf_qiid         ;
+extern __thread char     * shf_qiid_addr    ;
+extern __thread uint32_t   shf_qiid_addr_len;
 
-extern char     * shf_backticks           (const char * command);
-extern double     shf_get_time_in_seconds (void);
-extern void       shf_init                (void);
-extern void       shf_detach              (SHF * shf);
-extern SHF      * shf_attach_existing     (const char * path, const char * name);
-extern SHF      * shf_attach              (const char * path, const char * name);
-extern void       shf_make_hash           (const char * key, uint32_t key_len);
-extern uint32_t   shf_put_key_val         (SHF * shf, const char * val, uint32_t val_len);
-extern int        shf_get_key_val_copy    (SHF * shf);
-extern int        shf_get_uid_val_copy    (SHF * shf, uint32_t uid);
-extern void     * shf_get_key_val_addr    (SHF * shf);
-extern void     * shf_get_uid_val_addr    (SHF * shf, uint32_t uid);
-extern int        shf_del_key_val         (SHF * shf);
-extern int        shf_del_uid_val         (SHF * shf, uint32_t uid);
-extern void       shf_del                 (SHF * shf);
-extern uint64_t   shf_debug_get_garbage   (SHF * shf);
-extern void       shf_debug_verbosity_less(void);
-extern void       shf_debug_verbosity_more(void);
-extern void       shf_set_data_need_factor(uint32_t data_needed_factor);
-
+extern char     * shf_backticks            (const char * command);
+extern double     shf_get_time_in_seconds  (void);
+extern void       shf_init                 (void);
+extern void       shf_detach               (SHF * shf);
+extern SHF      * shf_attach_existing      (const char * path, const char * name);
+extern SHF      * shf_attach               (const char * path, const char * name);
+extern void       shf_make_hash            (const char * key, uint32_t key_len);
+extern uint32_t   shf_put_key_val          (SHF * shf, const char * val, uint32_t val_len);
+extern int        shf_get_key_val_copy     (SHF * shf);
+extern int        shf_get_uid_val_copy     (SHF * shf, uint32_t uid);
+extern void     * shf_get_key_val_addr     (SHF * shf);
+extern void     * shf_get_uid_val_addr     (SHF * shf, uint32_t uid);
+extern int        shf_del_key_val          (SHF * shf);
+extern int        shf_del_uid_val          (SHF * shf, uint32_t uid);
+extern void       shf_del                  (SHF * shf);
+extern uint64_t   shf_debug_get_garbage    (SHF * shf);
+extern void       shf_debug_verbosity_less (void);
+extern void       shf_debug_verbosity_more (void);
+extern void       shf_set_data_need_factor (uint32_t data_needed_factor);
+extern void     * shf_q_new                (SHF * shf, uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size);
+extern void     * shf_q_get                (SHF * shf);
+extern void       shf_q_del                (SHF * shf);
+extern uint32_t   shf_q_new_name           (SHF * shf, const char * name, uint32_t name_len);
+extern uint32_t   shf_q_get_name           (SHF * shf, const char * name, uint32_t name_len);
+extern void       shf_q_push_head          (SHF * shf, uint32_t qid, uint32_t qiid);
+extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
+extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);
 
 #endif /* __SHF_H__ */

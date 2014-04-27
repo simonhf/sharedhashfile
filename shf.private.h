@@ -95,12 +95,42 @@ typedef struct SHF_SHF_MMAP {
     SHF_WIN_MMAP wins[SHF_WINS_PER_SHF]; /* 256 WINdows */
 } __attribute__((packed)) SHF_SHF_MMAP;
 
+typedef struct SHF_Q_LOCK_MMAP {
+    SHF_LOCK lock;
+#ifdef SHF_DEBUG_VERSION
+    uint32_t debug_magic;
+#endif
+} __attribute__((packed)) SHF_Q_LOCK_MMAP;
+
+typedef struct SHF_QID_MMAP {
+    volatile uint32_t head;
+    volatile uint32_t tail;
+    volatile uint32_t size;
+} __attribute__((packed)) SHF_QID_MMAP;
+
+typedef struct SHF_QIID_MMAP {
+    volatile uint32_t last;
+    volatile uint32_t next;
+} __attribute__((packed)) SHF_QIID_MMAP;
+
+typedef struct SHF_Q {
+    uint32_t          qs         ; /* number of queues, e.g. 3 if free, a2b, & b2a */
+    uint32_t          q_next     ; /* next qid to assign via shf_q_new_name() */
+    uint32_t          q_items    ; /* number of queue items to share between the queues */
+    uint32_t          q_item_size; /* size of each queue item in bytes */
+    char            * q_item_addr; /* address of array of queue items */
+    SHF_Q_LOCK_MMAP * q_lock     ;
+    SHF_QID_MMAP    * qids       ;
+    SHF_QIID_MMAP   * qiids      ;
+} __attribute__((packed)) SHF_Q;
+
 typedef struct SHF {
     uint32_t       version                                 ; /* todo: implement version */
     SHF_OFF        tabs[SHF_WINS_PER_SHF][SHF_TABS_PER_WIN]; /* 524,288 private tab pointers */
     SHF_SHF_MMAP * shf_mmap                                ; /* pointer to mremap()able memory */
     char         * path                                    ; /* e.g. '/dev/shm' */
     char         * name                                    ; /* e.g. 'myshf' */
+    SHF_Q          q                                       ; /* for IPC q */
 } __attribute__((packed)) SHF;
 
 typedef union SHF_UID {

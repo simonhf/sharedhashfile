@@ -131,51 +131,78 @@ SharedHashFile::SetDataNeedFactor(uint32_t data_needed_factor)
     shf_set_data_need_factor(data_needed_factor);
 }
 
-uint32_t
-SharedHashFile::QueueNewItem(uint32_t data_size)
+void *
+SharedHashFile::QNew(uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_queue_new_item(shf, data_size);
-}
-
-void
-SharedHashFile::QueuePutItem(uint32_t uid, const char * data, uint32_t data_len)
-{
-    SHF_DEBUG("%s()\n", __FUNCTION__);
-    shf_queue_put_item(shf, uid, data, data_len);
-}
-
-uint32_t
-SharedHashFile::QueueNewName(const char * key, uint32_t key_len)
-{
-    SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_queue_new_name(shf, key, key_len);
-}
-
-uint32_t
-SharedHashFile::QueueGetName(const char * key, uint32_t key_len)
-{
-    SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_queue_get_name (shf, key, key_len);
-}
-
-void
-SharedHashFile::QueuePushHead(uint32_t uid_head, uint32_t uid)
-{
-    SHF_DEBUG("%s()\n", __FUNCTION__);
-    shf_queue_push_head(shf, uid_head, uid);
+    return shf_q_new(shf, shf_qs, shf_q_items, shf_q_item_size);
 }
 
 void *
-SharedHashFile::QueuePullTail(uint32_t uid_head)
+SharedHashFile::QGet()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_queue_pull_tail(shf, uid_head);
+    return shf_q_get(shf);
 }
 
-void *
-SharedHashFile::QueueTakeItem(uint32_t uid_head, uint32_t uid)
+void
+SharedHashFile::QDel()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_queue_take_item(shf, uid_head, uid);
+    return shf_q_del(shf);
+}
+
+uint32_t
+SharedHashFile::QNewName(const char * name, uint32_t name_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_new_name(shf, name, name_len);
+}
+
+uint32_t
+SharedHashFile::QGetName(const char * name, uint32_t name_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_get_name(shf, name, name_len);
+}
+
+void
+SharedHashFile::QPushHead(uint32_t qid, uint32_t qiid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_push_head(shf, qid, qiid);
+}
+
+uint32_t
+SharedHashFile::QPullTail(uint32_t qid) /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_pull_tail(shf, qid);
+}
+
+uint32_t
+SharedHashFile::QTakeItem(uint32_t qid) /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_take_item(shf, qid);
+}
+
+uint32_t
+SharedHashFile::QPushHeadPullTail(uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid) { /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_push_head_pull_tail(shf, push_qid, push_qiid, pull_qid);
+}
+
+void
+SharedHashFile::RaceInit(const char * name, uint32_t name_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_race_init(shf, name, name_len);
+}
+
+void
+SharedHashFile::RaceStart(const char * name, uint32_t name_len, uint32_t horses)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_race_start(shf, name, name_len, horses);
 }

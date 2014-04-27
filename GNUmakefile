@@ -113,7 +113,7 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@echo "make: building and running test: IPC: SharedHashFile Queue"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.* .
 	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcQueue.c
-	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue TestIpcQueue.o shf.queue.o shf.o murmurhash3.o tap.o
+	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue TestIpcQueue.o shf.o murmurhash3.o tap.o
 	@cd $(BUILD_TYPE) && ./TestIpcQueue c2js
 	@cd $(BUILD_TYPE) && ./TestIpcQueue c2c
 else

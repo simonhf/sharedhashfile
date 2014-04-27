@@ -39,7 +39,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(28);
+plan_tests(30);
 
 console.log('nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -65,50 +65,44 @@ ok(        uid !=         shfUidNone                                    , "nodej
 ok('val2'      ===        shf.getUidVal     ( uid                      ), "nodejs: .getUidVal() could     find reput key as expected"        );
 ok(1           ==         shf.delKeyVal     ("key"                     ), "nodejs: .delKeyVal() could     find reput key as expected"        );
 
-var uidQueueUnused =  shf.queueNewName("queue-unused"); /* e.g. queue names created by process a */
-var uidQueueA2b    =  shf.queueNewName("queue-a2b"   );
-var uidQueueB2a    =  shf.queueNewName("queue-b2a"   );
-ok( uidQueueUnused == shf.queueGetName("queue-unused"), "nodejs: .queueGetName('queue-unused') returned uid as expected");  /* e.g. queue names got by process b */
-ok( uidQueueA2b    == shf.queueGetName("queue-a2b"   ), "nodejs: .queueGetName('queue-a2b'   ) returned uid as expected");
-ok( uidQueueB2a    == shf.queueGetName("queue-b2a"   ), "nodejs: .queueGetName('queue-b2a'   ) returned uid as expected");
+var testQiid;
+var shfQiidNone       = 4294967295;
+var testPullItems     = 0;
+var testQs            = 3;
+var testQItems        = 10;
+var testQItemSize     = 4096;
+var shfQItems         = shf.qNew(testQs, testQItems , testQItemSize);
+ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");                   /* e.g. q items created  by process a */
+var testQidFree       = shf.qNewName("qid-free");                                                                               /* e.g. q names set qids by process a */
+var testQidA2b        = shf.qNewName("qid-a2b" );
+var testQidB2a        = shf.qNewName("qid-b2a" );
+ok( testQidFree      == shf.qGetName("qid-free")                   , "nodejs: .qGetName('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
+ok( testQidA2b       == shf.qGetName("qid-a2b" )                   , "nodejs: .qGetName('qid-a2b' ) returned qid as expected");
+ok( testQidB2a       == shf.qGetName("qid-b2a" )                   , "nodejs: .qGetName('qid-b2a' ) returned qid as expected");
 
-var testPullResult;
-var testPullItemsTotal;
-var testQueueItemsTotal = 10;
-var testQueueItemDataSize = 4096;
-for (var i = 0; i < testQueueItemsTotal; i++) { /* e.g. queue items created & queued in unused queue by process a */
-    uid = shf.queueNewItem     (testQueueItemDataSize);
-          shf.queuePushHeadData(uidQueueUnused, uid, i.toString());
+testPullItems = 0;
+while(shfQiidNone != (testQiid = shf.qPullTail(testQidFree          ))) {                                                       /* e.g. q items from unused to a2b q by process a */
+                                 shf.qPushHead(testQidA2b , testQiid);
+    if(testPullItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
+    testPullItems ++;
 }
+ok(testQItems == testPullItems, "nodejs: pulled & pushed items from free to a2b  as expected");
 
-testPullItemsTotal = 0;
-var testValue;
-var testUidItem = shfUidNone;
-while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueA2b, uidQueueUnused))) { /* e.g. items transferred from unused to a2b queue by process a */
-    //console.log('nodejs: debug: testValue.length '+testValue.length+', first byte is >'+testValue.substr(0,1)+'<');
-    if(testPullItemsTotal != parseInt(testValue.substr(0,1), 10)) { console.log("INTERNAL: test expected "+testPullItemsTotal.toString()+" but got "+testValue.substr(0,1)); process.exit(1); };
-    testUidItem = shf.uid();
-    testPullItemsTotal ++;
+testPullItems = 0;
+while(shfQiidNone != (testQiid = shf.qPullTail(testQidA2b           ))) {                                                       /* e.g. q items from a2b to b2a queue by process b */
+                                 shf.qPushHead(testQidB2a , testQiid);
+    if(testPullItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
+    testPullItems ++;
 }
-ok(testQueueItemsTotal == testPullItemsTotal, "nodejs: pulled & pushed items from unused to a2b    as expected");
+ok(testQItems == testPullItems, "nodejs: pulled & pushed items from a2b  to b2a  as expected");
 
-testPullItemsTotal = 0;
-var testUidItem = shfUidNone;
-while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueB2a, uidQueueA2b))) { /* e.g. items transferred from a2b to b2a queue by process b */
-    if(testPullItemsTotal != parseInt(testValue.substr(0,1), 10)) { console.log("INTERNAL: test expected "+testPullItemsTotal.toString()+" but got "+testValue.substr(0,1)); process.exit(1); };
-    testUidItem = shf.uid();
-    testPullItemsTotal ++;
+testPullItems = 0;
+while(shfQiidNone != (testQiid = shf.qPullTail(testQidB2a          ))) {                                                        /* e.g. q items from b2a to free queue by process a */
+                                 shf.qPushHead(testQidFree, testQiid);
+    if(testPullItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
+    testPullItems ++;
 }
-ok(testQueueItemsTotal == testPullItemsTotal, "nodejs: pulled & pushed items from a2b    to b2a    as expected");
-
-testPullItemsTotal = 0;
-var testUidItem = shfUidNone;
-while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueUnused, uidQueueB2a))) { /* e.g. items transferred from b2a to unused queue by process a */
-    if(testPullItemsTotal != parseInt(testValue.substr(0,1), 10)) { console.log("INTERNAL: test expected "+testPullItemsTotal.toString()+" but got "+testValue.substr(0,1)); process.exit(1); };
-    testUidItem = shf.uid();
-    testPullItemsTotal ++;
-}
-ok(testQueueItemsTotal == testPullItemsTotal, "nodejs: pulled & pushed items from b2a    to unused as expected");
+ok(testQItems == testPullItems, "nodejs: pulled & pushed items from b2a  to free as expected");
 
 var testKeys = 100000;
 shf.setDataNeedFactor(250);
@@ -166,58 +160,56 @@ ok(0 == shf.debugGetGarbage(), "nodejs: graceful growth cleans up after itself a
 
 ok(0 != shf.debugGetGarbage(), "nodejs: del does not    clean  up after itself as expected");
 
+    testQItems = 100000;
+
 {
-    shf.debugVerbosityLess();
     var testStartTime = Date.now() / 1000;
-    for (var i = 0; i < testKeys; i++) {
-        uid = shf.queueNewItem (testQueueItemDataSize);
-              shf.queuePushHeadData(uidQueueUnused, uid, i.toString());
-    }
+                            shf.debugVerbosityLess();
+                            shf.qDel              ();
+        shfQItems         = shf.qNew(testQs, testQItems , testQItemSize);
+    ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");
+                            shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
-    shf.debugVerbosityMore();
+    ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" q items per second");
 }
 
 {
-    shf.debugVerbosityLess();
     var testStartTime = Date.now() / 1000;
-    testPullItemsTotal = 0;
-    var testUidItem = shfUidNone;
-    while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueA2b, uidQueueUnused))) {
-        testUidItem = shf.uid();
-        testPullItemsTotal ++;
+    shf.debugVerbosityLess();
+    testPullItems = 0;
+    var testQiid = shfQiidNone;
+    while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidA2b, testQiid, testQidFree))) {
+        testPullItems ++;
     }
-    var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQueueItemsTotal + testKeys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second");
 }
 
 {
-    shf.debugVerbosityLess();
     var testStartTime = Date.now() / 1000;
-    testPullItemsTotal = 0;
-    var testUidItem = shfUidNone;
-    while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueB2a, uidQueueA2b))) {
-        testUidItem = shf.uid();
-        testPullItemsTotal ++;
+    shf.debugVerbosityLess();
+    testPullItems = 0;
+    var testQiid = shfQiidNone;
+    while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidB2a, testQiid, testQidA2b))) {
+        testPullItems ++;
     }
-    var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQueueItemsTotal + testKeys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second");
 }
 
 {
-    shf.debugVerbosityLess();
     var testStartTime = Date.now() / 1000;
-    testPullItemsTotal = 0;
-    var testUidItem = shfUidNone;
-    while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueUnused, uidQueueB2a))) {
-        testUidItem = shf.uid();
-        testPullItemsTotal ++;
+    shf.debugVerbosityLess();
+    testPullItems = 0;
+    var testQiid = shfQiidNone;
+    while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidFree, testQiid, testQidB2a))) {
+        testPullItems ++;
     }
-    var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQueueItemsTotal + testKeys == testPullItemsTotal, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
     shf.debugVerbosityMore();
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second");
 }
 
 // todo: delete shf;

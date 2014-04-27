@@ -45,7 +45,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(5);
+plan_tests(7);
 
 console.log('nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -53,33 +53,39 @@ console.log('nodejs: debug:          required SharedHashFile');
 
 var testShfFolder = "/dev/shm";
 var shfUidNone    = 4294967295;
+var shfQidNone    = 4294967295;
+var shfQiidNone   = 4294967295;
 
 var                   shf = new SharedHashFile.sharedHashFile();
                       shf.debugVerbosityLess();
 ok(0               != shf.attachExisting(testShfFolder, testShfName), "nodejs: .attachExisting() works for existing file as expected");
-var uidQueueUnused  = shf.queueGetName("queue-unused");
-var uidQueueA2b     = shf.queueGetName("queue-a2b"   );
-var uidQueueB2a     = shf.queueGetName("queue-b2a"   );
-ok( uidQueueUnused != shfUidNone, "nodejs: .queueGetName('queue-unused') returned uid as expected");
-ok( uidQueueA2b    != shfUidNone, "nodejs: .queueGetName('queue-a2b'   ) returned uid as expected");
-ok( uidQueueB2a    != shfUidNone, "nodejs: .queueGetName('queue-b2a'   ) returned uid as expected");
 
-var testKeysExpected = 100000;
+var testQItemSize     = 4096; // todo: parse this via SharedHashFile from process A
+var testQItems        = 100000; // todo: parse this via SharedHashFile from process A
+var shfQItems         = shf.qGet();
+ok( shfQItems.length != 0                       , "nodejs: .qGet() returned as expected");
+var testQidFree       = shf.qGetName("qid-free");
+var testQidA2b        = shf.qGetName("qid-a2b" );
+var testQidB2a        = shf.qGetName("qid-b2a" );
+ok( testQidFree      != shfQidNone              , "nodejs: .qGetName('qid-free') returned qid as expected");
+ok( testQidA2b       != shfQidNone              , "nodejs: .qGetName('qid-a2b' ) returned qid as expected");
+ok( testQidB2a       != shfQidNone              , "nodejs: .qGetName('qid-b2a' ) returned qid as expected");
 
 {
-    var testStartTime;
-    testPullItemsTotal = 0;
-    var testUidItem = shfUidNone;
+    shf.raceStart("test-q-race-line", 2);
+    ok(1, "nodejs: testing process b IPC queue a2b --> b2a speed");
+    var testStartTime  = Date.now() / 1000;
+    testPullItems = 0;
+    var testQiid = shfQiidNone;
     do {
-        while('undefined' !== typeof (testValue = shf.queuePushPull(testUidItem, uidQueueB2a, uidQueueA2b))) {
-            testUidItem = shf.uid();
-            if (testPullItemsTotal  < testKeysExpected) { if (testPullItemsTotal != parseInt(testValue.substr(0,8), 10)) { console.log("INTERNAL: test expected "+testPullItemsTotal.toString()+" but got "+testValue.substr(0,8)); process.exit(1); } }
-            if (testPullItemsTotal == testKeysExpected) { testStartTime = Date.now() / 1000; } /* start timing once testKeysExpected have done 1st loop */
-            testPullItemsTotal ++;
+        while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidB2a, testQiid, testQidA2b))) {
+            if (testPullItems % testQItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
+                testPullItems ++;
+            if (testPullItems == 1000000) { shf.qPushHead(testQidB2a, testQiid); break; }
         }
-    } while (testPullItemsTotal < 500000);
+    } while (testPullItems < 1000000);
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItemsTotal / testElapsedTime)+" keys per second");
+    ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItems / testElapsedTime)+" q items per second with contention");
 }
 
 exit_status();

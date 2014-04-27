@@ -27,7 +27,6 @@
 
 #include "shf.private.h"
 #include "shf.h"
-#include "shf.queue.h"
 #include "tap.h"
 
 int main(void)
@@ -60,44 +59,41 @@ int main(void)
     ok(0         == memcmp              (shf_val, "val2", 4), "c: shf_val                                         as expected");
     ok(1         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could     find reput key as expected");
 
-    uint32_t uid_queue_unused =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused")); /* e.g. queue names created by process a */
-    uint32_t uid_queue_a2b    =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
-    uint32_t uid_queue_b2a    =  shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
-    ok(      uid_queue_unused == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused")), "c: shf_queue_get_name('queue-unused') returned uid as expected");  /* e.g. queue names got by process b */
-    ok(      uid_queue_a2b    == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   )), "c: shf_queue_get_name('queue-a2b'   ) returned uid as expected");
-    ok(      uid_queue_b2a    == shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   )), "c: shf_queue_get_name('queue-b2a'   ) returned uid as expected");
-
-    uint32_t test_pull_items;
-    uint32_t test_queue_items = 10;
-    uint32_t test_queue_item_data_size = 4096;
-    for (uint32_t i = 0; i < test_queue_items; i++) { /* e.g. queue items created & queued in unused queue by process a */
-        uid = shf_queue_new_item (shf, test_queue_item_data_size);
-              shf_queue_push_head(shf, uid_queue_unused, uid);
-    }
+    uint32_t test_pull_items  = 0;
+    uint32_t test_qs          = 3;
+    uint32_t test_q_items     = 10;
+    uint32_t test_q_item_size = 4096;
+    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size), "c: shf_q_new() returned as expected");                    /* e.g. q items created  by process a */
+    uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")     );                                                            /* e.g. q names set qids by process a */
+    uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )     );
+    uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )     );
+    ok(      test_qid_free   == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")     ), "c: shf_q_get_name('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
+    ok(      test_qid_a2b    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )     ), "c: shf_q_get_name('qid-a2b' ) returned qid as expected");
+    ok(      test_qid_b2a    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )     ), "c: shf_q_get_name('qid-b2a' ) returned qid as expected");
 
     test_pull_items = 0;
-    while(NULL != shf_queue_pull_tail(shf, uid_queue_unused         )) { /* e.g. items transferred from unused to a2b queue by process a */
-                  shf_queue_push_head(shf, uid_queue_a2b   , shf_uid);
-                  SHF_CAST(uint32_t *, shf_item_addr)[0] = test_pull_items;
-                  test_pull_items ++;
+    while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_free          )) {                                                                                        /* e.g. q items from unused to a2b q by process a */
+                           shf_q_push_head(shf, test_qid_a2b , shf_qiid);
+                           SHF_CAST(uint32_t *, shf_qiid_addr)[0] = test_pull_items; /* store q item # in item */
+                           test_pull_items ++;
     }
-    ok(test_queue_items == test_pull_items, "c: pulled & pushed items from unused to a2b    as expected");
+    ok(test_q_items == test_pull_items, "c: pulled & pushed items from free to a2b  as expected");
 
     test_pull_items = 0;
-    while(NULL != shf_queue_pull_tail(shf, uid_queue_a2b         )) { /* e.g. items transferred from a2b to b2a queue by process b */
-                  shf_queue_push_head(shf, uid_queue_b2a, shf_uid);
-                  SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_item_addr)[0], "INTERNAL: test expected %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_item_addr)[0]);
-                  test_pull_items ++;
+    while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_a2b          )) {                                                                                         /* e.g. q items from a2b to b2a queue by process b */
+                           shf_q_push_head(shf, test_qid_b2a, shf_qiid);
+                           SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_qiid_addr)[0], "INTERNAL: test expected q item %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_qiid_addr)[0]);
+                           test_pull_items ++;
     }
-    ok(test_queue_items == test_pull_items, "c: pulled & pushed items from a2b    to b2a    as expected");
+    ok(test_q_items == test_pull_items, "c: pulled & pushed items from a2b  to b2a  as expected");
 
     test_pull_items = 0;
-    while(NULL != shf_queue_pull_tail(shf, uid_queue_b2a            )) { /* e.g. items transferred from b2a to unused queue by process a */
-                  shf_queue_push_head(shf, uid_queue_unused, shf_uid);
-                  SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_item_addr)[0], "INTERNAL: test expected %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_item_addr)[0]);
-                  test_pull_items ++;
+    while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_b2a           )) {                                                                                        /* e.g. q items from a2b to b2a queue by process b */
+                           shf_q_push_head(shf, test_qid_free, shf_qiid);
+                           SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_qiid_addr)[0], "INTERNAL: test expected q item %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_qiid_addr)[0]);
+                           test_pull_items ++;
     }
-    ok(test_queue_items == test_pull_items, "c: pulled & pushed items from b2a    to unused as expected");
+    ok(test_q_items == test_pull_items, "c: pulled & pushed items from a2b  to free as expected");
 
     uint32_t test_keys = 100000;
     shf_set_data_need_factor(250);
@@ -144,30 +140,28 @@ int main(void)
 
     ok(0 == shf_debug_get_garbage(shf), "c: graceful growth cleans up after itself as expected");
 
+    test_q_items = 100000;
+
     {
-        shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
-        uint32_t keys_found = 0;
-        for (uint32_t i = 0; i < test_keys; i++) {
-            shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-            keys_found += shf_del_key_val(shf);
-        }
+                   shf_debug_verbosity_less();
+                   shf_q_del               (shf);
+        ok(NULL != shf_q_new               (shf, test_qs, test_q_items, test_q_item_size), "c: shf_q_new() returned as expected");
+                   shf_debug_verbosity_more();
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "c: del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_verbosity_more();
+        ok(1, "c: created expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
     }
 
-    ok(0 != shf_debug_get_garbage(shf), "c: del does not    clean  up after itself as expected");
-
     {
         shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
-        for (uint32_t i = 0; i < test_keys; i++) {
-            uid = shf_queue_new_item (shf, test_queue_item_data_size);
-                  shf_queue_push_head(shf, uid_queue_unused, uid);
+        test_pull_items = 0;
+        while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_free          )) {
+                               shf_q_push_head(shf, test_qid_a2b , shf_qiid);
+                               test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -175,12 +169,12 @@ int main(void)
         shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         test_pull_items = 0;
-        while(NULL != shf_queue_pull_tail(shf, uid_queue_unused         )) {
-                      shf_queue_push_head(shf, uid_queue_a2b   , shf_uid);
-                      test_pull_items ++;
+        while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_a2b         )) {
+                               shf_q_push_head(shf, test_qid_b2a, shf_qiid);
+                               test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_queue_items + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -188,25 +182,12 @@ int main(void)
         shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         test_pull_items = 0;
-        while(NULL != shf_queue_pull_tail(shf, uid_queue_a2b         )) {
-                      shf_queue_push_head(shf, uid_queue_b2a, shf_uid);
-                      test_pull_items ++;
+        while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_b2a          )) {
+                               shf_q_push_head(shf, test_qid_free, shf_qiid);
+                               test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_queue_items + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_verbosity_more();
-    }
-
-    {
-        shf_debug_verbosity_less();
-        double test_start_time = shf_get_time_in_seconds();
-        test_pull_items = 0;
-        while(NULL != shf_queue_pull_tail(shf, uid_queue_b2a            )) {
-                      shf_queue_push_head(shf, uid_queue_unused, shf_uid);
-                      test_pull_items ++;
-        }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_queue_items + test_keys == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 

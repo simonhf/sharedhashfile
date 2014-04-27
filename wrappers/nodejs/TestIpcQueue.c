@@ -23,21 +23,20 @@
 
 #define _GNU_SOURCE
 #include <stdint.h>
-#include <stdio.h> /* for printf() */
-#include <sys/types.h> /* for getpid() */
-#include <sys/wait.h> /* for waitpid() */
+#include <stdio.h>        /* for printf() */
+#include <sys/types.h>    /* for getpid() */
+#include <sys/wait.h>     /* for waitpid() */
 #include <unistd.h>
 #include <linux/limits.h> /* for PATH_MAX */
-#include <errno.h> /* for errno */
-#include <stdlib.h> /* for exit() */
+#include <errno.h>        /* for errno */
+#include <stdlib.h>       /* for exit() */
 #include <sys/socket.h>
-#include <sys/un.h> /* for struct sockaddr_un */
-#include <sys/time.h> /* for gettimeofday() */
-#include <string.h> /* for memset() */
+#include <sys/un.h>       /* for struct sockaddr_un */
+#include <sys/time.h>     /* for gettimeofday() */
+#include <string.h>       /* for memset() */
 
 #include <shf.private.h>
 #include <shf.h>
-#include "shf.queue.h"
 #include "tap.h"
 
 static pid_t
@@ -76,9 +75,9 @@ main(int argc, char **argv) {
     ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" )))
     ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))), "ERROR: please supply an argument; c2js, c2c, or 4c; got: '%s'", argv[1]);
 
-         if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests( 5); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests(11); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests( 8); }
+         if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests(5); }
+    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests(9); }
+    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests(7); }
 
     pid_t pid = getpid();
     SHF_DEBUG("pid %u started\n", pid);
@@ -100,7 +99,6 @@ main(int argc, char **argv) {
     SHF      * shf;
     uint32_t   uid;
     uint32_t   test_keys = 100000;
-    uint32_t   test_queue_item_data_size = 4096;
 
     if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"))) {
         SHF_DEBUG("'4c' mode; behaving as client\n");
@@ -110,38 +108,39 @@ main(int argc, char **argv) {
               shf_init                ();
         shf = shf_attach_existing     (test_shf_folder, argv[2]); ok(NULL != shf, "    4c: shf_attach_existing() works for existing file as expected");
 
-        uint32_t uid_queue_unused  =  shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused"));
-        uint32_t uid_queue_a2b     =  shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
-        uint32_t uid_queue_b2a     =  shf_queue_get_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
-        ok(      uid_queue_unused != SHF_UID_NONE, "    4c: shf_queue_get_name('queue-unused') returned uid as expected");
-        ok(      uid_queue_a2b    != SHF_UID_NONE, "    4c: shf_queue_get_name('queue-a2b'   ) returned uid as expected");
-        ok(      uid_queue_b2a    != SHF_UID_NONE, "    4c: shf_queue_get_name('queue-b2a'   ) returned uid as expected");
+        char     * test_q_items_addr  = shf_q_get(shf); SHF_UNUSE(test_q_items_addr); /* todo: this test doesn't actually manipulate the item itself */
+        uint32_t   test_qid_free      = shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-free"));
+        uint32_t   test_qid_a2b       = shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" ));
+        uint32_t   test_qid_b2a       = shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" ));
+        ok(        test_qid_free     != SHF_QID_NONE, "    4c: shf_q_get_name('qid-free') returned qid as expected");
+        ok(        test_qid_a2b      != SHF_QID_NONE, "    4c: shf_q_get_name('qid-a2b' ) returned qid as expected");
+        ok(        test_qid_b2a      != SHF_QID_NONE, "    4c: shf_q_get_name('qid-b2a' ) returned qid as expected");
 
+        shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);
+        shf_debug_verbosity_more(); SHF_DEBUG("testing process b IPC queue a2b --> b2a speed\n"); shf_debug_verbosity_less();
         {
-            double   test_start_time = 0;
             uint32_t test_pull_items = 0;
-            do {
-                while(NULL != shf_queue_pull_tail(shf, uid_queue_a2b         )) {
-                              shf_queue_push_head(shf, uid_queue_b2a, shf_uid);
-                              test_pull_items ++;
-                              if (test_keys == test_pull_items) { test_start_time = shf_get_time_in_seconds(); } /* start timing once test_keys have done 1st loop */
+            double   test_start_time = shf_get_time_in_seconds();
+            shf_qiid = SHF_QIID_NONE;
+            while(1) {
+                while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_b2a, shf_qiid, test_qid_a2b)) {
+                                       test_pull_items ++;
+                    if (1000000     == test_pull_items) { shf_q_push_head(shf, test_qid_b2a, shf_qiid); goto FINISH_LINE_4C; }
                 }
-            } while (test_pull_items < 500000);
+            }
+FINISH_LINE_4C:;
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-            ok(1, "    4c: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+            ok(1, "    4c: moved   expected number of new queue items // estimate %.0f q items per second with contention", test_pull_items / test_elapsed_time);
         }
 
         {
-                                            SHF_MAKE_HASH       ("lock");
-            SHF_LOCK         * lock  =      shf_get_key_val_addr(shf   );
-            ok(                lock != NULL                             , "    4c: got lock value address as expected");
-                                            SHF_MAKE_HASH       ("line");
-            volatile uint8_t * line  =      shf_get_key_val_addr(shf   );
-            ok(                line != NULL                             , "    4c: got line value address as expected");
+            shf_debug_verbosity_more(); SHF_DEBUG("testing process b IPC lock speed\n"); shf_debug_verbosity_less();
 
-            __sync_fetch_and_add_8(line, 1); /* atomic increment */
-            while (2 != *line) { SHF_CPU_PAUSE(); }
+                                    SHF_MAKE_HASH       ("lock");
+            SHF_LOCK * lock  =      shf_get_key_val_addr(shf   );
+            ok(        lock != NULL                             , "    4c: got lock value address as expected");
 
+            shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"), 2);
             double test_start_time = shf_get_time_in_seconds();
             double test_lock_iterations = 0;
             do {
@@ -162,43 +161,33 @@ main(int argc, char **argv) {
     shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
 
     {
-        SHF_LOCK lock;
-        uint8_t  line = 0; /* note: this memory does not get shared, but the memory in the hash key,value gets shared */
+        shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"   ));
+        shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"));
+
         if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
-            memset(&lock, 0, sizeof(lock));
-                      SHF_MAKE_HASH  (                            "lock"              );
-               uid =  shf_put_key_val(shf, SHF_CAST(const char *, &lock), sizeof(lock));
-            ok(uid != SHF_UID_NONE                                                     , "   c2*: put lock in value as expected");
-                      SHF_MAKE_HASH  (                            "line"              );
-               uid =  shf_put_key_val(shf, SHF_CAST(const char *, &line), sizeof(line));
-            ok(uid != SHF_UID_NONE                                                     , "   c2*: put line in value as expected");
+                      SHF_MAKE_HASH  (                     "lock");
+               uid =  shf_put_key_val(shf, NULL, sizeof(SHF_LOCK));
+            ok(uid != SHF_UID_NONE                                , "   c2*: put lock in value as expected");
         }
     }
 
-    uint32_t uid_queue_unused = shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-unused"));
-    uint32_t uid_queue_a2b    = shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
-    uint32_t uid_queue_b2a    = shf_queue_new_name(shf, SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
-
-    {
-        double test_start_time = shf_get_time_in_seconds();
-        for (uint32_t i = 0; i < test_keys; i++) {
-            uid = shf_queue_new_item (shf, test_queue_item_data_size);
-                  shf_queue_push_head(shf, uid_queue_unused, uid);
-        }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
-    }
+    uint32_t test_qs          = 3;
+    uint32_t test_q_items     = 100000;
+    uint32_t test_q_item_size = 4096;
+    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size), "   c2*: shf_q_new() returned as expected");
+    uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")     );
+    uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )     );
+    uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )     );
 
     {
         double   test_start_time = shf_get_time_in_seconds();
         uint32_t test_pull_items = 0;
-        while(NULL != shf_queue_pull_tail(shf, uid_queue_unused         )) {
-                      shf_queue_push_head(shf, uid_queue_a2b   , shf_uid);
-                      snprintf(shf_item_addr, shf_item_addr_len, "%08u", test_pull_items);
-                      test_pull_items ++;
+        while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_free          )) {
+                               shf_q_push_head(shf, test_qid_a2b , shf_qiid);
+                               test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == test_pull_items, "   c2*: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "   c2*: moved   expected number of new queue items // estimate %.0f q items per second without contention", test_keys / test_elapsed_time);
     }
 
     pid_t child_pid = 0;
@@ -206,34 +195,35 @@ main(int argc, char **argv) {
     else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = test_exec_child(              "./TestIpcQueue" , "TestIpcQueue", "4c"             , test_shf_name); }
     else                                                           { SHF_ASSERT(0, "ERROR: should never get here!"); }
 
+    shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);
+    shf_debug_verbosity_more(); SHF_DEBUG("testing process a IPC queue b2a --> a2b speed\n"); shf_debug_verbosity_less();
     {
-        double   test_start_time = 0;
+        double   test_start_time = shf_get_time_in_seconds();
         uint32_t test_pull_items = 0;
-        do {
-            while(NULL != shf_queue_pull_tail(shf, uid_queue_b2a         )) {
-                          shf_queue_push_head(shf, uid_queue_a2b, shf_uid);
-                          test_pull_items ++;
-                          if (test_keys == test_pull_items) { test_start_time = shf_get_time_in_seconds(); } /* start timing once test_keys have done 1st loop */
+        shf_qiid = SHF_QIID_NONE;
+        while (1) {
+            while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a)) {
+                                   test_pull_items ++;
+                if (1000000     == test_pull_items) { shf_q_push_head(shf, test_qid_a2b, shf_qiid); goto FINISH_LINE_C2; }
             }
             if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" ))) { /* the rw spin locks are fair but don't create unnecessary contention for javascript client */
                 usleep(1000); /* 1/1000th of a second */
             }
-        } while (test_pull_items < 500000);
+        }
+FINISH_LINE_C2:;
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: moved   expected number of new queue items // estimate %.0f keys per second", test_pull_items / test_elapsed_time);
+        usleep(1000); /* hack: wait 1/1000th of a second so that the oks do not conflict */
+        ok(1, "   c2*: moved   expected number of new queue items // estimate %.0f q items per second with contention", test_pull_items / test_elapsed_time);
     }
 
     if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
-                                        SHF_MAKE_HASH       ("lock");
-        SHF_LOCK         * lock  =      shf_get_key_val_addr(shf   );
-        ok(                lock != NULL                             , "   c2*: got lock value address as expected");
-                                        SHF_MAKE_HASH       ("line");
-        volatile uint8_t * line  =      shf_get_key_val_addr(shf   );
-        ok(                line != NULL                             , "   c2*: got line value address as expected");
+        shf_debug_verbosity_more(); SHF_DEBUG("testing process a IPC lock speed\n"); shf_debug_verbosity_less();
 
-        __sync_fetch_and_add_8(line, 1); /* atomic increment */
-        while (2 != *line) { SHF_CPU_PAUSE(); }
+                                SHF_MAKE_HASH       ("lock");
+        SHF_LOCK * lock  =      shf_get_key_val_addr(shf   );
+        ok(        lock != NULL                             , "   c2*: got lock value address as expected");
 
+        shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"), 2);
         double test_start_time = shf_get_time_in_seconds();
         double test_lock_iterations = 0;
         do {

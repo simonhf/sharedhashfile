@@ -33,7 +33,7 @@ extern "C" {
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(33);
+    plan_tests(35);
 
     char  testShfName[256];
     char  testShfFolder[] = "/dev/shm";
@@ -62,85 +62,82 @@ main(/* int argc,char **argv */)
     ok(0          == memcmp             (shf_val, "val2", 4                ), "c++: shf_val                                    as expected"    );
     ok(1          == shf->DelKeyVal     (                                  ), "c++: ->DelKeyVal()     could     find reput key as expected"    );
 
-    uint32_t uid_queue_unused =  shf->QueueNewName(SHF_CONST_STR_AND_SIZE("queue-unused")); /* e.g. queue names created by process a */
-    uint32_t uid_queue_a2b    =  shf->QueueNewName(SHF_CONST_STR_AND_SIZE("queue-a2b"   ));
-    uint32_t uid_queue_b2a    =  shf->QueueNewName(SHF_CONST_STR_AND_SIZE("queue-b2a"   ));
-    ok(      uid_queue_unused == shf->QueueGetName(SHF_CONST_STR_AND_SIZE("queue-unused")), "c++: ->QueueGetName('queue-unused') returned uid as expected");  /* e.g. queue names got by process b */
-    ok(      uid_queue_a2b    == shf->QueueGetName(SHF_CONST_STR_AND_SIZE("queue-a2b"   )), "c++: ->QueueGetName('queue-a2b'   ) returned uid as expected");
-    ok(      uid_queue_b2a    == shf->QueueGetName(SHF_CONST_STR_AND_SIZE("queue-b2a"   )), "c++: ->QueueGetName('queue-b2a'   ) returned uid as expected");
+    uint32_t testPullItems  = 0;
+    uint32_t testQs         = 3;
+    uint32_t testQItems     = 10;
+    uint32_t testQItemSize  = 4096;
+    ok(      NULL          != shf->QNew    (testQs, testQItems, testQItemSize) , "c++: ->QNew() returned as expected");                   /* e.g. q items created  by process a */
+    uint32_t testQidFree    = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-free"));                                                          /* e.g. q names set qids by process a */
+    uint32_t testQidA2b     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-a2b" ));
+    uint32_t testQidB2a     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-b2a" ));
+    ok(      testQidFree   == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-free")), "c++: ->QGetName('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
+    ok(      testQidA2b    == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-a2b" )), "c++: ->QGetName('qid-a2b' ) returned qid as expected");
+    ok(      testQidB2a    == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-b2a" )), "c++: ->QGetName('qid-b2a' ) returned qid as expected");
 
-    uint32_t test_pull_items;
-    uint32_t test_queue_items = 10;
-    uint32_t test_queue_item_data_size = 4096;
-    for (uint32_t i = 0; i < test_queue_items; i++) { /* e.g. queue items created & queued in unused queue by process a */
-        uid = shf->QueueNewItem (test_queue_item_data_size);
-              shf->QueuePushHead(uid_queue_unused, uid);
+    testPullItems = 0;
+    while(SHF_QIID_NONE != shf->QPullTail(testQidFree          )) {                                                                       /* e.g. q items from unused to a2b q by process a */
+                           shf->QPushHead(testQidA2b , shf_qiid);
+                           SHF_CAST(uint32_t *, shf_qiid_addr)[0] = testPullItems; /* store q item # in item */
+                           testPullItems ++;
     }
+    ok(testQItems == testPullItems, "c++: pulled & pushed items from free to a2b  as expected");
 
-    test_pull_items = 0;
-    while(NULL != shf->QueuePullTail(uid_queue_unused         )) { /* e.g. items transferred from unused to a2b queue by process a */
-                  shf->QueuePushHead(uid_queue_a2b   , shf_uid);
-                  SHF_CAST(uint32_t *, shf_item_addr)[0] = test_pull_items;
-                  test_pull_items ++;
+    testPullItems = 0;
+    while(SHF_QIID_NONE != shf->QPullTail(testQidA2b          )) {                                                                        /* e.g. q items from a2b to b2a queue by process b */
+                           shf->QPushHead(testQidB2a, shf_qiid);
+                           SHF_ASSERT(testPullItems == SHF_CAST(uint32_t *, shf_qiid_addr)[0], "INTERNAL: test expected q item %u but got %u", testPullItems, SHF_CAST(uint32_t *, shf_qiid_addr)[0]);
+                           testPullItems ++;
     }
-    ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from unused to a2b    as expected");
+    ok(testQItems == testPullItems, "c++: pulled & pushed items from a2b  to b2a  as expected");
 
-    test_pull_items = 0;
-    while(NULL != shf->QueuePullTail(uid_queue_a2b         )) { /* e.g. items transferred from a2b to b2a queue by process b */
-                  shf->QueuePushHead(uid_queue_b2a, shf_uid);
-                  SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_item_addr)[0], "INTERNAL: test expected %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_item_addr)[0]);
-                  test_pull_items ++;
+    testPullItems = 0;
+    while(SHF_QIID_NONE != shf->QPullTail(testQidB2a           )) {                                                                       /* e.g. q items from b2a to free queue by process a */
+                           shf->QPushHead(testQidFree, shf_qiid);
+                           SHF_ASSERT(testPullItems == SHF_CAST(uint32_t *, shf_qiid_addr)[0], "INTERNAL: test expected q item %u but got %u", testPullItems, SHF_CAST(uint32_t *, shf_qiid_addr)[0]);
+                           testPullItems ++;
     }
-    ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from a2b    to b2a    as expected");
+    ok(testQItems == testPullItems, "c++: pulled & pushed items from a2b  to free as expected");
 
-    test_pull_items = 0;
-    while(NULL != shf->QueuePullTail(uid_queue_b2a            )) { /* e.g. items transferred from b2a to unused queue by process a */
-                  shf->QueuePushHead(uid_queue_unused, shf_uid);
-                  SHF_ASSERT(test_pull_items == SHF_CAST(uint32_t *, shf_item_addr)[0], "INTERNAL: test expected %u but got %u", test_pull_items, SHF_CAST(uint32_t *, shf_item_addr)[0]);
-                  test_pull_items ++;
-    }
-    ok(test_queue_items == test_pull_items, "c++: pulled & pushed items from b2a    to unused as expected");
-
-    uint32_t test_keys = 100000;
+    uint32_t testKeys = 100000;
     shf->SetDataNeedFactor(250);
 
     {
         shf->DebugVerbosityLess();
-        double test_start_time = shf_get_time_in_seconds();
-        for (uint32_t i = 0; i < test_keys; i++) {
+        double testStartTime = shf_get_time_in_seconds();
+        for (uint32_t i = 0; i < testKeys; i++) {
             shf->MakeHash (SHF_CAST(const char *, &i), sizeof(i));
             shf->PutKeyVal(SHF_CAST(const char *, &i), sizeof(i));
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c++: put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(1, "c++: put expected number of              keys // estimate %.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
     {
         shf->DebugVerbosityLess();
-        double test_start_time = shf_get_time_in_seconds();
+        double testStartTime = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
-        for (uint32_t i = (test_keys * 2); i < (test_keys * 3); i++) {
+        for (uint32_t i = (testKeys * 2); i < (testKeys * 3); i++) {
                           shf->MakeHash     (SHF_CAST(const char *, &i), sizeof(i));
             keys_found += shf->GetKeyValCopy();
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(0 == keys_found, "c++: got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(0 == keys_found, "c++: got expected number of non-existing keys // estimate %.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
     {
         shf->DebugVerbosityLess();
-        double test_start_time = shf_get_time_in_seconds();
+        double testStartTime = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
-        for (uint32_t i = 0; i < test_keys; i++) {
+        for (uint32_t i = 0; i < testKeys; i++) {
                           shf->MakeHash     (SHF_CAST(const char *, &i), sizeof(i));
             keys_found += shf->GetKeyValCopy();
             SHF_ASSERT(sizeof(i) == shf_val_len, "INTERNAL: expected shf_val_len to be %lu but got %u\n", sizeof(i), shf_val_len);
             SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "c++: got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(testKeys == keys_found, "c++: got expected number of     existing keys // estimate %.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -148,68 +145,68 @@ main(/* int argc,char **argv */)
 
     {
         shf->DebugVerbosityLess();
-        double test_start_time = shf_get_time_in_seconds();
+        double testStartTime = shf_get_time_in_seconds();
         uint32_t keys_found = 0;
-        for (uint32_t i = 0; i < test_keys; i++) {
+        for (uint32_t i = 0; i < testKeys; i++) {
                           shf->MakeHash (SHF_CAST(const char *, &i), sizeof(i));
             keys_found += shf->DelKeyVal();
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "c++: del expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(testKeys == keys_found, "c++: del expected number of     existing keys // estimate %.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
     ok(0 != shf->DebugGetGarbage(), "c++: del does not    clean  up after itself as expected");
 
+    testQItems = 100000;
+
     {
-        shf_debug_verbosity_less();
-        double test_start_time = shf_get_time_in_seconds();
-        for (uint32_t i = 0; i < test_keys; i++) {
-            uid = shf->QueueNewItem (test_queue_item_data_size);
-                  shf->QueuePushHead(uid_queue_unused, uid);
-        }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c++: created expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_verbosity_more();
+        double testStartTime = shf_get_time_in_seconds();
+                   shf->DebugVerbosityLess();
+                   shf->QDel              ();
+        ok(NULL != shf->QNew              (testQs, testQItems, testQItemSize), "c++: shf_q_new() returned as expected");
+                   shf->DebugVerbosityMore();
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(1, "c++: created expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
     }
 
     {
-        shf_debug_verbosity_less();
-        double test_start_time = shf_get_time_in_seconds();
-        test_pull_items = 0;
-        while(NULL != shf->QueuePullTail(uid_queue_unused         )) {
-                      shf->QueuePushHead(uid_queue_a2b   , shf_uid);
-                      test_pull_items ++;
+        shf->DebugVerbosityLess();
+        double testStartTime = shf_get_time_in_seconds();
+        testPullItems = 0;
+        while(SHF_QIID_NONE != shf->QPullTail(testQidFree          )) {
+                               shf->QPushHead(testQidA2b , shf_qiid);
+                               testPullItems ++;
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_queue_items + test_keys == test_pull_items, "c++: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_verbosity_more();
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        shf->DebugVerbosityMore();
     }
 
     {
-        shf_debug_verbosity_less();
-        double test_start_time = shf_get_time_in_seconds();
-        test_pull_items = 0;
-        while(NULL != shf->QueuePullTail(uid_queue_a2b         )) {
-                      shf->QueuePushHead(uid_queue_b2a, shf_uid);
-                      test_pull_items ++;
+        shf->DebugVerbosityLess();
+        double testStartTime = shf_get_time_in_seconds();
+        testPullItems = 0;
+        while(SHF_QIID_NONE != shf->QPullTail(testQidA2b         )) {
+                               shf->QPushHead(testQidB2a, shf_qiid);
+                               testPullItems ++;
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_queue_items + test_keys == test_pull_items, "c++: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_verbosity_more();
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        shf->DebugVerbosityMore();
     }
 
     {
-        shf_debug_verbosity_less();
-        double test_start_time = shf_get_time_in_seconds();
-        test_pull_items = 0;
-        while(NULL != shf->QueuePullTail(uid_queue_b2a            )) {
-                      shf->QueuePushHead(uid_queue_unused, shf_uid);
-                      test_pull_items ++;
+        shf->DebugVerbosityLess();
+        double testStartTime = shf_get_time_in_seconds();
+        testPullItems = 0;
+        while(SHF_QIID_NONE != shf->QPullTail(testQidB2a          )) {
+                               shf->QPushHead(testQidFree, shf_qiid);
+                               testPullItems ++;
         }
-        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_queue_items + test_keys == test_pull_items, "c++: moved   expected number of new queue items // estimate %.0f keys per second", test_keys / test_elapsed_time);
-        shf_debug_verbosity_more();
+        double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        shf->DebugVerbosityMore();
     }
 
     delete shf;

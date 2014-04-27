@@ -27,7 +27,6 @@
 extern "C" {
 #include <shf.private.h>
 #include <shf.h>
-#include <shf.queue.h>
 }
 
 class SharedHashFile {
@@ -46,13 +45,17 @@ public:
     void       DebugVerbosityLess();
     void       DebugVerbosityMore();
     void       SetDataNeedFactor (uint32_t data_needed_factor);
-    uint32_t   QueueNewItem      (uint32_t data_size);
-    void       QueuePutItem      (uint32_t uid, const char * data, uint32_t data_len); /* used to set item data from scripting languages */
-    uint32_t   QueueNewName      (const char * key, uint32_t key_len);
-    uint32_t   QueueGetName      (const char * key, uint32_t key_len);
-    void       QueuePushHead     (uint32_t uid_head, uint32_t uid);
-    void     * QueuePullTail     (uint32_t uid_head); /* sets both shf_uid & shf_item_addr & shf_item_addr_len */
-    void     * QueueTakeItem     (uint32_t uid_head, uint32_t uid);
+    void     * QNew              (uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size);
+    void     * QGet              ();
+    void       QDel              ();
+    uint32_t   QNewName          (const char * name, uint32_t name_len);
+    uint32_t   QGetName          (const char * name, uint32_t name_len);
+    void       QPushHead         (uint32_t qid, uint32_t qiid);
+    uint32_t   QPullTail         (uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    uint32_t   QTakeItem         (uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    uint32_t   QPushHeadPullTail (uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    void       RaceInit          (const char * name, uint32_t name_len                 );
+    void       RaceStart         (const char * name, uint32_t name_len, uint32_t horses);
 
 private:
     SHF * shf;
