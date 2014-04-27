@@ -1,3 +1,8 @@
+# Project files
+.cproject
+.project
+.pydevproject
+
 # Object files
 *.o
 *.ko
@@ -21,3 +26,4 @@
 release
 debug
 wrappers/nodejs/build
+wrappers/python/2.x/build
