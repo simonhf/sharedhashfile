@@ -214,4 +214,9 @@ ok(0 != shf.debugGetGarbage(), "nodejs: del does not    clean  up after itself a
 
 // todo: delete shf;
 
-exit_status();
+var exec    = require('child_process').exec;
+var command = "echo 'test: shf size before deletion: '`du -h -d 0 "+testShfFolder+"/"+testShfName+".shf` ; rm -rf "+testShfFolder+"/"+testShfName+".shf/"; // todo: change this to auto delete mechanism
+exec(command, function (error, output) {
+    console.log(output);
+    exit_status();
+});

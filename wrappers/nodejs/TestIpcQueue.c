@@ -157,7 +157,7 @@ FINISH_LINE_4C:;
 
           shf_debug_verbosity_less();
           shf_init                ();
-          shf_set_data_need_factor(250);
+          shf_set_data_need_factor(1);
     shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
 
     {
@@ -259,6 +259,9 @@ FINISH_LINE_C2:;
 
     int status;
     waitpid(child_pid, &status, 0);
+
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_shf_folder, test_shf_name, test_shf_folder, test_shf_name);
+    fprintf(stderr, "test: shf size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
 
 EARLY_OUT:;
 

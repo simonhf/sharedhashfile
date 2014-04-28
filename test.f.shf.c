@@ -125,8 +125,8 @@
 #define TEST_GET_POST()
 
 #define TEST_FINI() \
-    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s", test_db_folder); \
-    fprintf(stderr, "DB size: %s\n", shf_backticks(test_du_folder));
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s;  ; rm -rf %s", test_db_folder, test_db_folder); \
+    fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
 
 #else
 
@@ -177,8 +177,8 @@
 #define TEST_GET_POST()
 
 #define TEST_FINI() \
-    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf", test_db_folder, test_db_name); \
-    fprintf(stderr, "DB size: %s\n", shf_backticks(test_du_folder));
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_db_folder, test_db_name, test_db_folder, test_db_name); \
+    fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder));
 
 #endif
 
@@ -199,14 +199,14 @@ test_get_cpu_count(void)
 
 int main(void)
 {
-    TEST_INIT();
-
     if (getenv("SHF_ENABLE_PERFORMANCE_TEST") && atoi(getenv("SHF_ENABLE_PERFORMANCE_TEST"))) {
     }
     else {
         fprintf(stderr, "NOTE: prefix make with SHF_ENABLE_PERFORMANCE_TEST=1 ?\n");
         goto EARLY_EXIT;
     }
+
+    TEST_INIT();
 
 #define TEST_MAX_PROCESSES (16)
 

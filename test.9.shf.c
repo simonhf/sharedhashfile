@@ -191,5 +191,8 @@ int main(void)
         shf_debug_verbosity_more();
     }
 
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_shf_folder, test_shf_name, test_shf_folder, test_shf_name);
+    fprintf(stderr, "test: shf size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
+
     return exit_status();
 } /* main() */
