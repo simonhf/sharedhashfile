@@ -74,6 +74,7 @@ $(info make: variable: NODE_SRCS=$(NODE_SRCS))
 endif
 
 all: $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
+	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: built and tested $(BUILD_TYPE) version"
 
 $(BUILD_TYPE)/%.o: %.c $(DEPS_H)
