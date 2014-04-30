@@ -55,6 +55,7 @@ else
 DUMMY := $(shell mkdir $(BUILD_TYPE) 2>&1)
 NODEJS := $(shell which nodejs 2>&1)
 NODE_GYP := $(shell which node-gyp 2>&1)
+ifdef SHF_DEBUG_MAKE
 $(info make: variable: DEPS_H=$(DEPS_H))
 $(info make: variable: DEPS_HPP=$(DEPS_HPP))
 $(info make: variable: PROD_SRCS_C=$(PROD_SRCS_C))
@@ -72,9 +73,12 @@ $(info make: variable: NODEJS=$(NODEJS))
 $(info make: variable: NODE_GYP=$(NODE_GYP))
 $(info make: variable: NODE_SRCS=$(NODE_SRCS))
 endif
+endif
 
 all: $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
+	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
+	@echo "make: note: prefix make with SHF_ENABLE_PERFORMANCE_TEST=1 to run perf test"
 	@echo "make: built and tested $(BUILD_TYPE) version"
 
 $(BUILD_TYPE)/%.o: %.c $(DEPS_H)

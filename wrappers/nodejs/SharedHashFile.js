@@ -160,7 +160,8 @@ ok(0 == shf.debugGetGarbage(), "nodejs: graceful growth cleans up after itself a
 
 ok(0 != shf.debugGetGarbage(), "nodejs: del does not    clean  up after itself as expected");
 
-    testQItems = 100000;
+testQItems = 100000;
+shf.setDataNeedFactor(1);
 
 {
     var testStartTime = Date.now() / 1000;

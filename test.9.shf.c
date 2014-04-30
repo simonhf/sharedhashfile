@@ -141,6 +141,7 @@ int main(void)
     ok(0 == shf_debug_get_garbage(shf), "c: graceful growth cleans up after itself as expected");
 
     test_q_items = 100000;
+    shf_set_data_need_factor(1);
 
     {
         double test_start_time = shf_get_time_in_seconds();

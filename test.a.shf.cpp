@@ -159,6 +159,7 @@ main(/* int argc,char **argv */)
     ok(0 != shf->DebugGetGarbage(), "c++: del does not    clean  up after itself as expected");
 
     testQItems = 100000;
+    shf->SetDataNeedFactor(1);
 
     {
         double testStartTime = shf_get_time_in_seconds();

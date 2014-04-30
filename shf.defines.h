@@ -29,7 +29,8 @@
 extern int32_t shf_debug_disabled;
 
 #define SHF_CAST(TYPE, PTR) ((TYPE)(uintptr_t)(PTR))
-#define SHF_ASSERT(CONDITION,ARGS...) if (!(CONDITION)) { fprintf(stderr, "ERROR: assertion @ line %u of file %s: ", __LINE__, __FILE__); fprintf(stderr, ARGS); if (0 != errno) { perror(NULL); } else { fprintf(stderr, "\n"); } exit(EXIT_FAILURE); }
+#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { fprintf(stderr, "ERROR: assertion @ line %u of file %s: ", __LINE__, __FILE__); fprintf(stderr, ARGS); if (0 != errno) { perror(NULL); } else { fprintf(stderr, "\n"); } exit(EXIT_FAILURE); }
+#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { fprintf(stderr, "ERROR: assertion @ line %u of file %s: ", __LINE__, __FILE__); fprintf(stderr, ARGS);                                          fprintf(stderr, "\n");   exit(EXIT_FAILURE); }
 #define SHF_UNUSE(ARGUMENT) (void)(ARGUMENT)
 
 #ifdef SHF_DEBUG_VERSION

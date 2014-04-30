@@ -32,8 +32,9 @@
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
-#include <stddef.h> /* for offsetof() */
-#include <sys/time.h> /* for gettimeofday() */
+#include <stddef.h>      /* for offsetof() */
+#include <sys/time.h>    /* for gettimeofday() */
+#include <sys/statvfs.h> /* for statvfs() */
 
 #include "shf.private.h"
 #include "shf.h"
@@ -362,20 +363,25 @@ shf_make_hash(
     /* todo: examine if file append & remap is faster than remap & direct memory access */ \
     /* todo: consider special mode with is write only, e.g. for initial startup? */ \
     /* todo: faster to use remap_file_pages() instead of multiple mmap()s? */ \
-    uint32_t data_needed    = sizeof(SHF_DATA_TYPE) + sizeof(uint32_t) + KEY_LEN + sizeof(uint32_t) + val_len; \
-    uint32_t data_available = TAB_MMAP->tab_size - TAB_MMAP->tab_used; \
-    SHF_DEBUG("- appending %u bytes for ref @ 0x%02x-xxx[%03x]-%03x-%x // key,value are %u,%u bytes @ pos %u // todo: use SHF_DATA_TYPE instead of hard coding\n", data_needed, win, TAB, row, ref, KEY_LEN, val_len, TAB_MMAP->tab_used); \
+    uint64_t data_needed    = sizeof(SHF_DATA_TYPE) + sizeof(uint32_t) + KEY_LEN + sizeof(uint32_t) + val_len; \
+    uint64_t data_available = TAB_MMAP->tab_size - TAB_MMAP->tab_used; \
+    SHF_DEBUG("- appending %lu bytes for ref @ 0x%02x-xxx[%03x]-%03x-%x // key,value are %u,%u bytes @ pos %u // todo: use SHF_DATA_TYPE instead of hard coding\n", data_needed, win, TAB, row, ref, KEY_LEN, val_len, TAB_MMAP->tab_used); \
     SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 1); \
     if (data_needed > data_available) { \
         SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 2); \
-        uint32_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
+        uint64_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
+        struct statvfs mystatvfs; \
+        SHF_ASSERT(0 == statvfs(SHF->path, &mystatvfs), "statvfs(): %u: ", errno); \
+        uint64_t vfs_available = mystatvfs.f_bsize * mystatvfs.f_bfree; \
+        SHF_ASSERT_INTERNAL(new_tab_size - TAB_MMAP->tab_size < vfs_available, "ERROR: requesting to expand tab by %lu but only %lu bytes available on '%s'; need an extra %lu bytes", new_tab_size - TAB_MMAP->tab_size, vfs_available, SHF->path, new_tab_size - TAB_MMAP->tab_size - vfs_available); \
         char file_tab[256]; \
         SHF_SNPRINTF(0, file_tab, "%s/%s.shf/%03u/%04u.tab", SHF->path, SHF->name, win, TAB); \
-        SHF_DEBUG("- grow tab from %u to %u; need %u bytes but %u bytes available in '%s'\n", TAB_MMAP->tab_size, new_tab_size, data_needed, data_available, file_tab); \
-        SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: grow   from %7u to %7u bytes\n", getpid(), win, TAB, TAB_MMAP->tab_size, new_tab_size); \
+        SHF_DEBUG("- grow tab from %u to %lu; need %lu bytes but %lu bytes available in '%s'\n", TAB_MMAP->tab_size, new_tab_size, data_needed, data_available, file_tab); \
+        SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: grow   from %7u to %7lu bytes\n", getpid(), win, TAB, TAB_MMAP->tab_size, new_tab_size); \
         int fd    =      open(file_tab, O_RDWR | O_CREAT, 0600); SHF_ASSERT(-1 != fd, "open(): %u: ", errno); \
         int value = ftruncate(fd, new_tab_size); SHF_ASSERT(-1 != value, "ftruncate(): %u: ", errno); \
-        if (0) { \
+        if (1) { \
+            /* note: why does mremap() not reflect in statvfs()? */ \
             value    = munmap(SHF->tabs[win][TAB].tab_mmap, SHF->tabs[win][TAB].tab_size); SHF_ASSERT(-1 != value, "munmap(): %u: ", errno); \
             TAB_MMAP =   mmap(NULL, new_tab_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE | MAP_POPULATE, fd, 0); SHF_ASSERT(MAP_FAILED != TAB_MMAP, "mmap(): %u: ", errno); \
         } \
