@@ -13,14 +13,14 @@
                 "Debug": {
                   "conditions": [
                     ['OS=="linux"', {
-                      "cflags": ["-std=gnu++11 -DSHF_DEBUG_VERSION"],
+                      "cflags": ["-DSHF_DEBUG_VERSION"],
                     }],
                   ]
                 },
                 "Release": {
                   "conditions": [
                     ['OS=="linux"', {
-                      "cflags": ["-std=gnu++11"],
+                      "cflags": [""],
                     }],
                   ]
                 },

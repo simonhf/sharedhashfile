@@ -199,26 +199,33 @@ test_get_cpu_count(void)
 
 int main(void)
 {
-    if (getenv("SHF_ENABLE_PERFORMANCE_TEST") && atoi(getenv("SHF_ENABLE_PERFORMANCE_TEST"))) {
+    if (getenv("SHF_PERFORMANCE_TEST_ENABLE") && atoi(getenv("SHF_PERFORMANCE_TEST_ENABLE"))) {
     }
     else {
-        fprintf(stderr, "NOTE: prefix make with SHF_ENABLE_PERFORMANCE_TEST=1 ?\n");
+        fprintf(stderr, "NOTE: prefix make with SHF_PERFORMANCE_TEST_ENABLE=1 ?\n");
         goto EARLY_EXIT;
     }
+
+    uint32_t cpu_count_desired = getenv("SHF_PERFORMANCE_TEST_CPUS") ? atoi(getenv("SHF_PERFORMANCE_TEST_CPUS")) : 0;
+    uint32_t test_keys_desired = getenv("SHF_PERFORMANCE_TEST_KEYS") ? atoi(getenv("SHF_PERFORMANCE_TEST_KEYS")) : 0;
 
     TEST_INIT();
 
 #define TEST_MAX_PROCESSES (16)
 
-             uint32_t   test_keys = 100 * 1000000;
+             uint64_t   vfs_available_md  = shf_get_vfs_available(shf) / 1024 / 1024;
+             uint32_t   test_keys_10m     = vfs_available_md / 436 * 10; /* 10M keys is about 436MB */
+             uint32_t   test_keys_default = test_keys_10m > 100 ? 100 * 1000000 : test_keys_10m * 1000000;
+             uint32_t   test_keys         = test_keys_desired ? test_keys_desired : test_keys_default;
+             uint32_t   cpu_count         = cpu_count_desired ? cpu_count_desired : test_get_cpu_count();
              uint32_t   process;
-             uint32_t   cpu_count = test_get_cpu_count();
              uint32_t   processes = cpu_count > TEST_MAX_PROCESSES ? TEST_MAX_PROCESSES : cpu_count;
              uint32_t   counts_old[TEST_MAX_PROCESSES] = { 0 };
     volatile uint32_t * put_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != put_counts, "mmap(): %u: ", errno);
     volatile uint32_t * get_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != get_counts, "mmap(): %u: ", errno);
     volatile uint32_t * mix_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
     volatile uint64_t * start_line = mmap(NULL, SHF_MOD_PAGE(                 3*sizeof(uint64_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
+    SHF_ASSERT(test_keys > 0, "ERROR: only %luMB available on /dev/shm but 10M keys takes at least 436MB for SharedHashFile", vfs_available_md);
     SHF_ASSERT(sizeof(uint64_t) == sizeof(long), "INTERNAL: expected sizeof(uint64_t) == sizeof(long), but got %lu == %lu", sizeof(uint64_t), sizeof(long));
     start_line[0] = 0;
     start_line[1] = 0;

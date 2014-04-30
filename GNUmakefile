@@ -78,7 +78,7 @@ endif
 all: $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
-	@echo "make: note: prefix make with SHF_ENABLE_PERFORMANCE_TEST=1 to run perf test"
+	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|CPUS|KEYS)=(1|4|10000000) to run perf test"
 	@echo "make: built and tested $(BUILD_TYPE) version"
 
 $(BUILD_TYPE)/%.o: %.c $(DEPS_H)

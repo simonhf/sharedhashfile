@@ -110,6 +110,16 @@ shf_get_time_in_seconds(void)
     return (double)tv.tv_sec + 1.e-6 * (double)tv.tv_usec;
 } /* shf_get_time_in_seconds() */
 
+uint64_t
+shf_get_vfs_available(SHF * shf)
+{
+    struct statvfs mystatvfs;
+    SHF_ASSERT(0 == statvfs(shf->path, &mystatvfs), "statvfs(): %u: ", errno);
+    uint64_t vfs_available = mystatvfs.f_bsize * mystatvfs.f_bfree;
+    SHF_DEBUG("%s(shf=?) // %lu\n", __FUNCTION__, vfs_available);
+    return vfs_available;
+} /* shf_get_vfs_available() */
+
 void
 shf_init(void)
 {
@@ -359,6 +369,12 @@ shf_make_hash(
         SHF->tabs[win][TAB].tab_mmap = tab_mmap; \
     }
 
+#ifdef MADV_DONTDUMP /* since Linux 3.4 */
+#define MYMADV_DONTDUMP MADV_DONTDUMP
+#else
+#define MYMADV_DONTDUMP 0
+#endif
+
 #define SHF_TAB_APPEND(SHF, TAB, TAB_MMAP, KEY, KEY_LEN) \
     /* todo: examine if file append & remap is faster than remap & direct memory access */ \
     /* todo: consider special mode with is write only, e.g. for initial startup? */ \
@@ -370,9 +386,7 @@ shf_make_hash(
     if (data_needed > data_available) { \
         SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 2); \
         uint64_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
-        struct statvfs mystatvfs; \
-        SHF_ASSERT(0 == statvfs(SHF->path, &mystatvfs), "statvfs(): %u: ", errno); \
-        uint64_t vfs_available = mystatvfs.f_bsize * mystatvfs.f_bfree; \
+        uint64_t vfs_available = shf_get_vfs_available(SHF); \
         SHF_ASSERT_INTERNAL(new_tab_size - TAB_MMAP->tab_size < vfs_available, "ERROR: requesting to expand tab by %lu but only %lu bytes available on '%s'; need an extra %lu bytes", new_tab_size - TAB_MMAP->tab_size, vfs_available, SHF->path, new_tab_size - TAB_MMAP->tab_size - vfs_available); \
         char file_tab[256]; \
         SHF_SNPRINTF(0, file_tab, "%s/%s.shf/%03u/%04u.tab", SHF->path, SHF->name, win, TAB); \
@@ -387,7 +401,7 @@ shf_make_hash(
         } \
         else { \
             TAB_MMAP = mremap(SHF->tabs[win][TAB].tab_mmap, SHF->tabs[win][TAB].tab_size, new_tab_size, MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != TAB_MMAP, "mremap(): %u: ", errno); \
-            madvise(TAB_MMAP, new_tab_size, MADV_RANDOM | MADV_DONTDUMP); /* todo: test if madvise() makes any performance difference */ \
+            madvise(TAB_MMAP, new_tab_size, MADV_RANDOM | MYMADV_DONTDUMP); /* todo: test if madvise() makes any performance difference */ \
             SHF->shf_mmap->wins[win].tabs_mremaps ++; \
         } \
         /* debug paranoia */ SHF_U08_AT(TAB_MMAP, new_tab_size - 1) ++; \

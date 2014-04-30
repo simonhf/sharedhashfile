@@ -81,6 +81,7 @@ extern __thread uint32_t   shf_qiid_addr_len;
 
 extern char     * shf_backticks            (const char * command);
 extern double     shf_get_time_in_seconds  (void);
+extern uint64_t   shf_get_vfs_available    (SHF * shf);
 extern void       shf_init                 (void);
 extern void       shf_detach               (SHF * shf);
 extern SHF      * shf_attach_existing      (const char * path, const char * name);
@@ -109,5 +110,10 @@ extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32
 extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
 extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);
+
+// Useful links regarding /dev/shm:
+// http://gerardnico.com/wiki/linux/shared_memory - Linux - Shared Memory (SHM) (/dev/shm)
+// http://www.cyberciti.biz/tips/what-is-devshm-and-its-practical-usage.html - What Is /dev/shm And Its Practical Usage
+// http://www.cyberciti.biz/files/linux-kernel/Documentation/filesystems/tmpfs.txt - Tmpfs is a file system which keeps all files in virtual memory
 
 #endif /* __SHF_H__ */
