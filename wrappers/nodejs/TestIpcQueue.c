@@ -125,8 +125,8 @@ main(int argc, char **argv) {
             while(1) {
                 while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_b2a, shf_qiid, test_qid_a2b)) {
                                        test_pull_items ++;
-                    if (1000000     == test_pull_items) { shf_q_push_head(shf, test_qid_b2a, shf_qiid); goto FINISH_LINE_4C; }
                 }
+                if (test_pull_items >= 1000000) { goto FINISH_LINE_4C; }
             }
 FINISH_LINE_4C:;
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
@@ -174,10 +174,10 @@ FINISH_LINE_4C:;
     uint32_t test_qs          = 3;
     uint32_t test_q_items     = 100000;
     uint32_t test_q_item_size = 4096;
-    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size), "   c2*: shf_q_new() returned as expected");
-    uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")     );
-    uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )     );
-    uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )     );
+    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size, 1000), "   c2*: shf_q_new() returned as expected");
+    uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")           );
+    uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )           );
+    uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )           );
 
     {
         double   test_start_time = shf_get_time_in_seconds();
@@ -204,7 +204,7 @@ FINISH_LINE_4C:;
         while (1) {
             while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a)) {
                                    test_pull_items ++;
-                if (1000000     == test_pull_items) { shf_q_push_head(shf, test_qid_a2b, shf_qiid); goto FINISH_LINE_C2; }
+                if (1000000     == test_pull_items) { shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a); goto FINISH_LINE_C2; }
             }
             if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" ))) { /* the rw spin locks are fair but don't create unnecessary contention for javascript client */
                 usleep(1000); /* 1/1000th of a second */
@@ -212,7 +212,7 @@ FINISH_LINE_4C:;
         }
 FINISH_LINE_C2:;
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        usleep(1000); /* hack: wait 1/1000th of a second so that the oks do not conflict */
+        usleep(3000); /* hack: wait 3/1000th of a second so that the oks do not conflict */
         ok(1, "   c2*: moved   expected number of new queue items // estimate %.0f q items per second with contention", test_pull_items / test_elapsed_time);
     }
 

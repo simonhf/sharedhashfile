@@ -114,14 +114,17 @@ typedef struct SHF_QIID_MMAP {
 } __attribute__((packed)) SHF_QIID_MMAP;
 
 typedef struct SHF_Q {
-    uint32_t          qs         ; /* number of queues, e.g. 3 if free, a2b, & b2a */
-    uint32_t          q_next     ; /* next qid to assign via shf_q_new_name() */
-    uint32_t          q_items    ; /* number of queue items to share between the queues */
-    uint32_t          q_item_size; /* size of each queue item in bytes */
-    char            * q_item_addr; /* address of array of queue items */
-    SHF_Q_LOCK_MMAP * q_lock     ;
-    SHF_QID_MMAP    * qids       ;
-    SHF_QIID_MMAP   * qiids      ;
+    uint32_t          qs              ; /* number of queues, e.g. 3 if free, a2b, & b2a */
+    uint32_t          q_next          ; /* next qid to assign via shf_q_new_name() */
+    uint32_t          q_items         ; /* number of queue items to share between the queues */
+    uint32_t          q_item_size     ; /* size of each queue item in bytes */
+    char            * q_item_addr     ; /* address of array of queue items */
+    uint32_t          qids_nolock_max ; /* max q items in qids_nolock_(pull|pull) */
+    SHF_QID_MMAP    * qids_nolock_push; /* non-mmap qid for lockless pushing */
+    SHF_QID_MMAP    * qids_nolock_pull; /* non-mmap qid for lockless pulling */
+    SHF_QID_MMAP    * qids            ;
+    SHF_QIID_MMAP   * qiids           ;
+    SHF_Q_LOCK_MMAP * q_lock          ;
 } __attribute__((packed)) SHF_Q;
 
 typedef struct SHF {

@@ -66,13 +66,13 @@ main(/* int argc,char **argv */)
     uint32_t testQs         = 3;
     uint32_t testQItems     = 10;
     uint32_t testQItemSize  = 4096;
-    ok(      NULL          != shf->QNew    (testQs, testQItems, testQItemSize) , "c++: ->QNew() returned as expected");                   /* e.g. q items created  by process a */
-    uint32_t testQidFree    = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-free"));                                                          /* e.g. q names set qids by process a */
-    uint32_t testQidA2b     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-a2b" ));
-    uint32_t testQidB2a     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-b2a" ));
-    ok(      testQidFree   == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-free")), "c++: ->QGetName('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
-    ok(      testQidA2b    == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-a2b" )), "c++: ->QGetName('qid-a2b' ) returned qid as expected");
-    ok(      testQidB2a    == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-b2a" )), "c++: ->QGetName('qid-b2a' ) returned qid as expected");
+    ok(      NULL          != shf->QNew    (testQs, testQItems, testQItemSize, 1), "c++: ->QNew() returned as expected");                   /* e.g. q items created  by process a */
+    uint32_t testQidFree    = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-free")  );                                                          /* e.g. q names set qids by process a */
+    uint32_t testQidA2b     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-a2b" )  );
+    uint32_t testQidB2a     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-b2a" )  );
+    ok(      testQidFree   == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-free")  ), "c++: ->QGetName('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
+    ok(      testQidA2b    == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-a2b" )  ), "c++: ->QGetName('qid-a2b' ) returned qid as expected");
+    ok(      testQidB2a    == shf->QGetName(SHF_CONST_STR_AND_SIZE("qid-b2a" )  ), "c++: ->QGetName('qid-b2a' ) returned qid as expected");
 
     testPullItems = 0;
     while(SHF_QIID_NONE != shf->QPullTail(testQidFree          )) {                                                                       /* e.g. q items from unused to a2b q by process a */
@@ -165,10 +165,10 @@ main(/* int argc,char **argv */)
         double testStartTime = shf_get_time_in_seconds();
                    shf->DebugVerbosityLess();
                    shf->QDel              ();
-        ok(NULL != shf->QNew              (testQs, testQItems, testQItemSize), "c++: shf_q_new() returned as expected");
+        ok(NULL != shf->QNew              (testQs, testQItems, testQItemSize, 100), "c++: shf_q_new() returned as expected");
                    shf->DebugVerbosityMore();
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(1, "c++: created expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        ok(1, "c++: created expected number of new queue items // estimate %.0f q items per second", testQItems / testElapsedTime);
     }
 
     {
@@ -180,7 +180,7 @@ main(/* int argc,char **argv */)
                                testPullItems ++;
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -193,7 +193,7 @@ main(/* int argc,char **argv */)
                                testPullItems ++;
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -201,12 +201,12 @@ main(/* int argc,char **argv */)
         shf->DebugVerbosityLess();
         double testStartTime = shf_get_time_in_seconds();
         testPullItems = 0;
-        while(SHF_QIID_NONE != shf->QPullTail(testQidB2a          )) {
-                               shf->QPushHead(testQidFree, shf_qiid);
+        shf_qiid = SHF_QIID_NONE;
+        while(SHF_QIID_NONE != shf->QPushHeadPullTail(testQidFree, shf_qiid, testQidB2a)) {
                                testPullItems ++;
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f keys per second", testQItems / testElapsedTime);
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f q items per second using 1 function", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 

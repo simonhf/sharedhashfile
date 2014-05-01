@@ -822,13 +822,14 @@ void * /* address of q items array; also sets shf_qiid_addr & shf_qiid_addr_len 
 shf_q_get(
     SHF * shf)
 {
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"          )); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__qs"          ); shf->q.qs          = SHF_CAST(uint32_t *, shf_val)[0];
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"     )); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__q_items"     ); shf->q.q_items     = SHF_CAST(uint32_t *, shf_val)[0];
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size" )); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__q_item_size" ); shf->q.q_item_size = SHF_CAST(uint32_t *, shf_val)[0];
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids"        )); SHF_ASSERT(NULL != (shf->q.qids        = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__qids"        );
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"       )); SHF_ASSERT(NULL != (shf->q.qiids       = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__qiids"       );
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"      )); SHF_ASSERT(NULL != (shf->q.q_lock      = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__q_lock"      );
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr")); SHF_ASSERT(NULL != (shf->q.q_item_addr = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__q_items_addr");
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"             )); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__qs"             ); shf->q.qs              = SHF_CAST(uint32_t *, shf_val)[0];
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"        )); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__q_items"        ); shf->q.q_items         = SHF_CAST(uint32_t *, shf_val)[0];
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size"    )); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__q_item_size"    ); shf->q.q_item_size     = SHF_CAST(uint32_t *, shf_val)[0];
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids_nolock_max")); SHF_ASSERT(                              shf_get_key_val_copy(shf) , "ERROR: could not get key '%s'", "__qids_nolock_max"); shf->q.qids_nolock_max = SHF_CAST(uint32_t *, shf_val)[0];
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids"           )); SHF_ASSERT(NULL != (shf->q.qids        = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__qids"           );
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"          )); SHF_ASSERT(NULL != (shf->q.qiids       = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__qiids"          );
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"         )); SHF_ASSERT(NULL != (shf->q.q_lock      = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__q_lock"         );
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr"   )); SHF_ASSERT(NULL != (shf->q.q_item_addr = shf_get_key_val_addr(shf)), "ERROR: could not get key '%s'", "__q_items_addr"   );
 
     shf_qiid_addr     = shf->q.q_item_addr                 ;
     shf_qiid_addr_len = shf->q.q_item_size * shf->q.q_items;
@@ -838,6 +839,21 @@ shf_q_get(
 #ifdef SHF_DEBUG_VERSION
     SHF_ASSERT(1234567 == shf->q.q_lock->debug_magic, "ERROR: INTERNAL: shf->q.q_lock->debug_magic has unexpected value %u\n", shf->q.q_lock->debug_magic);
 #endif
+
+#ifdef SHF_DEBUG_VERSION
+    SHF_ASSERT(NULL == shf->q.qids_nolock_push, "ERROR: did %s() accidentally get called twice?", __FUNCTION__);
+    SHF_ASSERT(NULL == shf->q.qids_nolock_pull, "ERROR: did %s() accidentally get called twice?", __FUNCTION__);
+#endif
+    shf->q.qids_nolock_push = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_push, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids_nolock_pull = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_pull, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    for (uint32_t i = 0; i < shf->q.qs; i++) {
+        shf->q.qids_nolock_push[i].tail = SHF_QID_NONE;
+        shf->q.qids_nolock_push[i].head = SHF_QID_NONE;
+        shf->q.qids_nolock_push[i].size = 0           ;
+        shf->q.qids_nolock_pull[i].tail = SHF_QID_NONE;
+        shf->q.qids_nolock_pull[i].head = SHF_QID_NONE;
+        shf->q.qids_nolock_pull[i].size = 0           ;
+    }
 
     return shf->q.q_item_addr;
 } /* shf_q_get() */
@@ -859,44 +875,61 @@ shf_q_del(
 
 void * /* address of q items array; also sets shf_qiid_addr & shf_qiid_addr_len */
 shf_q_new(
-    SHF      * shf        ,
-    uint32_t   qs         ,
-    uint32_t   q_items    ,
-    uint32_t   q_item_size)
+    SHF      * shf            ,
+    uint32_t   qs             ,
+    uint32_t   q_items        ,
+    uint32_t   q_item_size    ,
+    uint32_t   qids_nolock_max)
 {
-    shf->q.qs          = qs         ;
-    shf->q.q_items     = q_items    ;
-    shf->q.q_item_size = q_item_size;
+    shf->q.qs              = qs             ;
+    shf->q.q_items         = q_items        ;
+    shf->q.q_item_size     = q_item_size    ;
+    shf->q.qids_nolock_max = qids_nolock_max;
+
+    SHF_ASSERT_INTERNAL(qs              > 2      , "ERROR: qs must be > 2");
+    SHF_ASSERT_INTERNAL(q_items         > 1      , "ERROR: q_items must be > 2");
+    SHF_ASSERT_INTERNAL(qids_nolock_max > 0      , "ERROR: qids_nolock_max must be > 0");
+    SHF_ASSERT_INTERNAL(qids_nolock_max < q_items, "ERROR: qids_nolock_max must be < q_items");
 
     shf_debug_verbosity_less();
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"          )); uint32_t uid_qs           = shf_put_key_val(shf, SHF_CAST(const char *, &qs          ),           sizeof(qs             ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"     )); uint32_t uid_q_items      = shf_put_key_val(shf, SHF_CAST(const char *, &q_items     ),           sizeof(q_items        ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size" )); uint32_t uid_q_item_size  = shf_put_key_val(shf, SHF_CAST(const char *, &q_item_size ),           sizeof(q_item_size    ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids"        )); uint32_t uid_qids         = shf_put_key_val(shf, NULL                                 , qs      * sizeof(SHF_QID_MMAP   ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"       )); uint32_t uid_qiids        = shf_put_key_val(shf, NULL                                 , q_items * sizeof(SHF_QIID_MMAP  ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"      )); uint32_t uid_q_lock       = shf_put_key_val(shf, NULL                                 ,           sizeof(SHF_Q_LOCK_MMAP));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr")); uint32_t uid_q_items_addr = shf_put_key_val(shf, NULL                                 , q_items * q_item_size           ) ;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"             )); uint32_t uid_qs              = shf_put_key_val(shf, SHF_CAST(const char *, &qs             ),           sizeof(qs             ));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"        )); uint32_t uid_q_items         = shf_put_key_val(shf, SHF_CAST(const char *, &q_items        ),           sizeof(q_items        ));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size"    )); uint32_t uid_q_item_size     = shf_put_key_val(shf, SHF_CAST(const char *, &q_item_size    ),           sizeof(q_item_size    ));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids_nolock_max")); uint32_t uid_qids_nolock_max = shf_put_key_val(shf, SHF_CAST(const char *, &qids_nolock_max),           sizeof(qids_nolock_max));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids"           )); uint32_t uid_qids            = shf_put_key_val(shf, NULL                                    , qs      * sizeof(SHF_QID_MMAP   ));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"          )); uint32_t uid_qiids           = shf_put_key_val(shf, NULL                                    , q_items * sizeof(SHF_QIID_MMAP  ));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"         )); uint32_t uid_q_lock          = shf_put_key_val(shf, NULL                                    ,           sizeof(SHF_Q_LOCK_MMAP));
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr"   )); uint32_t uid_q_items_addr    = shf_put_key_val(shf, NULL                                    , q_items * q_item_size           ) ;
     shf_debug_verbosity_more();
 
-    SHF_ASSERT(SHF_UID_NONE != uid_qs          , "ERROR: could not put key: __qs"          );
-    SHF_ASSERT(SHF_UID_NONE != uid_q_items     , "ERROR: could not put key: __q_items"     );
-    SHF_ASSERT(SHF_UID_NONE != uid_q_item_size , "ERROR: could not put key: __q_item_size" );
-    SHF_ASSERT(SHF_UID_NONE != uid_qids        , "ERROR: could not put key: __qids"        );
-    SHF_ASSERT(SHF_UID_NONE != uid_qiids       , "ERROR: could not put key: __qiids"       );
-    SHF_ASSERT(SHF_UID_NONE != uid_q_lock      , "ERROR: could not put key: __q_lock"      );
-    SHF_ASSERT(SHF_UID_NONE != uid_q_items_addr, "ERROR: could not put key: __q_items_addr");
+    SHF_ASSERT(SHF_UID_NONE != uid_qs             , "ERROR: could not put key: __qs"             );
+    SHF_ASSERT(SHF_UID_NONE != uid_q_items        , "ERROR: could not put key: __q_items"        );
+    SHF_ASSERT(SHF_UID_NONE != uid_q_item_size    , "ERROR: could not put key: __q_item_size"    );
+    SHF_ASSERT(SHF_UID_NONE != uid_qids_nolock_max, "ERROR: could not put key: __qids_nolock_max");
+    SHF_ASSERT(SHF_UID_NONE != uid_qids           , "ERROR: could not put key: __qids"           );
+    SHF_ASSERT(SHF_UID_NONE != uid_qiids          , "ERROR: could not put key: __qiids"          );
+    SHF_ASSERT(SHF_UID_NONE != uid_q_lock         , "ERROR: could not put key: __q_lock"         );
+    SHF_ASSERT(SHF_UID_NONE != uid_q_items_addr   , "ERROR: could not put key: __q_items_addr"   );
 
     // todo: freeze at this point; all memory has been allocated
 
     /* add qiid q items to default qid q 0 */
-    shf->q.qids        = shf_get_uid_val_addr(shf, uid_qids        );
-    shf->q.qiids       = shf_get_uid_val_addr(shf, uid_qiids       );
-    shf->q.q_lock      = shf_get_uid_val_addr(shf, uid_q_lock      );
-    shf->q.q_item_addr = shf_get_uid_val_addr(shf, uid_q_items_addr);
-    for (uint32_t i = 0; i < qs; i++) {
-        shf->q.qids[i].tail = SHF_QID_NONE;
-        shf->q.qids[i].head = SHF_QID_NONE;
-        shf->q.qids[i].size = 0           ;
+    shf->q.qids_nolock_push = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_push, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids_nolock_pull = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_pull, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids             = shf_get_uid_val_addr(shf, uid_qids        );
+    shf->q.qiids            = shf_get_uid_val_addr(shf, uid_qiids       );
+    shf->q.q_lock           = shf_get_uid_val_addr(shf, uid_q_lock      );
+    shf->q.q_item_addr      = shf_get_uid_val_addr(shf, uid_q_items_addr);
+    for (uint32_t i = 0; i < shf->q.qs; i++) {
+        shf->q.qids_nolock_push[i].tail = SHF_QID_NONE;
+        shf->q.qids_nolock_push[i].head = SHF_QID_NONE;
+        shf->q.qids_nolock_push[i].size = 0           ;
+        shf->q.qids_nolock_pull[i].tail = SHF_QID_NONE;
+        shf->q.qids_nolock_pull[i].head = SHF_QID_NONE;
+        shf->q.qids_nolock_pull[i].size = 0           ;
+        shf->q.qids            [i].tail = SHF_QID_NONE;
+        shf->q.qids            [i].head = SHF_QID_NONE;
+        shf->q.qids            [i].size = 0           ;
     }
     for (uint32_t i = 0; i < q_items; i++) {
         shf->q.qiids[i].last = i - 1;
@@ -989,85 +1022,170 @@ shf_q_take_item(
 
 uint32_t
 shf_q_pull_tail(
-    SHF      * shf,
-    uint32_t   qid) /* sets both shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    SHF      * shf     ,
+    uint32_t   pull_qid) /* sets both shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 {
-    uint32_t qiid = SHF_QIID_NONE;
+    uint32_t pull_qiid = SHF_QIID_NONE;
 
 #ifdef SHF_DEBUG_VERSION
-    SHF_ASSERT(qid < shf->q.qs, "ERROR: expected 0 <= qid < %u but got %u", shf->q.qs, qid);
+    SHF_ASSERT(pull_qid  < shf->q.qs, "ERROR: expected 0 <= pull_qid < %u but got %u", shf->q.qs, pull_qid );
 #endif
 
-    shf_debug_verbosity_less(); SHF_LOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
-
-    if (0 == shf->q.qids[qid].size) {
-        SHF_DEBUG("- no queue items in queue %u to pull\n", qid);
-        goto EARLY_OUT;
+    if (shf->q.qids_nolock_pull[pull_qid].size == 0) {
+        /* come here if local pull queue is emtpy */
+        shf_q_flush(shf, pull_qid);
     }
 
+    if (shf->q.qids_nolock_pull[pull_qid].size == 0) {
+        shf_qiid          = pull_qiid;
+        shf_qiid_addr     = NULL;
+        shf_qiid_addr_len = 0;
 #ifdef SHF_DEBUG_VERSION
-    SHF_ASSERT(shf->q.qids[qid].size != 0, "ERROR: INTERNAL: in pull shf->q.qids[qid].size_locked should never be 0 here");
+        SHF_DEBUG("%s() // nolock pull q size=%u // nothing to pull\n", __FUNCTION__, shf->q.qids_nolock_pull[pull_qid].size);
 #endif
-    shf->q.qids[qid].size --;
-
-    qiid = shf->q.qids[qid].tail;
-#ifdef SHF_DEBUG_VERSION
-    SHF_ASSERT(qiid < shf->q.q_items, "ERROR: INTERNAL: in pull tail qiid is %u but should be < %u // shf->q.qids[qid].size_locked is %u\n", qiid, shf->q.q_items, shf->q.qids[qid].size);
-#endif
-    uint32_t qiid_next = shf->q.qiids[qiid].next;
-    shf->q.qids[qid].tail = qiid_next;
-    if (SHF_QIID_NONE == qiid_next) {
-        shf->q.qids[qid].head = SHF_QID_NONE;
     }
     else {
-        shf->q.qiids[qiid_next].last = SHF_QIID_NONE;
-    }
+        shf->q.qids_nolock_pull[pull_qid].size --;
+
+        pull_qiid = shf->q.qids_nolock_pull[pull_qid].tail;
 #ifdef SHF_DEBUG_VERSION
-    SHF_DEBUG("%s() // size=%u, qid=%u, qiid=%u, qiid_next=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids[qid].size, qid, qiid, qiid_next, shf->q.qids[qid].head, shf->q.qids[qid].tail);
+        SHF_ASSERT(pull_qiid < shf->q.q_items, "ERROR: INTERNAL: in nolock pull tail qiid is %u but should be < %u\n", pull_qiid, shf->q.q_items);
+#endif
+        uint32_t qiid_next = shf->q.qiids[pull_qiid].next;
+        shf->q.qids_nolock_pull[pull_qid].tail = qiid_next;
+        if (SHF_QIID_NONE == qiid_next) { shf->q.qids_nolock_pull[pull_qid].head = SHF_QIID_NONE; }
+        else                            { shf->q.qiids[qiid_next].last           = SHF_QIID_NONE; }
+#ifdef SHF_DEBUG_VERSION
+        SHF_DEBUG("%s() // nolock pull q size=%u, pull_qid=%u, qiid=%u, qiid_next=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_pull[pull_qid].size, pull_qid, pull_qiid, qiid_next, shf->q.qids_nolock_pull[pull_qid].head, shf->q.qids_nolock_pull[pull_qid].tail);
 #endif
 
-    shf_qiid          =                       qiid                      ;
-    shf_qiid_addr     = shf->q.q_item_addr + (qiid * shf->q.q_item_size);
-    shf_qiid_addr_len =                              shf->q.q_item_size ;
+        shf_qiid          =                       pull_qiid                      ;
+        shf_qiid_addr     = shf->q.q_item_addr + (pull_qiid * shf->q.q_item_size);
+        shf_qiid_addr_len =                                   shf->q.q_item_size ;
+    }
 
-EARLY_OUT:;
-
-    shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
-
-    return qiid;
+    return pull_qiid;
 } /* shf_q_pull_tail() */
 
 void
 shf_q_push_head(
-    SHF      * shf ,
-    uint32_t   qid ,
-    uint32_t   qiid)
+    SHF      * shf      ,
+    uint32_t   push_qid ,
+    uint32_t   push_qiid)
 {
 #ifdef SHF_DEBUG_VERSION
-    SHF_ASSERT(qid  < shf->q.qs     , "ERROR: expected 0 <= qid < %u but got %u" , shf->q.qs     , qid );
-    SHF_ASSERT(qiid < shf->q.q_items, "ERROR: expected 0 <= qiid < %u but got %u", shf->q.q_items, qiid);
+                                      SHF_ASSERT(push_qid  < shf->q.qs     , "ERROR: expected 0 <= push_qid < %u but got %u" , shf->q.qs     , push_qid );
+    if (SHF_QIID_NONE != push_qiid) { SHF_ASSERT(push_qiid < shf->q.q_items, "ERROR: expected 0 <= push_qiid < %u but got %u", shf->q.q_items, push_qiid); }
 #endif
 
+    if (shf->q.qids_nolock_push[push_qid].size >= shf->q.qids_nolock_max) {
+        /* come here if local push queue is full */
+        shf_q_flush(shf, SHF_QID_NONE);
+    }
+
+    if (SHF_QIID_NONE != push_qiid) {
+        shf->q.qids_nolock_push[push_qid].size ++;
+
+        uint32_t qiid_last = shf->q.qids_nolock_push[push_qid].head;
+        shf->q.qiids[push_qiid].last = qiid_last;
+        shf->q.qiids[push_qiid].next = SHF_QIID_NONE;
+        shf->q.qids_nolock_push[push_qid].head = push_qiid;
+        if (SHF_QIID_NONE == qiid_last) { shf->q.qids_nolock_push[push_qid].tail = push_qiid; }
+        else                            { shf->q.qiids[qiid_last].next           = push_qiid; }
+#ifdef SHF_DEBUG_VERSION
+        SHF_DEBUG("%s() // nolock push q size=%u, push_qid=%u, push_qiid=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_push[push_qid].size, push_qid, push_qiid, qiid_last, shf->q.qids_nolock_push[push_qid].head, shf->q.qids_nolock_push[push_qid].tail);
+#endif
+    }
+} /* shf_q_push_head() */
+
+void
+shf_q_flush(
+    SHF      * shf     ,
+    uint32_t   pull_qid)
+{
     shf_debug_verbosity_less(); SHF_LOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 
-    shf->q.qids[qid].size ++;
-
-    uint32_t qiid_last = shf->q.qids[qid].head;
-    shf->q.qiids[qiid].last = qiid_last;
-    shf->q.qiids[qiid].next = SHF_QIID_NONE;
-    shf->q.qids[qid].head   = qiid;
-    if (SHF_QIID_NONE == qiid_last) {
-        shf->q.qids[qid].tail = qiid;
-    }
-    else {
-        shf->q.qiids[qiid_last].next = qiid;
-    }
 #ifdef SHF_DEBUG_VERSION
-    SHF_DEBUG("%s() // size=%u, qid=%u, qiid=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids[qid].size, qid, qiid, qiid_last, shf->q.qids[qid].head, shf->q.qids[qid].tail);
+    SHF_DEBUG("%s(shf=?, pull_qid=%u) // shf->q.qids[pull_qid].size=%u, shf->q.qids_nolock_pull[pull_qid].size=%u\n", __FUNCTION__, pull_qid, shf->q.qids[pull_qid].size, shf->q.qids_nolock_pull[pull_qid].size);
 #endif
 
+    /* empty nolock push queues */
+    for (uint32_t push_qid = 0; push_qid < shf->q.qs; push_qid++) { /* foreach q: */
+        if (shf->q.qids_nolock_push[push_qid].size > 0) { /* push this nolock onto that locked q */
+#ifdef SHF_DEBUG_VERSION
+            SHF_DEBUG("%s() // push nolock q to locked q; push_qid=%u, shf->q.qids[push_qid].size=%u, shf->q.qids_nolock_push[push_qid].size=%u\n", __FUNCTION__, push_qid, shf->q.qids[push_qid].size, shf->q.qids_nolock_push[push_qid].size);
+#endif
+            uint32_t qiid_this_tail = shf->q.qids_nolock_push[push_qid].tail;
+            uint32_t qiid_this_head = shf->q.qids_nolock_push[push_qid].head;
+#ifdef SHF_DEBUG_VERSION
+            SHF_ASSERT_INTERNAL(SHF_QIID_NONE != qiid_this_tail, "ERROR: INTERNAL: SHF_QIID_NONE == qiid_this_tail // nolock to lock push");
+            SHF_ASSERT_INTERNAL(SHF_QIID_NONE != qiid_this_head, "ERROR: INTERNAL: SHF_QIID_NONE == qiid_this_head // nolock to lock push");
+            SHF_ASSERT_INTERNAL(shf->q.q_items > qiid_this_tail, "ERROR: INTERNAL: in nolock push tail qiid is %u but should be < %u\n", qiid_this_tail, shf->q.q_items);
+            SHF_ASSERT_INTERNAL(shf->q.q_items > qiid_this_head, "ERROR: INTERNAL: in nolock push head qiid is %u but should be < %u\n", qiid_this_head, shf->q.q_items);
+#endif
+            uint32_t qiid_last = shf->q.qids[push_qid].head;
+            shf->q.qiids[qiid_this_tail].last = qiid_last;
+            shf->q.qiids[qiid_this_head].next = SHF_QIID_NONE;
+            shf->q.qids[push_qid].head = qiid_this_head;
+            if (SHF_QIID_NONE == qiid_last) { shf->q.qids[push_qid].tail   = qiid_this_tail; }
+            else                            { shf->q.qiids[qiid_last].next = qiid_this_tail; }
+#ifdef SHF_DEBUG_VERSION
+            SHF_DEBUG("%s() // locked push q size=%u, push_qid=%u, +size=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids[push_qid].size, push_qid, shf->q.qids_nolock_push[push_qid].size, qiid_last, shf->q.qids[push_qid].head, shf->q.qids[push_qid].tail);
+#endif
+
+            shf->q.qids[push_qid].size             += shf->q.qids_nolock_push[push_qid].size;
+            shf->q.qids_nolock_push[push_qid].size  = 0;
+            shf->q.qids_nolock_push[push_qid].tail  = SHF_QIID_NONE;
+            shf->q.qids_nolock_push[push_qid].head  = SHF_QIID_NONE;
+        }
+    }
+
+    /* fill nolock pull queue from locked queue if possible */
+    if (SHF_QID_NONE != pull_qid) {
+        uint32_t qiids_to_pull_max = shf->q.qids_nolock_pull[pull_qid].size < shf->q.qids_nolock_max ? shf->q.qids_nolock_max - shf->q.qids_nolock_pull[pull_qid].size : 0                   ;
+        uint32_t qiids_to_pull     = shf->q.qids[pull_qid].size             < qiids_to_pull_max      ?                          shf->q.qids[pull_qid].size             : qiids_to_pull_max   ;
+        if (qiids_to_pull > 0) {
+#ifdef SHF_DEBUG_VERSION
+            SHF_DEBUG("%s() // pull locked q to nolock q; pull_qid=%u, shf->q.qids[pull_qid].size=%u, shf->q.qids_nolock_pull[pull_qid].size=%u, qiids_to_pull=%u\n", __FUNCTION__, pull_qid, shf->q.qids[pull_qid].size, shf->q.qids_nolock_pull[pull_qid].size, qiids_to_pull);
+#endif
+            uint32_t qiid_this_tail = shf->q.qids[pull_qid].tail;
+            uint32_t qiid_this_head = shf->q.qids[pull_qid].tail; /* start off at tail */
+#ifdef SHF_DEBUG_VERSION
+            SHF_ASSERT_INTERNAL(SHF_QIID_NONE != qiid_this_tail, "ERROR: INTERNAL: SHF_QIID_NONE == qiid_this_tail // lock to nolock pull");
+            SHF_ASSERT_INTERNAL(SHF_QIID_NONE != qiid_this_head, "ERROR: INTERNAL: SHF_QIID_NONE == qiid_this_head // lock to nolock pull");
+            SHF_ASSERT_INTERNAL(shf->q.q_items > qiid_this_tail, "ERROR: INTERNAL: in nolock pull tail qiid is %u but should be < %u\n", qiid_this_tail, shf->q.q_items);
+            SHF_ASSERT_INTERNAL(shf->q.q_items > qiid_this_head, "ERROR: INTERNAL: in nolock pull head qiid is %u but should be < %u\n", qiid_this_head, shf->q.q_items);
+#endif
+            for (uint32_t i = 0; i < (qiids_to_pull - 1); i++) { /* walk locked qiids until qiid_this_head is qiids_to_pull qiids along */
+                uint32_t qiid_this_next = shf->q.qiids[qiid_this_head].next;
+#ifdef SHF_DEBUG_VERSION
+                SHF_ASSERT_INTERNAL(SHF_QIID_NONE != qiid_this_next, "ERROR: INTERNAL: SHF_QIID_NONE == qiid_this_next // locked walk @ i=%u of %u, qiid_this_tail=%u, qiid_this_head=%u", i, qiids_to_pull, qiid_this_tail, qiid_this_head);
+                SHF_ASSERT_INTERNAL(shf->q.q_items > qiid_this_next, "ERROR: INTERNAL: next qiid is %u but should be < %u // locked walk @ i=%u of %u, qiid_this_tail=%u, qiid_this_head=%u\n", qiid_this_next, shf->q.q_items, i, qiids_to_pull, qiid_this_tail, qiid_this_head);
+#endif
+                qiid_this_head = qiid_this_next;
+            }
+
+            uint32_t qiid_last_nolock = shf->q.qids_nolock_pull[pull_qid].head;
+            uint32_t qiid_next_locked = shf->q.qiids[qiid_this_head].next;
+            shf->q.qiids[qiid_this_tail].last = qiid_last_nolock;
+            shf->q.qiids[qiid_this_head].next = SHF_QIID_NONE;
+            shf->q.qids_nolock_pull[pull_qid].head = qiid_this_head;
+            if (SHF_QIID_NONE == qiid_last_nolock) { shf->q.qids_nolock_pull[pull_qid].tail = qiid_this_tail; }
+            else                                   { shf->q.qiids[qiid_last_nolock].next    = qiid_this_tail; }
+#ifdef SHF_DEBUG_VERSION
+            SHF_DEBUG("%s() // nolock pull q size=%u, pull_qid=%u, +size=%u, qiid_last_nolock=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_pull[pull_qid].size, pull_qid, qiids_to_pull, qiid_last_nolock, shf->q.qids[pull_qid].head, shf->q.qids[pull_qid].tail);
+#endif
+
+            shf->q.qids_nolock_pull[pull_qid].size += qiids_to_pull;
+            shf->q.qids[pull_qid].size             -= qiids_to_pull;
+            if (shf->q.qids[pull_qid].size) { shf->q.qids[pull_qid].tail = qiid_next_locked; }
+            else                            { shf->q.qids[pull_qid].tail = SHF_QIID_NONE   ;
+                                              shf->q.qids[pull_qid].head = SHF_QIID_NONE   ; }
+        } /* if (qiids_to_pull > 0) */
+    } /* if (SHF_QID_NONE != pull_qid)() */
+
     shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
-} /* shf_q_push_head() */
+} /* shf_q_flush() */
 
 uint32_t
 shf_q_push_head_pull_tail(
@@ -1079,66 +1197,58 @@ shf_q_push_head_pull_tail(
     uint32_t pull_qiid = SHF_QIID_NONE;
 
 #ifdef SHF_DEBUG_VERSION
-    SHF_ASSERT(push_qid  < shf->q.qs     , "ERROR: expected 0 <= push_qid < %u but got %u" , shf->q.qs     , push_qid );
-    if (SHF_QIID_NONE != push_qiid) {
-    SHF_ASSERT(push_qiid < shf->q.q_items, "ERROR: expected 0 <= push_qiid < %u but got %u", shf->q.q_items, push_qiid);
-    }
-    SHF_ASSERT(pull_qid  < shf->q.qs     , "ERROR: expected 0 <= pull_qid < %u but got %u" , shf->q.qs     , pull_qid );
+                                      SHF_ASSERT(push_qid  < shf->q.qs     , "ERROR: expected 0 <= push_qid < %u but got %u" , shf->q.qs     , push_qid );
+    if (SHF_QIID_NONE != push_qiid) { SHF_ASSERT(push_qiid < shf->q.q_items, "ERROR: expected 0 <= push_qiid < %u but got %u", shf->q.q_items, push_qiid); }
+                                      SHF_ASSERT(pull_qid  < shf->q.qs     , "ERROR: expected 0 <= pull_qid < %u but got %u" , shf->q.qs     , pull_qid );
 #endif
 
-    shf_debug_verbosity_less(); SHF_LOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
+    if ((shf->q.qids_nolock_push[push_qid].size >= shf->q.qids_nolock_max)
+    ||  (shf->q.qids_nolock_pull[pull_qid].size == 0                     )) {
+        /* come here if local push queue is full or local pull queue is emtpy */
+        shf_q_flush(shf, pull_qid);
+    }
 
     if (SHF_QIID_NONE != push_qiid) {
-        shf->q.qids[push_qid].size ++;
+        shf->q.qids_nolock_push[push_qid].size ++;
 
-        uint32_t qiid_last = shf->q.qids[push_qid].head;
+        uint32_t qiid_last = shf->q.qids_nolock_push[push_qid].head;
         shf->q.qiids[push_qiid].last = qiid_last;
         shf->q.qiids[push_qiid].next = SHF_QIID_NONE;
-        shf->q.qids[push_qid].head   = push_qiid;
-        if (SHF_QIID_NONE == qiid_last) {
-            shf->q.qids[push_qid].tail = push_qiid;
-        }
-        else {
-            shf->q.qiids[qiid_last].next = push_qiid;
-        }
+        shf->q.qids_nolock_push[push_qid].head = push_qiid;
+        if (SHF_QIID_NONE == qiid_last) { shf->q.qids_nolock_push[push_qid].tail = push_qiid; }
+        else                            { shf->q.qiids[qiid_last].next           = push_qiid; }
 #ifdef SHF_DEBUG_VERSION
-        SHF_DEBUG("%s() // size=%u, push_qid=%u, push_qiid=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids[push_qid].size, push_qid, push_qiid, qiid_last, shf->q.qids[push_qid].head, shf->q.qids[push_qid].tail);
+        SHF_DEBUG("%s() // nolock push q size=%u, push_qid=%u, push_qiid=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_push[push_qid].size, push_qid, push_qiid, qiid_last, shf->q.qids_nolock_push[push_qid].head, shf->q.qids_nolock_push[push_qid].tail);
 #endif
     }
 
-    if (shf->q.qids[pull_qid].size == 0) {
+    if (shf->q.qids_nolock_pull[pull_qid].size == 0) {
         shf_qiid          = pull_qiid;
         shf_qiid_addr     = NULL;
         shf_qiid_addr_len = 0;
+#ifdef SHF_DEBUG_VERSION
+        SHF_DEBUG("%s() // nolock pull q size=%u // nothing to pull\n", __FUNCTION__, shf->q.qids_nolock_pull[pull_qid].size);
+#endif
     }
     else {
-#ifdef SHF_DEBUG_VERSION
-        SHF_ASSERT(shf->q.qids[pull_qid].size != 0, "ERROR: INTERNAL: in pull shf->q.qids[pull_qid].size should never be 0 here");
-#endif
-        shf->q.qids[pull_qid].size --;
+        shf->q.qids_nolock_pull[pull_qid].size --;
 
-        pull_qiid = shf->q.qids[pull_qid].tail;
+        pull_qiid = shf->q.qids_nolock_pull[pull_qid].tail;
 #ifdef SHF_DEBUG_VERSION
-        SHF_ASSERT(pull_qiid < shf->q.q_items, "ERROR: INTERNAL: in pull tail pull_qiid is %u but should be < %u // shf->q.qids[pull_qid].size is %u\n", pull_qiid, shf->q.q_items, shf->q.qids[pull_qid].size);
+        SHF_ASSERT(pull_qiid < shf->q.q_items, "ERROR: INTERNAL: in nolock pull tail qiid is %u but should be < %u\n", pull_qiid, shf->q.q_items);
 #endif
         uint32_t qiid_next = shf->q.qiids[pull_qiid].next;
-        shf->q.qids[pull_qid].tail = qiid_next;
-        if (SHF_QIID_NONE == qiid_next) {
-            shf->q.qids[pull_qid].head = SHF_QID_NONE;
-        }
-        else {
-            shf->q.qiids[qiid_next].last = SHF_QIID_NONE;
-        }
+        shf->q.qids_nolock_pull[pull_qid].tail = qiid_next;
+        if (SHF_QIID_NONE == qiid_next) { shf->q.qids_nolock_pull[pull_qid].head = SHF_QIID_NONE; }
+        else                            { shf->q.qiids[qiid_next].last           = SHF_QIID_NONE; }
 #ifdef SHF_DEBUG_VERSION
-        SHF_DEBUG("%s() // size=%u, pull_qid=%u, pull_qiid=%u, qiid_next=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids[pull_qid].size, pull_qid, pull_qiid, qiid_next, shf->q.qids[pull_qid].head, shf->q.qids[pull_qid].tail);
+        SHF_DEBUG("%s() // nolock pull q size=%u, pull_qid=%u, qiid=%u, qiid_next=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_pull[pull_qid].size, pull_qid, pull_qiid, qiid_next, shf->q.qids_nolock_pull[pull_qid].head, shf->q.qids_nolock_pull[pull_qid].tail);
 #endif
 
         shf_qiid          =                       pull_qiid                      ;
         shf_qiid_addr     = shf->q.q_item_addr + (pull_qiid * shf->q.q_item_size);
         shf_qiid_addr_len =                                   shf->q.q_item_size ;
     }
-
-    shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 
     return pull_qiid;
 } /* shf_q_push_head_pull_tail() */

@@ -63,13 +63,13 @@ int main(void)
     uint32_t test_qs          = 3;
     uint32_t test_q_items     = 10;
     uint32_t test_q_item_size = 4096;
-    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size), "c: shf_q_new() returned as expected");                    /* e.g. q items created  by process a */
-    uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")     );                                                            /* e.g. q names set qids by process a */
-    uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )     );
-    uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )     );
-    ok(      test_qid_free   == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")     ), "c: shf_q_get_name('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
-    ok(      test_qid_a2b    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )     ), "c: shf_q_get_name('qid-a2b' ) returned qid as expected");
-    ok(      test_qid_b2a    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )     ), "c: shf_q_get_name('qid-b2a' ) returned qid as expected");
+    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size, 1), "c: shf_q_new() returned as expected");                    /* e.g. q items created  by process a */
+    uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")        );                                                            /* e.g. q names set qids by process a */
+    uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )        );
+    uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )        );
+    ok(      test_qid_free   == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")        ), "c: shf_q_get_name('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
+    ok(      test_qid_a2b    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )        ), "c: shf_q_get_name('qid-a2b' ) returned qid as expected");
+    ok(      test_qid_b2a    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )        ), "c: shf_q_get_name('qid-b2a' ) returned qid as expected");
 
     test_pull_items = 0;
     while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_free          )) {                                                                                        /* e.g. q items from unused to a2b q by process a */
@@ -147,10 +147,10 @@ int main(void)
         double test_start_time = shf_get_time_in_seconds();
                    shf_debug_verbosity_less();
                    shf_q_del               (shf);
-        ok(NULL != shf_q_new               (shf, test_qs, test_q_items, test_q_item_size), "c: shf_q_new() returned as expected");
+        ok(NULL != shf_q_new               (shf, test_qs, test_q_items, test_q_item_size, 100), "c: shf_q_new() returned as expected");
                    shf_debug_verbosity_more();
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: created expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
+        ok(1, "c: created expected number of new queue items // estimate %.0f q items per second", test_q_items / test_elapsed_time);
     }
 
     {
@@ -162,7 +162,7 @@ int main(void)
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -175,7 +175,7 @@ int main(void)
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -183,12 +183,12 @@ int main(void)
         shf_debug_verbosity_less();
         double test_start_time = shf_get_time_in_seconds();
         test_pull_items = 0;
-        while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_b2a          )) {
-                               shf_q_push_head(shf, test_qid_free, shf_qiid);
+        shf_qiid = SHF_QIID_NONE;
+        while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_free, shf_qiid, test_qid_b2a)) {
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f keys per second", test_q_items / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f q items per second using 1 function", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 

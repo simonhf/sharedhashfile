@@ -71,7 +71,7 @@ var testPullItems     = 0;
 var testQs            = 3;
 var testQItems        = 10;
 var testQItemSize     = 4096;
-var shfQItems         = shf.qNew(testQs, testQItems , testQItemSize);
+var shfQItems         = shf.qNew(testQs, testQItems , testQItemSize, 1);
 ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");                   /* e.g. q items created  by process a */
 var testQidFree       = shf.qNewName("qid-free");                                                                               /* e.g. q names set qids by process a */
 var testQidA2b        = shf.qNewName("qid-a2b" );
@@ -167,7 +167,7 @@ shf.setDataNeedFactor(1);
     var testStartTime = Date.now() / 1000;
                             shf.debugVerbosityLess();
                             shf.qDel              ();
-        shfQItems         = shf.qNew(testQs, testQItems , testQItemSize);
+        shfQItems         = shf.qNew(testQs, testQItems , testQItemSize, 100);
     ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");
                             shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
@@ -178,26 +178,26 @@ shf.setDataNeedFactor(1);
     var testStartTime = Date.now() / 1000;
     shf.debugVerbosityLess();
     testPullItems = 0;
-    var testQiid = shfQiidNone;
-    while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidA2b, testQiid, testQidFree))) {
-        testPullItems ++;
+    while(shfQiidNone != (testQiid = shf.qPullTail(testQidFree         ))) {
+                                     shf.qPushHead(testQidA2b , testQiid);
+                                     testPullItems ++;
     }
     shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second");
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second using 2 functions");
 }
 
 {
     var testStartTime = Date.now() / 1000;
     shf.debugVerbosityLess();
     testPullItems = 0;
-    var testQiid = shfQiidNone;
-    while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidB2a, testQiid, testQidA2b))) {
-        testPullItems ++;
+    while(shfQiidNone != (testQiid = shf.qPullTail(testQidA2b         ))) {
+                                     shf.qPushHead(testQidB2a, testQiid);
+                                     testPullItems ++;
     }
     shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second");
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second using 2 functions");
 }
 
 {
@@ -210,7 +210,7 @@ shf.setDataNeedFactor(1);
     }
     shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second");
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second using 1 function");
 }
 
 // todo: delete shf;

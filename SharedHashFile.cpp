@@ -132,10 +132,10 @@ SharedHashFile::SetDataNeedFactor(uint32_t data_needed_factor)
 }
 
 void *
-SharedHashFile::QNew(uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size)
+SharedHashFile::QNew(uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size, uint32_t qids_nolock_max)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    return shf_q_new(shf, shf_qs, shf_q_items, shf_q_item_size);
+    return shf_q_new(shf, shf_qs, shf_q_items, shf_q_item_size, qids_nolock_max);
 }
 
 void *
@@ -191,6 +191,12 @@ uint32_t
 SharedHashFile::QPushHeadPullTail(uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid) { /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_q_push_head_pull_tail(shf, push_qid, push_qiid, pull_qid);
+}
+
+void
+SharedHashFile::QFlush(uint32_t pull_qid) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_flush(shf, pull_qid);
 }
 
 void

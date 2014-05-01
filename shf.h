@@ -99,7 +99,7 @@ extern uint64_t   shf_debug_get_garbage    (SHF * shf);
 extern void       shf_debug_verbosity_less (void);
 extern void       shf_debug_verbosity_more (void);
 extern void       shf_set_data_need_factor (uint32_t data_needed_factor);
-extern void     * shf_q_new                (SHF * shf, uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size);
+extern void     * shf_q_new                (SHF * shf, uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size, uint32_t qids_nolock_max);
 extern void     * shf_q_get                (SHF * shf);
 extern void       shf_q_del                (SHF * shf);
 extern uint32_t   shf_q_new_name           (SHF * shf, const char * name, uint32_t name_len);
@@ -108,6 +108,7 @@ extern void       shf_q_push_head          (SHF * shf, uint32_t qid, uint32_t qi
 extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern void       shf_q_flush              (SHF * shf, uint32_t pull_qid);
 extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
 extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);
 

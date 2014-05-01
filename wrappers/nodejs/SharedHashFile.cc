@@ -181,6 +181,7 @@ private:
     static v8::Handle<v8::Value> QPullTail         (const v8::Arguments& args);
     static v8::Handle<v8::Value> QTakeItem         (const v8::Arguments& args);
     static v8::Handle<v8::Value> QPushHeadPullTail (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QFlush            (const v8::Arguments& args);
     static v8::Handle<v8::Value> RaceInit          (const v8::Arguments& args);
     static v8::Handle<v8::Value> RaceStart         (const v8::Arguments& args);
     static v8::Handle<v8::Value> Dummy1            (const v8::Arguments& args);
@@ -234,6 +235,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qPullTail"         ), FunctionTemplate::New(QPullTail         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qTakeItem"         ), FunctionTemplate::New(QTakeItem         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qPushHeadPullTail" ), FunctionTemplate::New(QPushHeadPullTail )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("qFlush"            ), FunctionTemplate::New(QFlush            )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("raceInit"          ), FunctionTemplate::New(RaceInit          )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("raceStart"         ), FunctionTemplate::New(RaceStart         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy1"            ), FunctionTemplate::New(Dummy1            )->GetFunction());
@@ -416,7 +418,7 @@ sharedHashFile::DebugVerbosityMore(const Arguments& args) {
     SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
     SHF_GET_SHAREDHASHFILE_OBJ();
 
-    obj->shf->DebugVerbosityLess();
+    obj->shf->DebugVerbosityMore();
 
     return scope.Close(Undefined());
 }
@@ -438,16 +440,18 @@ Handle<Value>
 sharedHashFile::QNew(const Arguments& args) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     SHF_HANDLE_SCOPE();
-    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(4);
     SHF_VALIDATE_ARG_IS_INT32(0);
     SHF_VALIDATE_ARG_IS_INT32(1);
     SHF_VALIDATE_ARG_IS_INT32(2);
+    SHF_VALIDATE_ARG_IS_INT32(3);
     SHF_GET_SHAREDHASHFILE_OBJ();
 
-    uint32_t qs          = arg0;
-    uint32_t q_items     = arg1;
-    uint32_t q_item_size = arg2;
-    obj->shf->QNew(qs, q_items, q_item_size);
+    uint32_t qs              = arg0;
+    uint32_t q_items         = arg1;
+    uint32_t q_item_size     = arg2;
+    uint32_t qids_nolock_max = arg3;
+    obj->shf->QNew(qs, q_items, q_item_size, qids_nolock_max);
 
     return scope.Close(String::NewExternal(new CustomExternalAsciiStringResource(shf_qiid_addr, shf_qiid_addr_len)));
 }
@@ -564,6 +568,20 @@ sharedHashFile::QTakeItem(const Arguments& args) {
     uint32_t qiid = obj->shf->QTakeItem(qid);
 
     return scope.Close(Number::New(qiid));
+}
+
+Handle<Value>
+sharedHashFile::QFlush(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    uint32_t pull_qid  = arg0;
+    obj->shf->QFlush(pull_qid);
+
+    return scope.Close(Undefined());
 }
 
 Handle<Value>

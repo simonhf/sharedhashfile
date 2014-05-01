@@ -79,11 +79,11 @@ ok( testQidB2a       != shfQidNone              , "nodejs: .qGetName('qid-b2a' )
     var testQiid = shfQiidNone;
     do {
         while(shfQiidNone != (testQiid = shf.qPushHeadPullTail(testQidB2a, testQiid, testQidA2b))) {
-            if (testPullItems % testQItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
+            if (testPullItems % 127 == 0) { if (testPullItems % testQItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); }; } /* 'pull over' every 127th q item & test it aka drunk driving test */
                 testPullItems ++;
-            if (testPullItems == 1000000) { shf.qPushHead(testQidB2a, testQiid); break; }
         }
-    } while (testPullItems < 1000000);
+        if ( testPullItems >= 1000000) { break; }
+    } while (testPullItems <  1000000);
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
     ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItems / testElapsedTime)+" q items per second with contention");
 }
