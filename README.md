@@ -1,6 +1,6 @@
 # SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
 
-SharedHashFile is a lightweight NoSQL hash table library written in C for Linux, operating fully in memory.  There is no server process.  Data is read and written directly from/to shared memory; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
+SharedHashFile is a lightweight NoSQL key value store / hash table, & a zero-copy IPC queue library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
 
 ## Project Goals
 
@@ -52,6 +52,12 @@ Unlike other hash tables, every key stored in SharedHashFile gets assigned its o
 What are UIDs useful for? UIDs don't take up any extra resources and can be thought of as resource 'free'. Accessing a key by its UID is faster than accessing the key via its key. Because a UID is only 32bits in size then it can be easily stored as a reference to a key in your program, or embedded in the values of of key,value pairs, or even embedded within other keys.
 
 Example usage: If uid1 points to key ```"user-id-<xyz>"```, and uid2 points to key ```"facebook.com"```, then another 'mash up' key might be ```"<uid1><uid2>"```. Want to find out if ```"user-id-<xyz>"``` has ```"facebook.com"``` in their personal URL whitelist? Just see if key ```"<uid1><uid2>"``` exists.
+
+### Zero-Copy IPC Queue
+
+How does it work? Create x fixed-sized queue elements, and y queues to push & pull those queue elements to/from. Simple example: Imagine two processes A & B. Process A create 100,000 queue elements and 3 queues; ```queue-free```, ```queue-a2b```, and ```queue-b2a```. Intitally, all queue elements are pushed onto ```queue-free```. Process A then spawns process B which attaches to the SharedHashFile in order to pull from ```queue-a2b```. To perform zero-copy IPC then process A can pull queue elements from ```queue-free```, manipulate the fixed size, shared memory queue elements, and push the queue elements into ```queue-a2b```. Process B does the opposite; pulls queue elements from ```queue-a2b```, manipulates the fixed size, shared memory queue queue elements, and pushes the queue elements into ```queue-b2a```. Process A can also pull queue items from ```queue-b2a``` in order to digest the results from process B. Note: When a queue element is moved from one queue to another then it is not copied, only a reference is updated.
+
+So how many queue elements per second can be transferred back and forth by processes A & B? On a Lenovo W530 laptop then about 90 million if both processes A & B are written in C. Or about 7 million if one process A is C and process B is nodejs.
 
 ## Building
 
@@ -304,12 +310,12 @@ DB size: 2.6G   /dev/shm/test-lmdb-20848
 
 ## TODO
 
+* Support auto delete hash table when creating process ends.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.
 * Support stack key types, e.g. push, pop, shift, unshift.
 * Support detaching from a hash table.
-* Support auto delete hash table when creating process ends.
 * Add API documentation.
 * Add LRU mechanism for using SharedHashFile to e.g. accelerate network based hash tables such as redis, memcached, and/or Aerospike.
 * Add logging.
