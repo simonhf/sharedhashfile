@@ -23,6 +23,7 @@
 
 extern "C" {
 #include <string.h> /* for memcmp() */
+#include <locale.h> /* for setlocale() */
 
 #include <tap.h>
 #include <shf.defines.h>
@@ -34,6 +35,8 @@ int
 main(/* int argc,char **argv */)
 {
     plan_tests(35);
+
+    SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
     char  testShfName[256];
     char  testShfFolder[] = "/dev/shm";
@@ -109,7 +112,7 @@ main(/* int argc,char **argv */)
             shf->PutKeyVal(SHF_CAST(const char *, &i), sizeof(i));
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(1, "c++: put expected number of              keys // estimate %.0f keys per second", testKeys / testElapsedTime);
+        ok(1, "c++: put expected number of              keys // estimate %'.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -122,7 +125,7 @@ main(/* int argc,char **argv */)
             keys_found += shf->GetKeyValCopy();
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(0 == keys_found, "c++: got expected number of non-existing keys // estimate %.0f keys per second", testKeys / testElapsedTime);
+        ok(0 == keys_found, "c++: got expected number of non-existing keys // estimate %'.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -137,7 +140,7 @@ main(/* int argc,char **argv */)
             SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testKeys == keys_found, "c++: got expected number of     existing keys // estimate %.0f keys per second", testKeys / testElapsedTime);
+        ok(testKeys == keys_found, "c++: got expected number of     existing keys // estimate %'.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -152,7 +155,7 @@ main(/* int argc,char **argv */)
             keys_found += shf->DelKeyVal();
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testKeys == keys_found, "c++: del expected number of     existing keys // estimate %.0f keys per second", testKeys / testElapsedTime);
+        ok(testKeys == keys_found, "c++: del expected number of     existing keys // estimate %'.0f keys per second", testKeys / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -168,7 +171,7 @@ main(/* int argc,char **argv */)
         ok(NULL != shf->QNew              (testQs, testQItems, testQItemSize, 100), "c++: shf_q_new() returned as expected");
                    shf->DebugVerbosityMore();
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(1, "c++: created expected number of new queue items // estimate %.0f q items per second", testQItems / testElapsedTime);
+        ok(1, "c++: created expected number of new queue items // estimate %'.0f q items per second", testQItems / testElapsedTime);
     }
 
     {
@@ -180,7 +183,7 @@ main(/* int argc,char **argv */)
                                testPullItems ++;
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", testQItems / testElapsedTime);
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %'.0f q items per second using 2 functions", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -193,7 +196,7 @@ main(/* int argc,char **argv */)
                                testPullItems ++;
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", testQItems / testElapsedTime);
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %'.0f q items per second using 2 functions", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 
@@ -206,7 +209,7 @@ main(/* int argc,char **argv */)
                                testPullItems ++;
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %.0f q items per second using 1 function", testQItems / testElapsedTime);
+        ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %'.0f q items per second using 1 function", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
 

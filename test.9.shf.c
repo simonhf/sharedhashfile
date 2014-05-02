@@ -24,6 +24,7 @@
 #define _GNU_SOURCE   /* See feature_test_macros(7) */
 #include <sys/mman.h> /* for mremap() */
 #include <string.h>   /* for memcmp() */
+#include <locale.h>   /* for setlocale() */
 
 #include "shf.private.h"
 #include "shf.h"
@@ -32,6 +33,8 @@
 int main(void)
 {
     plan_tests(32);
+
+    SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
     char  test_shf_name[256];
     char  test_shf_folder[] = "/dev/shm";
@@ -106,7 +109,7 @@ int main(void)
             shf_put_key_val(shf, SHF_CAST(const char *, &i), sizeof(i));
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: put expected number of              keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(1, "c: put expected number of              keys // estimate %'.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -119,7 +122,7 @@ int main(void)
             keys_found += shf_get_key_val_copy(shf);
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(0 == keys_found, "c: got expected number of non-existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(0 == keys_found, "c: got expected number of non-existing keys // estimate %'.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -134,7 +137,7 @@ int main(void)
             SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_keys == keys_found, "c: got expected number of     existing keys // estimate %.0f keys per second", test_keys / test_elapsed_time);
+        ok(test_keys == keys_found, "c: got expected number of     existing keys // estimate %'.0f keys per second", test_keys / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -150,7 +153,7 @@ int main(void)
         ok(NULL != shf_q_new               (shf, test_qs, test_q_items, test_q_item_size, 100), "c: shf_q_new() returned as expected");
                    shf_debug_verbosity_more();
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "c: created expected number of new queue items // estimate %.0f q items per second", test_q_items / test_elapsed_time);
+        ok(1, "c: created expected number of new queue items // estimate %'.0f q items per second", test_q_items / test_elapsed_time);
     }
 
     {
@@ -162,7 +165,7 @@ int main(void)
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", test_q_items / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %'.0f q items per second using 2 functions", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -175,7 +178,7 @@ int main(void)
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f q items per second using 2 functions", test_q_items / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %'.0f q items per second using 2 functions", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 
@@ -188,7 +191,7 @@ int main(void)
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %.0f q items per second using 1 function", test_q_items / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %'.0f q items per second using 1 function", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
 

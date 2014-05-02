@@ -34,6 +34,7 @@
 #include <sys/un.h>       /* for struct sockaddr_un */
 #include <sys/time.h>     /* for gettimeofday() */
 #include <string.h>       /* for memset() */
+#include <locale.h>       /* for setlocale() */
 
 #include <shf.private.h>
 #include <shf.h>
@@ -70,6 +71,8 @@ main(int argc, char **argv) {
     SHF_UNUSE(argc);
     SHF_UNUSE(argv);
 
+    SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
+
     SHF_ASSERT(argc >= 2, "ERROR: please supply an argument; c2js, c2c, or 4c");
     SHF_ASSERT((0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js")))
     ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" )))
@@ -89,7 +92,7 @@ main(int argc, char **argv) {
             test_iterations += test_dummy();
         } while (test_iterations < 10000000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: called  expected number to dummy function  // estimate %.0f keys per second", test_iterations / test_elapsed_time);
+        ok(1, "   c2*: called  expected number to dummy function  // estimate %'.0f calls per second", test_iterations / test_elapsed_time);
     }
 
     char  test_shf_name[256];
@@ -130,7 +133,7 @@ main(int argc, char **argv) {
             }
 FINISH_LINE_4C:;
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-            ok(1, "    4c: moved   expected number of new queue items // estimate %.0f q items per second with contention", test_pull_items / test_elapsed_time);
+            ok(1, "    4c: moved   expected number of new queue items // estimate %'.0f q items per second with contention", test_pull_items / test_elapsed_time);
         }
 
         {
@@ -149,7 +152,7 @@ FINISH_LINE_4C:;
                 test_lock_iterations ++;
             } while (test_lock_iterations < 2000000);
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-            ok(1, "    4c: rw lock expected number of times           // estimate %.0f locks per second; with contention", test_lock_iterations / test_elapsed_time);
+            ok(1, "    4c: rw lock expected number of times           // estimate %'.0f locks per second; with contention", test_lock_iterations / test_elapsed_time);
         }
 
         goto EARLY_OUT;
@@ -187,7 +190,7 @@ FINISH_LINE_4C:;
                                test_pull_items ++;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(test_q_items == test_pull_items, "   c2*: moved   expected number of new queue items // estimate %.0f q items per second without contention", test_keys / test_elapsed_time);
+        ok(test_q_items == test_pull_items, "   c2*: moved   expected number of new queue items // estimate %'.0f q items per second without contention", test_keys / test_elapsed_time);
     }
 
     pid_t child_pid = 0;
@@ -213,7 +216,7 @@ FINISH_LINE_4C:;
 FINISH_LINE_C2:;
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         usleep(3000); /* hack: wait 3/1000th of a second so that the oks do not conflict */
-        ok(1, "   c2*: moved   expected number of new queue items // estimate %.0f q items per second with contention", test_pull_items / test_elapsed_time);
+        ok(1, "   c2*: moved   expected number of new queue items // estimate %'.0f q items per second with contention", test_pull_items / test_elapsed_time);
     }
 
     if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
@@ -232,7 +235,7 @@ FINISH_LINE_C2:;
             test_lock_iterations ++;
         } while (test_lock_iterations < 2000000);
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: rw lock expected number of times           // estimate %.0f locks per second; with contention", test_lock_iterations / test_elapsed_time);
+        ok(1, "   c2*: rw lock expected number of times           // estimate %'.0f locks per second; with contention", test_lock_iterations / test_elapsed_time);
 
         SHF_LOCK lock_without_contention;
         memset(&lock_without_contention, 0, sizeof(lock_without_contention));
@@ -244,7 +247,7 @@ FINISH_LINE_C2:;
             test_lock_iterations ++;
         } while (test_lock_iterations < 2000000);
         test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: rw lock expected number of times           // estimate %.0f locks per second; without contention", test_lock_iterations / test_elapsed_time);
+        ok(1, "   c2*: rw lock expected number of times           // estimate %'.0f locks per second; without contention", test_lock_iterations / test_elapsed_time);
 
         test_start_time = shf_get_time_in_seconds();
         test_lock_iterations = 0;
@@ -252,7 +255,7 @@ FINISH_LINE_C2:;
             test_lock_iterations ++;
         } while (test_lock_iterations < 2000000);
         test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: rw lock expected number of times           // estimate %.0f locks per second; without lock", test_lock_iterations / test_elapsed_time);
+        ok(1, "   c2*: rw lock expected number of times           // estimate %'.0f locks per second; without lock", test_lock_iterations / test_elapsed_time);
     }
 
     shf_debug_verbosity_more();

@@ -85,7 +85,7 @@ ok( testQidB2a       != shfQidNone              , "nodejs: .qGetName('qid-b2a' )
         if ( testPullItems >= 1000000) { break; }
     } while (testPullItems <  1000000);
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItems / testElapsedTime)+" q items per second with contention");
+    ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second with contention");
 }
 
 exit_status();

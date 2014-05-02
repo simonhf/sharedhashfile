@@ -56,7 +56,7 @@ var testKeys = 100000;
         shf.dummy1();
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy1()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: n/a, input: n/a, output: n/a");
+    ok(1, "nodejs: did expected number of .dummy1()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: n/a, input: n/a, output: n/a");
     shf.debugVerbosityMore();
 }
 
@@ -67,7 +67,7 @@ var testKeys = 100000;
         shf.dummy2();
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy2()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: unwrapped, input: n/a, output: n/a");
+    ok(1, "nodejs: did expected number of .dummy2()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: unwrapped, input: n/a, output: n/a");
     shf.debugVerbosityMore();
 }
 
@@ -79,7 +79,7 @@ var testKeys = 100000;
         shf.dummy3a(arg1);
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy3a() calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: unwrapped, input: 1 int, output: n/a");
+    ok(1, "nodejs: did expected number of .dummy3a() calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: unwrapped, input: 1 int, output: n/a");
     shf.debugVerbosityMore();
 }
 
@@ -91,7 +91,7 @@ var testKeys = 100000;
         shf.dummy3b(arg1, arg2, arg3);
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy3b() calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: unwrapped, input: 3 ints, output: n/a");
+    ok(1, "nodejs: did expected number of .dummy3b() calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: unwrapped, input: 3 ints, output: n/a");
     shf.debugVerbosityMore();
 }
 
@@ -103,7 +103,7 @@ var testKeys = 100000;
         var myint = shf.dummy4(arg1, arg2, arg3);
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy4()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: unwrapped, input: 3 ints, output: int");
+    ok(1, "nodejs: did expected number of .dummy4()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: unwrapped, input: 3 ints, output: int");
     shf.debugVerbosityMore();
 }
 
@@ -116,7 +116,7 @@ var testKeys = 100000;
         assert(8 == mystr.length, "SharedHashFilejs: debug: ASSERT: expected mystr to be 8 bytes but got "+mystr.length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy5()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: unwrapped, input: 3 ints, output: 8 byte str");
+    ok(1, "nodejs: did expected number of .dummy5()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: unwrapped, input: 3 ints, output: 8 byte str");
     shf.debugVerbosityMore();
 }
 
@@ -129,7 +129,7 @@ var testKeys = 100000;
         assert(4096 == mystr.length, "SharedHashFilejs: debug: ASSERT: expected mystr to be 4096 bytes but got "+mystr.length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy6()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second; object: unwrapped, input: 3 ints, output: 4KB byte str");
+    ok(1, "nodejs: did expected number of .dummy6()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second; object: unwrapped, input: 3 ints, output: 4KB byte str");
     shf.debugVerbosityMore();
 }
 
@@ -142,7 +142,7 @@ var testKeys = 100000;
         assert(4096 == mystr.length, "SharedHashFilejs: debug: ASSERT: expected mystr to be 4096 bytes but got "+mystr.length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy7a() calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external");
+    ok(1, "nodejs: did expected number of .dummy7a() calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external");
     shf.debugVerbosityMore();
 }
 
@@ -155,7 +155,7 @@ var testKeys = 100000;
         assert(4096 == myarr[0].length, "SharedHashFilejs: debug: ASSERT: expected myarr[0] to be 4096 bytes but got "+myarr[0].length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy7b() calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x1 in array");
+    ok(1, "nodejs: did expected number of .dummy7b() calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x1 in array");
     shf.debugVerbosityMore();
 }
 
@@ -168,7 +168,7 @@ var testKeys = 100000;
         assert(4096 == myarr[9].length, "SharedHashFilejs: debug: ASSERT: expected myarr[9] to be 4096 bytes but got "+myarr[9].length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy7c() calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x10 in array");
+    ok(1, "nodejs: did expected number of .dummy7c() calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x10 in array");
     shf.debugVerbosityMore();
 }
 
@@ -181,7 +181,7 @@ var testKeys = 100000;
         assert(4096 == mystr.length, "SharedHashFilejs: debug: ASSERT: expected mystr to be 4096 bytes but got "+mystr.length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy8()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer");
+    ok(1, "nodejs: did expected number of .dummy8()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer");
     shf.debugVerbosityMore();
 }
 
@@ -194,7 +194,7 @@ var testKeys = 100000;
         assert(4096 == mystr.length, "SharedHashFilejs: debug: ASSERT: expected mystr to be 4096 bytes but got "+mystr.length+" bytes");
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: did expected number of .dummy9()  calls  // estimate "+Math.round(testKeys / testElapsedTime)+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer external");
+    ok(1, "nodejs: did expected number of .dummy9()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer external");
     shf.debugVerbosityMore();
 }
 

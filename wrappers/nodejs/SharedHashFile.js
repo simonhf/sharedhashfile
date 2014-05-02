@@ -114,7 +114,7 @@ shf.setDataNeedFactor(250);
         shf.putKeyVal("key"+i, "val"+i);
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
+    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second");
     shf.debugVerbosityMore();
 }
 
@@ -127,7 +127,7 @@ shf.setDataNeedFactor(250);
         else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: got expected number of non-existing keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
+    ok(1, "nodejs: got expected number of non-existing keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second");
     shf.debugVerbosityMore();
 }
 
@@ -140,7 +140,7 @@ shf.setDataNeedFactor(250);
         else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: got expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
+    ok(1, "nodejs: got expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second");
     shf.debugVerbosityMore();
 }
 
@@ -154,7 +154,7 @@ ok(0 == shf.debugGetGarbage(), "nodejs: graceful growth cleans up after itself a
         if (value != 1) { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: del expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime)+" keys per second");
+    ok(1, "nodejs: del expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second");
     shf.debugVerbosityMore();
 }
 
@@ -171,7 +171,7 @@ shf.setDataNeedFactor(1);
     ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");
                             shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime)+" q items per second");
+    ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second");
 }
 
 {
@@ -184,7 +184,7 @@ shf.setDataNeedFactor(1);
     }
     shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second using 2 functions");
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second using 2 functions");
 }
 
 {
@@ -197,7 +197,7 @@ shf.setDataNeedFactor(1);
     }
     shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second using 2 functions");
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second using 2 functions");
 }
 
 {
@@ -210,7 +210,7 @@ shf.setDataNeedFactor(1);
     }
     shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime)+" q items per second using 1 function");
+    ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second using 1 function");
 }
 
 // todo: delete shf;
