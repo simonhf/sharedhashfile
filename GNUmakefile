@@ -40,13 +40,17 @@ DEPS_H          = $(wildcard *.h)
 DEPS_HPP        = $(wildcard *.hpp)
 NODE_SRCS       =                              $(filter-out %build,$(wildcard ./wrappers/nodejs/*))
 PROD_SRCS_C     =                              $(filter-out test%,$(wildcard *.c))
+PROD_SRCS_C     =                              $(filter-out main%,$(wildcard *.c))
 PROD_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.c,%.o,$(PROD_SRCS_C))))
 PROD_SRCS_CPP   =                              $(filter-out test%,$(wildcard *.cpp))
 PROD_OBJS_CPP   = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.cpp,%.o,$(PROD_SRCS_CPP))))
+MAIN_SRCS_C     =                              $(filter     main%,$(wildcard *.c))
+MAIN_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter     main%,$(patsubst %.c,%.o,$(MAIN_SRCS_C))))
+MAIN_EXES       = $(patsubst %,$(BUILD_TYPE)/%,$(filter         %,$(patsubst main.%.c,%,$(MAIN_SRCS_C))))
 TEST_SRCS_C     =                              $(filter     test%,$(wildcard *.c))
-TEST_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.o,$(TEST_SRCS))))
+TEST_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.o,$(TEST_SRCS_C))))
 TEST_SRCS_CPP   =                              $(filter     test%,$(wildcard *.cpp))
-TEST_OBJS_CPP   = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.o,$(TEST_SRCS))))
+TEST_OBJS_CPP   = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.o,$(TEST_SRCS_CPP))))
 TEST_EXES       = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.t,$(TEST_SRCS_C)))) \
                   $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.t,$(TEST_SRCS_CPP))))
 
@@ -62,6 +66,9 @@ $(info make: variable: PROD_SRCS_C=$(PROD_SRCS_C))
 $(info make: variable: PROD_OBJS_C=$(PROD_OBJS_C))
 $(info make: variable: PROD_SRCS_CPP=$(PROD_SRCS_CPP))
 $(info make: variable: PROD_OBJS_CPP=$(PROD_OBJS_CPP))
+$(info make: variable: MAIN_SRCS_C=$(MAIN_SRCS_C))
+$(info make: variable: MAIN_OBJS_C=$(MAIN_OBJS_C))
+$(info make: variable: MAIN_EXES=$(MAIN_EXES))
 $(info make: variable: TEST_SRCS_C=$(TEST_SRCS_C))
 $(info make: variable: TEST_OBJS_C=$(TEST_OBJS_C))
 $(info make: variable: TEST_SRCS_CPP=$(TEST_SRCS_CPP))
@@ -75,7 +82,7 @@ $(info make: variable: NODE_SRCS=$(NODE_SRCS))
 endif
 endif
 
-all: $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
+all: $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
 	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|CPUS|KEYS)=(1|4|10000000) to run perf test"
@@ -99,7 +106,11 @@ $(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: running: $@"
 	@./$@
 
-$(BUILD_TYPE)/SharedHashFile.node: $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(NODE_SRCS)
+$(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
+	@echo "make: linking: $@"
+	@g++ -o $@ $^
+
+$(BUILD_TYPE)/SharedHashFile.node: $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(NODE_SRCS)
 	@echo "make: building: $@"
 ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cd ./wrappers/nodejs && SHF_BUILD_TYPE=$(BUILD_TYPE) NODE_DEBUG=mymod node-gyp --$(BUILD_TYPE) rebuild
