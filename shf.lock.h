@@ -128,7 +128,7 @@ RETRY_LOCK_AFTER_FORCE:;
 #else
             fprintf(stderr, "WARN: lock reached max %u spins for tid %lu of pid %u because of tid %lu of pid %u which went poof; forcing lock\n", SHF_SPIN_LOCK_SPIN_MAX, our_tid, getpid(), old_tid, lock->pid);
 #endif
-            shf_spin_lock_force(lock, our_tid);
+            shf_spin_lock_force(lock, 0); /* force lock to be unlocked */
             goto RETRY_LOCK_AFTER_FORCE; /* because several threads / processes might try to force at the same time */
         }
         else {
