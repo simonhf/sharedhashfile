@@ -86,10 +86,10 @@ typedef struct SHF_SPIN_LOCK {
 } SHF_SPIN_LOCK;
 
 static inline void
-shf_spin_lock_force(SHF_SPIN_LOCK * lock, long tid)
+shf_spin_unlock_force(SHF_SPIN_LOCK * lock, long old_tid)
 {
-    InterlockedCompareExchange(&lock->lock, tid, InterlockedCompareExchange(&lock->lock, tid, tid));
-} /* shf_lock_force() */
+    InterlockedCompareExchange(&lock->lock, 0, old_tid);
+} /* shf_spin_unlock_force() */
 
 static inline SHF_LOCK_STATUS
 shf_spin_lock(SHF_SPIN_LOCK * lock)
@@ -128,7 +128,7 @@ RETRY_LOCK_AFTER_FORCE:;
 #else
             fprintf(stderr, "WARN: lock reached max %u spins for tid %lu of pid %u because of tid %lu of pid %u which went poof; forcing lock\n", SHF_SPIN_LOCK_SPIN_MAX, our_tid, getpid(), old_tid, lock->pid);
 #endif
-            shf_spin_lock_force(lock, 0); /* force lock to be unlocked */
+            shf_spin_unlock_force(lock, old_tid); /* force lock to be unlocked */
             goto RETRY_LOCK_AFTER_FORCE; /* because several threads / processes might try to force at the same time */
         }
         else {
