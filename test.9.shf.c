@@ -32,7 +32,7 @@
 
 int main(void)
 {
-    plan_tests(34);
+    plan_tests(39);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -66,7 +66,9 @@ int main(void)
     uint32_t test_qs          = 3;
     uint32_t test_q_items     = 10;
     uint32_t test_q_item_size = 4096;
-    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size, 1), "c: shf_q_new() returned as expected");                    /* e.g. q items created  by process a */
+    ok(      0               == shf_q_is_ready(shf                                            ), "c: shf_q_is_ready()           not ready    as expected");
+    ok(      NULL            != shf_q_new     (shf, test_qs, test_q_items, test_q_item_size, 1), "c: shf_q_new()                returned     as expected"); /* e.g. q items created  by process a */
+    ok(      1               == shf_q_is_ready(shf                                            ), "c: shf_q_is_ready()               ready    as expected");
     uint32_t test_qid_free    = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-free")        );                                                            /* e.g. q names set qids by process a */
     uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )        );
     uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )        );
@@ -164,8 +166,11 @@ int main(void)
     {
         double test_start_time = shf_get_time_in_seconds();
                    shf_debug_verbosity_less();
-                   shf_q_del               (shf);
-        ok(NULL != shf_q_new               (shf, test_qs, test_q_items, test_q_item_size, 100), "c: shf_q_new() returned as expected");
+        ok(   1 == shf_q_is_ready          (shf                                              ), "c: shf_q_is_ready()     ready as expected");
+                   shf_q_del               (shf                                              );
+        ok(   0 == shf_q_is_ready          (shf                                              ), "c: shf_q_is_ready() not ready as expected");
+        ok(NULL != shf_q_new               (shf, test_qs, test_q_items, test_q_item_size, 100), "c: shf_q_new()      returned  as expected");
+        ok(   1 == shf_q_is_ready          (shf                                              ), "c: shf_q_is_ready() ready     as expected");
                    shf_debug_verbosity_more();
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         ok(1, "c: created expected number of new queue items // estimate %'.0f q items per second", test_q_items / test_elapsed_time);
@@ -209,6 +214,8 @@ int main(void)
         ok(test_q_items == test_pull_items, "c: moved   expected number of new queue items // estimate %'.0f q items per second using 1 function", test_q_items / test_elapsed_time);
         shf_debug_verbosity_more();
     }
+
+    shf_detach(shf);
 
     char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_shf_folder, test_shf_name, test_shf_folder, test_shf_name);
     fprintf(stderr, "test: shf size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism

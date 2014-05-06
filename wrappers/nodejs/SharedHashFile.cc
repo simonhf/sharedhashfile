@@ -159,6 +159,7 @@ private:
     ~sharedHashFile();
 
     static v8::Handle<v8::Value> New               (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Detach            (const v8::Arguments& args);
     static v8::Handle<v8::Value> AttachExisting    (const v8::Arguments& args);
     static v8::Handle<v8::Value> Attach            (const v8::Arguments& args);
     static v8::Handle<v8::Value> Uid               (const v8::Arguments& args);
@@ -182,6 +183,7 @@ private:
     static v8::Handle<v8::Value> QTakeItem         (const v8::Arguments& args);
     static v8::Handle<v8::Value> QPushHeadPullTail (const v8::Arguments& args);
     static v8::Handle<v8::Value> QFlush            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> QIsReady          (const v8::Arguments& args);
     static v8::Handle<v8::Value> RaceInit          (const v8::Arguments& args);
     static v8::Handle<v8::Value> RaceStart         (const v8::Arguments& args);
     static v8::Handle<v8::Value> Dummy1            (const v8::Arguments& args);
@@ -213,6 +215,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->InstanceTemplate()->SetInternalFieldCount(1); // todo: figure out what this is good for! see: http://stackoverflow.com/questions/16600735/what-is-an-internal-field-count-and-what-is-setinternalfieldcount-used-for
 
     // Prototype
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("detach"            ), FunctionTemplate::New(Detach            )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attachExisting"    ), FunctionTemplate::New(AttachExisting    )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attach"            ), FunctionTemplate::New(Attach            )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("uid"               ), FunctionTemplate::New(Uid               )->GetFunction());
@@ -236,6 +239,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qTakeItem"         ), FunctionTemplate::New(QTakeItem         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qPushHeadPullTail" ), FunctionTemplate::New(QPushHeadPullTail )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qFlush"            ), FunctionTemplate::New(QFlush            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("qIsReady"          ), FunctionTemplate::New(QIsReady          )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("raceInit"          ), FunctionTemplate::New(RaceInit          )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("raceStart"         ), FunctionTemplate::New(RaceStart         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("dummy1"            ), FunctionTemplate::New(Dummy1            )->GetFunction());
@@ -266,6 +270,18 @@ sharedHashFile::New(const Arguments& args) {
     obj->Wrap(args.This());
 
     return args.This();
+}
+
+Handle<Value>
+sharedHashFile::Detach(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    obj->shf->Detach();
+
+    return scope.Close(Undefined());
 }
 
 Handle<Value>
@@ -584,6 +600,18 @@ sharedHashFile::QFlush(const Arguments& args) {
     obj->shf->QFlush(pull_qid);
 
     return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::QIsReady(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    uint32_t value = obj->shf->QIsReady();
+
+    return scope.Close(Number::New(value));
 }
 
 Handle<Value>

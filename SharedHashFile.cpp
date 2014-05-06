@@ -36,7 +36,14 @@ SharedHashFile::SharedHashFile()
 SharedHashFile::~SharedHashFile()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    // todo
+    //todo if attached then shf_detach(shf);
+}
+
+void
+SharedHashFile::Detach()
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_detach(shf);
 }
 
 bool
@@ -198,6 +205,12 @@ void
 SharedHashFile::QFlush(uint32_t pull_qid) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_q_flush(shf, pull_qid);
+}
+
+uint32_t
+SharedHashFile::QIsReady() {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_q_is_ready(shf);
 }
 
 void

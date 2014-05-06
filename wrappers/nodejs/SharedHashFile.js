@@ -39,7 +39,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(30);
+plan_tests(35);
 
 console.log('nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -71,17 +71,19 @@ var testPullItems     = 0;
 var testQs            = 3;
 var testQItems        = 10;
 var testQItemSize     = 4096;
-var shfQItems         = shf.qNew(testQs, testQItems , testQItemSize, 1);
-ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");                   /* e.g. q items created  by process a */
-var testQidFree       = shf.qNewName("qid-free");                                                                               /* e.g. q names set qids by process a */
+ok(0                 == shf.qIsReady(                                      ), "nodejs: .qIsReady()       not ready        as expected");
+var shfQItems         = shf.qNew     (testQs, testQItems , testQItemSize, 1);
+ok( shfQItems.length ==                       testQItems * testQItemSize    , "nodejs: .qNew()               returned     as expected"); /* e.g. q items created  by process a */
+ok(1                 == shf.qIsReady(                                      ), "nodejs: .qIsReady()           ready        as expected");
+var testQidFree       = shf.qNewName("qid-free");                                                                                        /* e.g. q names set qids by process a */
 var testQidA2b        = shf.qNewName("qid-a2b" );
 var testQidB2a        = shf.qNewName("qid-b2a" );
-ok( testQidFree      == shf.qGetName("qid-free")                   , "nodejs: .qGetName('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
-ok( testQidA2b       == shf.qGetName("qid-a2b" )                   , "nodejs: .qGetName('qid-a2b' ) returned qid as expected");
-ok( testQidB2a       == shf.qGetName("qid-b2a" )                   , "nodejs: .qGetName('qid-b2a' ) returned qid as expected");
+ok( testQidFree      == shf.qGetName("qid-free")                            , "nodejs: .qGetName('qid-free') returned qid as expected"); /* e.g. q names get qids by process b */
+ok( testQidA2b       == shf.qGetName("qid-a2b" )                            , "nodejs: .qGetName('qid-a2b' ) returned qid as expected");
+ok( testQidB2a       == shf.qGetName("qid-b2a" )                            , "nodejs: .qGetName('qid-b2a' ) returned qid as expected");
 
 testPullItems = 0;
-while(shfQiidNone != (testQiid = shf.qPullTail(testQidFree          ))) {                                                       /* e.g. q items from unused to a2b q by process a */
+while(shfQiidNone != (testQiid = shf.qPullTail(testQidFree          ))) {                                                                /* e.g. q items from unused to a2b q by process a */
                                  shf.qPushHead(testQidA2b , testQiid);
     if(testPullItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
     testPullItems ++;
@@ -89,7 +91,7 @@ while(shfQiidNone != (testQiid = shf.qPullTail(testQidFree          ))) {       
 ok(testQItems == testPullItems, "nodejs: pulled & pushed items from free to a2b  as expected");
 
 testPullItems = 0;
-while(shfQiidNone != (testQiid = shf.qPullTail(testQidA2b           ))) {                                                       /* e.g. q items from a2b to b2a queue by process b */
+while(shfQiidNone != (testQiid = shf.qPullTail(testQidA2b           ))) {                                                                /* e.g. q items from a2b to b2a queue by process b */
                                  shf.qPushHead(testQidB2a , testQiid);
     if(testPullItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
     testPullItems ++;
@@ -97,7 +99,7 @@ while(shfQiidNone != (testQiid = shf.qPullTail(testQidA2b           ))) {       
 ok(testQItems == testPullItems, "nodejs: pulled & pushed items from a2b  to b2a  as expected");
 
 testPullItems = 0;
-while(shfQiidNone != (testQiid = shf.qPullTail(testQidB2a          ))) {                                                        /* e.g. q items from b2a to free queue by process a */
+while(shfQiidNone != (testQiid = shf.qPullTail(testQidB2a          ))) {                                                                 /* e.g. q items from b2a to free queue by process a */
                                  shf.qPushHead(testQidFree, testQiid);
     if(testPullItems != parseInt(shfQItems.substr(testQiid * testQItemSize, 8), 16)) { console.log("INTERNAL: test expected "+testPullItems.toString()+" but got '"+shfQItems.substr(testQiid * testQItemSize, 8)+"'"); process.exit(1); };
     testPullItems ++;
@@ -166,9 +168,12 @@ shf.setDataNeedFactor(1);
 {
     var testStartTime = Date.now() / 1000;
                             shf.debugVerbosityLess();
-                            shf.qDel              ();
-        shfQItems         = shf.qNew(testQs, testQItems , testQItemSize, 100);
-    ok( shfQItems.length ==                  testQItems * testQItemSize, "nodejs: .qNew() returned as expected");
+    ok( 1                == shf.qIsReady          (                                       ), "nodejs: .qIsReady()     ready    as expected");
+                            shf.qDel              (                                       );
+    ok( 0                == shf.qIsReady          (                                       ), "nodejs: .qIsReady() not ready    as expected");
+        shfQItems         = shf.qNew              (testQs, testQItems , testQItemSize, 100);
+    ok( shfQItems.length ==                                testQItems * testQItemSize      , "nodejs: .qNew()         returned as expected");
+    ok( 1                == shf.qIsReady          (                                       ), "nodejs: .qIsReady()     ready    as expected");
                             shf.debugVerbosityMore();
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
     ok(1, "nodejs: created expected number of new queue items // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second");
@@ -212,6 +217,8 @@ shf.setDataNeedFactor(1);
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
     ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second using 1 function");
 }
+
+shf.detach();
 
 // todo: delete shf;
 

@@ -125,6 +125,7 @@ typedef struct SHF_Q {
     SHF_QID_MMAP    * qids            ;
     SHF_QIID_MMAP   * qiids           ;
     SHF_Q_LOCK_MMAP * q_lock          ;
+    uint32_t          q_is_ready      ; /* successfully called shf_q_(new|get)()? */
 } __attribute__((packed)) SHF_Q;
 
 typedef struct SHF {
@@ -134,6 +135,8 @@ typedef struct SHF {
     char         * path                                    ; /* e.g. '/dev/shm' */
     char         * name                                    ; /* e.g. 'myshf' */
     uint32_t       is_lockable                             ; /* 0 means single threaded use only, 1 means lockable */
+    uint32_t       count_mmap                              ; /* number of mmap()s */
+    uint32_t       count_xalloc                            ; /* number of (c|m)alloc()s */
     SHF_Q          q                                       ; /* for IPC q */
 } __attribute__((packed)) SHF;
 

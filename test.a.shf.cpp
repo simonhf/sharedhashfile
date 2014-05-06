@@ -34,7 +34,7 @@ extern "C" {
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(35);
+    plan_tests(40);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -69,7 +69,9 @@ main(/* int argc,char **argv */)
     uint32_t testQs         = 3;
     uint32_t testQItems     = 10;
     uint32_t testQItemSize  = 4096;
-    ok(      NULL          != shf->QNew    (testQs, testQItems, testQItemSize, 1), "c++: ->QNew() returned as expected");                   /* e.g. q items created  by process a */
+    ok(      0             == shf->QIsReady(                                    ), "c++: ->QIsReady() not ready as expected");
+    ok(      NULL          != shf->QNew    (testQs, testQItems, testQItemSize, 1), "c++: ->QNew()     returned  as expected");              /* e.g. q items created  by process a */
+    ok(      1             == shf->QIsReady(                                    ), "c++: ->QIsReady()     ready as expected");
     uint32_t testQidFree    = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-free")  );                                                          /* e.g. q names set qids by process a */
     uint32_t testQidA2b     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-a2b" )  );
     uint32_t testQidB2a     = shf->QNewName(SHF_CONST_STR_AND_SIZE("qid-b2a" )  );
@@ -167,8 +169,11 @@ main(/* int argc,char **argv */)
     {
         double testStartTime = shf_get_time_in_seconds();
                    shf->DebugVerbosityLess();
-                   shf->QDel              ();
-        ok(NULL != shf->QNew              (testQs, testQItems, testQItemSize, 100), "c++: shf_q_new() returned as expected");
+        ok(   1 == shf->QIsReady          (                                      ), "c++: ->QIsReady()     ready as expected");
+                   shf->QDel              (                                      );
+        ok(   0 == shf->QIsReady          (                                      ), "c++: ->QIsReady() not ready as expected");
+        ok(NULL != shf->QNew              (testQs, testQItems, testQItemSize, 100), "c++: ->QNew()     returned  as expected");
+        ok(   1 == shf->QIsReady          (                                      ), "c++: ->QIsReady()     ready as expected");
                    shf->DebugVerbosityMore();
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
         ok(1, "c++: created expected number of new queue items // estimate %'.0f q items per second", testQItems / testElapsedTime);
@@ -212,6 +217,8 @@ main(/* int argc,char **argv */)
         ok(testQItems == testPullItems, "c++: moved   expected number of new queue items // estimate %'.0f q items per second using 1 function", testQItems / testElapsedTime);
         shf->DebugVerbosityMore();
     }
+
+    shf->Detach();
 
     delete shf;
 

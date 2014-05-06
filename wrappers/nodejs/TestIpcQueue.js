@@ -88,4 +88,6 @@ ok( testQidB2a       != shfQidNone              , "nodejs: .qGetName('qid-b2a' )
     ok(1, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testPullItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second with contention");
 }
 
+shf.detach();
+
 exit_status();

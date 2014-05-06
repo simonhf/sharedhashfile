@@ -198,13 +198,36 @@ EARLY_OUT:;
 } /* shf_init() */
 
 void
-shf_detach(
+shf_detach( /* free any (c|m)alloc()d memory & munmap() any mmap()s */
     SHF * shf)
 {
-    SHF_UNUSE(shf); // todo: implement shf_detach()
-    // todo free shf->path
-    // todo free shf->name
+    int      value;
+    uint32_t count_munmap = 0;
+    uint32_t count_free   = 0;
 
+    SHF_DEBUG("%s(shf=?)\n", __FUNCTION__);
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+    if (shf->q.qids_nolock_push) { free(shf->q.qids_nolock_push); shf->count_xalloc --; }
+    if (shf->q.qids_nolock_pull) { free(shf->q.qids_nolock_pull); shf->count_xalloc --; }
+
+    for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
+        for (uint32_t tab = 0; tab < shf->shf_mmap->wins[win].tabs_used; tab++) {
+            if (shf->tabs[win][tab].tab_size >= SHF_SIZE_PAGE) {
+                SHF_ASSERT_INTERNAL(shf->tabs[win][tab].tab_mmap, "ERROR: INTERNAL: attempting to %p=munmap() NULL pointer at win=%u, tab=%u", shf->tabs[win][tab].tab_mmap, win, tab);
+                value = munmap(shf->tabs[win][tab].tab_mmap, shf->tabs[win][tab].tab_size); count_munmap ++; SHF_ASSERT(0 == value, "ERROR: munmap(<win=%u>, <tab=%u>): %u: ", win, tab, errno);
+            }
+        }
+    }
+
+    if (shf->path) { free(shf->path); count_free ++; }
+    if (shf->name) { free(shf->name); count_free ++; }
+    value = munmap(shf->shf_mmap, SHF_MOD_PAGE(sizeof(SHF_SHF_MMAP))); count_munmap ++; SHF_ASSERT(0 == value, "ERROR: munmap(<shf_mmap>): %u: ", errno);
+    SHF_ASSERT_INTERNAL(count_munmap == shf->count_mmap  , "ERROR: INTERNAL: called munmap() %u times but needed to call it %u times", count_munmap, shf->count_mmap  );
+    SHF_ASSERT_INTERNAL(count_free   == shf->count_xalloc, "ERROR: INTERNAL: called free() %u times but needed to call it %u times"  , count_free  , shf->count_xalloc);
+
+    free(shf);
+    //debug fprintf(stderr, "%s() // successful\n", __FUNCTION__);
 } /* shf_detach() */
 
 SHF * /* NULL if name does not exist */
@@ -226,12 +249,12 @@ shf_attach_existing(
         shf = calloc(1, sizeof(SHF)); SHF_ASSERT(shf != NULL, "calloc(1, %lu): %u: ", sizeof(SHF), errno);
 
         SHF_DEBUG("- allocating bytes for shf     mmap : %lu\n", SHF_MOD_PAGE(sizeof(SHF_SHF_MMAP)));
-        shf->shf_mmap = mmap(NULL, SHF_MOD_PAGE(sizeof(SHF_SHF_MMAP)), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE | MAP_POPULATE, fd, 0); SHF_ASSERT(MAP_FAILED != shf->shf_mmap, "mmap(): %u: ", errno);
+        shf->shf_mmap = mmap(NULL, SHF_MOD_PAGE(sizeof(SHF_SHF_MMAP)), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE | MAP_POPULATE, fd, 0); shf->count_mmap ++; SHF_ASSERT(MAP_FAILED != shf->shf_mmap, "mmap(): %u: ", errno);
 
         int value = close(fd); SHF_ASSERT(-1 != value, "close(): %u: ", errno);
 
-        shf->path        = strdup(path);
-        shf->name        = strdup(name);
+        shf->path        = strdup(path); shf->count_xalloc ++;
+        shf->name        = strdup(name); shf->count_xalloc ++;
         shf->is_lockable = 1;
     }
 
@@ -365,7 +388,7 @@ shf_make_hash(
         SHF_DEBUG("- mmap() %lu tab bytes @ 0x%02x-xxx[%03x]-xxx-x for '%s'\n", sb.st_size, win, TAB, file_tab); \
         SHF_ASSERT(sb.st_size == SHF_MOD_PAGE(sb.st_size), "INTERNAL: '%s' has an unexpected size of %lu\n", file_tab, sb.st_size); \
         int fd = open(file_tab, O_RDWR | O_CREAT, 0600); SHF_ASSERT(-1 != fd, "open(): %u: ", errno); \
-        SHF->tabs[win][TAB].tab_mmap = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE | MAP_POPULATE, fd, 0); SHF_ASSERT(MAP_FAILED != SHF->tabs[win][TAB].tab_mmap, "mmap(): %u: ", errno); \
+        SHF->tabs[win][TAB].tab_mmap = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE | MAP_POPULATE, fd, 0); shf->count_mmap ++; SHF_ASSERT(MAP_FAILED != SHF->tabs[win][TAB].tab_mmap, "mmap(): %u: ", errno); \
         value = close(fd); SHF_ASSERT(-1 != value, "close(): %u: ", errno); \
         SHF->tabs[win][TAB].tab_size = sb.st_size; \
         SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: initial mmap() %u bytes\n", getpid(), win, TAB, SHF->tabs[win][TAB].tab_size); \
@@ -562,6 +585,7 @@ shf_tab_shrink(SHF * shf, uint32_t win, uint16_t tab)
     uint32_t tab_size_old = tab_mmap_old->tab_size;
     tab_mmap_old->tab_size = 1; /* force other processes to munmap() this file & load the replacement */
     int value = munmap(tab_mmap_old, tab_size_old); SHF_ASSERT(0 == value, "munmap(): %u", errno);
+    shf->count_mmap --; /* because we re-created it (see above) */
 
 #ifdef SHF_DEBUG_VERSION
     shf_tab_validate(tab_mmap_new, shf->tabs[win][tab].tab_size, win, tab);
@@ -635,6 +659,8 @@ shf_put_key_val(
     SHF_UID uid;
 
     uid.as_u32 = SHF_UID_NONE;
+
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
 
 SHF_NEED_NEW_TAB_AFTER_PARTING:;
 
@@ -718,6 +744,8 @@ shf_find_key_internal(
     uint32_t      pos       ;
     uint32_t      key_len   ;
     uint32_t      val_len   ;
+
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
 
     if (SHF_UID_NONE == uid) {
         win  = tmp_uid.as_part.win = shf_hash.u16[0] %             SHF_WINS_PER_SHF       ;
@@ -828,7 +856,7 @@ void
 shf_del(
     SHF * shf)
 {
-    SHF_UNUSE(shf);
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     SHF_DEBUG("todo: implement shf_del(); delete entire shf");
 } /* shf_del() */
 
@@ -836,6 +864,7 @@ uint64_t
 shf_debug_get_garbage( /* get total bytes marked as deleted aka garbage */
     SHF * shf)
 {
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     uint64_t all_data_free = 0;
     for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
         uint32_t tabs_used = shf->shf_mmap->wins[win].tabs_used;
@@ -859,6 +888,7 @@ shf_set_is_lockable(
     SHF      * shf       ,
     uint32_t   is_lockable)
 {
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     SHF_ASSERT_INTERNAL(is_lockable <= 1, "ERROR: is_locable must be 0 or 1");
     shf->is_lockable = is_lockable;
 } /* shf_set_is_lockable() */
@@ -889,8 +919,8 @@ shf_q_get(
     SHF_ASSERT(NULL == shf->q.qids_nolock_push, "ERROR: did %s() accidentally get called twice?", __FUNCTION__);
     SHF_ASSERT(NULL == shf->q.qids_nolock_pull, "ERROR: did %s() accidentally get called twice?", __FUNCTION__);
 #endif
-    shf->q.qids_nolock_push = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_push, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
-    shf->q.qids_nolock_pull = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_pull, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids_nolock_push = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); shf->count_xalloc ++; SHF_ASSERT(shf->q.qids_nolock_push, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids_nolock_pull = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); shf->count_xalloc ++; SHF_ASSERT(shf->q.qids_nolock_pull, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
     for (uint32_t i = 0; i < shf->q.qs; i++) {
         shf->q.qids_nolock_push[i].tail = SHF_QID_NONE;
         shf->q.qids_nolock_push[i].head = SHF_QID_NONE;
@@ -900,6 +930,8 @@ shf_q_get(
         shf->q.qids_nolock_pull[i].size = 0           ;
     }
 
+    shf->q.q_is_ready = 1;
+
     return shf->q.q_item_addr;
 } /* shf_q_get() */
 
@@ -907,6 +939,8 @@ void
 shf_q_del(
     SHF * shf)
 {
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"          )); SHF_ASSERT(shf_del_key_val(shf), "ERROR: could not del key '%s'", "__qs"          );
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"     )); SHF_ASSERT(shf_del_key_val(shf), "ERROR: could not del key '%s'", "__q_items"     );
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size" )); SHF_ASSERT(shf_del_key_val(shf), "ERROR: could not del key '%s'", "__q_item_size" );
@@ -914,6 +948,11 @@ shf_q_del(
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"       )); SHF_ASSERT(shf_del_key_val(shf), "ERROR: could not del key '%s'", "__qiids"       );
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"      )); SHF_ASSERT(shf_del_key_val(shf), "ERROR: could not del key '%s'", "__q_lock"      );
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr")); SHF_ASSERT(shf_del_key_val(shf), "ERROR: could not del key '%s'", "__q_items_addr");
+
+    if (shf->q.qids_nolock_push) { free(shf->q.qids_nolock_push); shf->count_xalloc --; }
+    if (shf->q.qids_nolock_pull) { free(shf->q.qids_nolock_pull); shf->count_xalloc --; }
+
+    shf->q.q_is_ready = 0;
 
     SHF_DEBUG("%s(shf=?){}\n", __FUNCTION__);
 } /* shf_q_del() */
@@ -931,10 +970,11 @@ shf_q_new(
     shf->q.q_item_size     = q_item_size    ;
     shf->q.qids_nolock_max = qids_nolock_max;
 
-    SHF_ASSERT_INTERNAL(qs              > 2      , "ERROR: qs must be > 2");
-    SHF_ASSERT_INTERNAL(q_items         > 1      , "ERROR: q_items must be > 2");
-    SHF_ASSERT_INTERNAL(qids_nolock_max > 0      , "ERROR: qids_nolock_max must be > 0");
-    SHF_ASSERT_INTERNAL(qids_nolock_max < q_items, "ERROR: qids_nolock_max must be < q_items");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready   == 0      , "ERROR: shf_q_new() already called"       );
+    SHF_ASSERT_INTERNAL(qs              >  2      , "ERROR: qs must be > 2"                   );
+    SHF_ASSERT_INTERNAL(q_items         >  1      , "ERROR: q_items must be > 2"              );
+    SHF_ASSERT_INTERNAL(qids_nolock_max >  0      , "ERROR: qids_nolock_max must be > 0"      );
+    SHF_ASSERT_INTERNAL(qids_nolock_max <  q_items, "ERROR: qids_nolock_max must be < q_items");
 
     shf_debug_verbosity_less();
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"             )); uint32_t uid_qs              = shf_put_key_val(shf, SHF_CAST(const char *, &qs             ),           sizeof(qs             ));
@@ -959,8 +999,8 @@ shf_q_new(
     // todo: freeze at this point; all memory has been allocated
 
     /* add qiid q items to default qid q 0 */
-    shf->q.qids_nolock_push = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_push, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
-    shf->q.qids_nolock_pull = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); SHF_ASSERT(shf->q.qids_nolock_pull, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids_nolock_push = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); shf->count_xalloc ++; SHF_ASSERT(shf->q.qids_nolock_push, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
+    shf->q.qids_nolock_pull = malloc(shf->q.qs * sizeof(SHF_QID_MMAP)); shf->count_xalloc ++; SHF_ASSERT(shf->q.qids_nolock_pull, "ERROR: malloc(%lu): %u", shf->q.qs * sizeof(SHF_QID_MMAP), errno);
     shf->q.qids             = shf_get_uid_val_addr(shf, uid_qids        );
     shf->q.qiids            = shf_get_uid_val_addr(shf, uid_qiids       );
     shf->q.q_lock           = shf_get_uid_val_addr(shf, uid_q_lock      );
@@ -998,6 +1038,8 @@ shf_q_new(
     shf->q.q_lock->debug_magic = 1234567;
 #endif
 
+    shf->q.q_is_ready = 1;
+
     return shf->q.q_item_addr;
 } /* shf_q_new() */
 
@@ -1007,6 +1049,9 @@ shf_q_new_name(
     const char * name    ,
     uint32_t     name_len)
 {
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     uint32_t qid = shf->q.q_next; /* todo: enforce this function only called by the queue creator */
 
     shf->q.q_next ++; SHF_ASSERT(shf->q.q_next <= shf->q.qs, "ERROR: called %s() %u times but only allocated %u queues", __FUNCTION__, shf->q.q_next, shf->q.qs);
@@ -1027,6 +1072,9 @@ shf_q_get_name(
     const char * name    ,
     uint32_t     name_len)
 {
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     uint32_t qid;
 
     shf_debug_verbosity_less();
@@ -1057,7 +1105,9 @@ shf_q_take_item(
     SHF      * shf,
     uint32_t   qid) /* sets both shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 {
-    SHF_UNUSE(shf);
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     SHF_UNUSE(qid);
 
     // todo: implement shf_q_take_item()
@@ -1070,6 +1120,9 @@ shf_q_pull_tail(
     SHF      * shf     ,
     uint32_t   pull_qid) /* sets both shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 {
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     uint32_t pull_qiid = SHF_QIID_NONE;
 
 #ifdef SHF_DEBUG_VERSION
@@ -1118,6 +1171,9 @@ shf_q_push_head(
     uint32_t   push_qid ,
     uint32_t   push_qiid)
 {
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
 #ifdef SHF_DEBUG_VERSION
                                       SHF_ASSERT(push_qid  < shf->q.qs     , "ERROR: expected 0 <= push_qid < %u but got %u" , shf->q.qs     , push_qid );
     if (SHF_QIID_NONE != push_qiid) { SHF_ASSERT(push_qiid < shf->q.q_items, "ERROR: expected 0 <= push_qiid < %u but got %u", shf->q.q_items, push_qiid); }
@@ -1148,6 +1204,9 @@ shf_q_flush(
     SHF      * shf     ,
     uint32_t   pull_qid)
 {
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     shf_debug_verbosity_less(); SHF_LOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 
 #ifdef SHF_DEBUG_VERSION
@@ -1239,6 +1298,9 @@ shf_q_push_head_pull_tail(
     uint32_t   push_qiid,
     uint32_t   pull_qid )
 {
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
     uint32_t pull_qiid = SHF_QIID_NONE;
 
 #ifdef SHF_DEBUG_VERSION
@@ -1298,12 +1360,22 @@ shf_q_push_head_pull_tail(
     return pull_qiid;
 } /* shf_q_push_head_pull_tail() */
 
+uint32_t
+shf_q_is_ready(SHF * shf)
+{
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+    return shf->q.q_is_ready;
+} /* shf_q_is_ready() */
+
 void
 shf_race_init(
     SHF        * shf     ,
     const char * name    ,
     uint32_t     name_len)
 {
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
                     shf_make_hash  (name, name_len);
     uint32_t uid =  shf_put_key_val(shf, NULL, 1); SHF_ASSERT(SHF_UID_NONE != uid, "ERROR: %s() could not put key: '%.*s'", __FUNCTION__, name_len, name);
 } /* shf_race_init() */
@@ -1315,7 +1387,9 @@ shf_race_start(
     uint32_t     name_len,
     uint32_t     horses  )
 {
-                                 shf_make_hash       (name, name_len);
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+                                   shf_make_hash       (name, name_len);
     volatile uint8_t * race_line = shf_get_key_val_addr(shf); SHF_ASSERT(NULL != race_line, "ERROR: %s() could not get key: '%.*s'", __FUNCTION__, name_len, name);
 
     __sync_fetch_and_add_8(race_line, 1); /* atomic increment */

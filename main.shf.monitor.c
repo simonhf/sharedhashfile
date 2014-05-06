@@ -64,5 +64,6 @@ main(int argc, char **argv)
             exit(0);
         }
         SHF_ASSERT(0 == value, "shf.monitor: ERROR: INTERNAL: expected value to be 0 but got %d: %u: ", value, errno);
+        // todo: shf.monitor: consider monitoring which threads are still attached & not deleting while they are still attached
     }
 }

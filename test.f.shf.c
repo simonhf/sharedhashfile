@@ -124,7 +124,9 @@
 
 #define TEST_GET_POST()
 
-#define TEST_FINI() \
+#define TEST_FINI()
+
+#define TEST_FINI_MASTER() \
     char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s;  ; rm -rf %s", test_db_folder, test_db_folder); \
     fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
 
@@ -177,6 +179,9 @@
 #define TEST_GET_POST()
 
 #define TEST_FINI() \
+    shf_detach(shf);
+
+#define TEST_FINI_MASTER() \
     char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_db_folder, test_db_name, test_db_folder, test_db_name); \
     fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder));
 
@@ -265,6 +270,7 @@ int main(void)
                     TEST_GET();
                 }
                 TEST_GET_POST();
+                TEST_FINI();
                 exit(0);
             }
             break;
@@ -360,7 +366,7 @@ int main(void)
     } while (key_total < (3 * test_keys));
     fprintf(stderr, "* MIX is 2%% (%u) del/put, 98%% (%u) get\n", test_keys * 2 / 100, test_keys * 98 / 100);
 
-    TEST_FINI();
+    TEST_FINI_MASTER();
 
 EARLY_EXIT:;
 
