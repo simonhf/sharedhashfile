@@ -94,9 +94,13 @@ shf_spin_lock_force(SHF_SPIN_LOCK * lock, long tid)
 static inline SHF_LOCK_STATUS
 shf_spin_lock(SHF_SPIN_LOCK * lock)
 {
-    unsigned spin    = 0;
+    unsigned spin;
     long     our_tid = SHF_GETTID();
     long     old_tid;
+
+RETRY_LOCK_AFTER_FORCE:;
+
+    spin = 0;
 
     while ((spin < SHF_SPIN_LOCK_SPIN_MAX) && ((old_tid = InterlockedCompareExchange(&lock->lock, our_tid, 0)) != 0)) {
         if (old_tid == our_tid) {
@@ -125,6 +129,7 @@ shf_spin_lock(SHF_SPIN_LOCK * lock)
             fprintf(stderr, "WARN: lock reached max %u spins for tid %lu of pid %u because of tid %lu of pid %u which went poof; forcing lock\n", SHF_SPIN_LOCK_SPIN_MAX, our_tid, getpid(), old_tid, lock->pid);
 #endif
             shf_spin_lock_force(lock, our_tid);
+            goto RETRY_LOCK_AFTER_FORCE; /* because several threads / processes might try to force at the same time */
         }
         else {
             fprintf(stderr, "WARN: lock reached max %u spins for tid %lu of pid %u because of tid %lu of pid %u which is waaay too busy... why?\n", SHF_SPIN_LOCK_SPIN_MAX, our_tid, getpid(), old_tid, lock->pid);

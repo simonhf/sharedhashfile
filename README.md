@@ -326,7 +326,6 @@ DB size: 2.6G   /dev/shm/test-lmdb-20848
 * Add networking layer for distributed hash table.
 * Add more tests & enforce 100% code coverage.
 * Add command line utility tools.
-* Fix force lock bug in old spin lock implementation; thanks Eyal for spotting this!
 * Ensure client can crash at any time without corrupting hash table.
 * Port to Linux-like OSs which do not support mremap().
 * Port to Windows.
