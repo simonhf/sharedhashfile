@@ -286,12 +286,14 @@ Handle<Value>
 sharedHashFile::Attach(const Arguments& args) {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     SHF_HANDLE_SCOPE();
-    SHF_VALIDATE_ARG_COUNT_REQUIRED(2);
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(3);
     SHF_VALIDATE_ARG_IS_STRING(0);
     SHF_VALIDATE_ARG_IS_STRING(1);
+    SHF_VALIDATE_ARG_IS_INT32(2);
     SHF_GET_SHAREDHASHFILE_OBJ();
 
-    uint32_t value = obj->shf->Attach(*arg0, *arg1);
+    uint32_t deleteUponProcessExit = arg2;
+    uint32_t value = obj->shf->Attach(*arg0, *arg1, deleteUponProcessExit);
 
     return scope.Close(Number::New(value));
 }

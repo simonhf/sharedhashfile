@@ -32,7 +32,7 @@
 
 int main(void)
 {
-    plan_tests(32);
+    plan_tests(34);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -42,8 +42,8 @@ int main(void)
     SHF_SNPRINTF(1, test_shf_name, "test-%05u", pid);
 
                     shf_init            ();
-    SHF    * shf =  shf_attach_existing (test_shf_folder, test_shf_name); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
-             shf =  shf_attach          (test_shf_folder, test_shf_name); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
+    SHF    * shf =  shf_attach_existing (test_shf_folder, test_shf_name                                  ); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
+             shf =  shf_attach          (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
                     SHF_MAKE_HASH       (         "key"    );
     ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find unput key as expected");
     ok(0         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could not find unput key as expected");
@@ -142,6 +142,21 @@ int main(void)
     }
 
     ok(0 == shf_debug_get_garbage(shf), "c: graceful growth cleans up after itself as expected");
+
+    {
+        shf_debug_verbosity_less();
+        double test_start_time = shf_get_time_in_seconds();
+        uint32_t keys_found = 0;
+        for (uint32_t i = 0; i < test_keys; i++) {
+                          shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
+            keys_found += shf_del_key_val(shf);
+        }
+        double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
+        ok(test_keys == keys_found, "c: del expected number of     existing keys // estimate %'.0f keys per second", test_keys / test_elapsed_time);
+        shf_debug_verbosity_more();
+    }
+
+    ok(0 != shf_debug_get_garbage(shf), "c: del does not    clean  up after itself as expected");
 
     test_q_items = 100000;
     shf_set_data_need_factor(1);

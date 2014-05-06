@@ -133,6 +133,7 @@ typedef struct SHF {
     SHF_SHF_MMAP * shf_mmap                                ; /* pointer to mremap()able memory */
     char         * path                                    ; /* e.g. '/dev/shm' */
     char         * name                                    ; /* e.g. 'myshf' */
+    uint32_t       is_lockable                             ; /* 0 means single threaded use only, 1 means lockable */
     SHF_Q          q                                       ; /* for IPC q */
 } __attribute__((packed)) SHF;
 

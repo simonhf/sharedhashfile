@@ -35,6 +35,7 @@
 #include <stddef.h>      /* for offsetof() */
 #include <sys/time.h>    /* for gettimeofday() */
 #include <sys/statvfs.h> /* for statvfs() */
+#include <signal.h>      /* for kill() */
 
 #include "shf.private.h"
 #include "shf.h"
@@ -68,6 +69,26 @@ static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
 static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
 static __thread       uint32_t   shf_backticks_buffer_used       ;
 
+pid_t
+shf_exec_child(
+    const char  * child_path      ,
+    const char  * child_file      ,
+    const char  * child_argument_1,
+          char  * child_argument_2)
+{
+    pid_t pid_child = fork(); SHF_ASSERT(pid_child >= 0, "fork(): %d: ", errno);
+
+    if(0 == pid_child) {
+        execl(child_path, child_file, child_argument_1, child_argument_2, NULL);
+        /* should never come here unless error! */
+        SHF_ASSERT(0, "execl(): %d: ", errno);
+   }
+   else {
+        SHF_DEBUG("parent forked child child with pid %u\n", pid_child);
+   }
+   return pid_child;
+} /* shf_exec_child() */
+
 char *
 shf_backticks(const char * command) /* e.g. buf_used = shf_backticks("ls -la | grep \.log", buf, sizeof(buf)); */
 {
@@ -79,16 +100,17 @@ shf_backticks(const char * command) /* e.g. buf_used = shf_backticks("ls -la | g
         shf_backticks_buffer      = mmap(NULL, shf_backticks_buffer_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_backticks_buffer, "mmap(): %u: ", errno);
     }
 
+    SHF_DEBUG("%s('%s')\n", __FUNCTION__, command);
     fp = popen(command, "r"); SHF_ASSERT(NULL != fp, "popen('%s'): %u: ", command, errno);
 
     shf_backticks_buffer_used = 0;
     while ((bytes_read = fread(&shf_backticks_buffer[shf_backticks_buffer_used], sizeof(char), (shf_backticks_buffer_size - shf_backticks_buffer_used - 1), fp)) != 0) {
-        SHF_DEBUG("%s() read %u bytes from the pipe\n", __FUNCTION__, bytes_read);
+        SHF_DEBUG("- read %u bytes from the pipe\n", bytes_read);
         shf_backticks_buffer_used += bytes_read;
         if (shf_backticks_buffer_size - shf_backticks_buffer_used <= 1) {
             shf_backticks_buffer       = mremap(shf_backticks_buffer, shf_backticks_buffer_size, SHF_SIZE_PAGE + shf_backticks_buffer_size, MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_backticks_buffer, "mremap(): %u: ", errno);
             shf_backticks_buffer_size += SHF_SIZE_PAGE;
-            SHF_DEBUG("%s() increased buffer size to %u\n", __FUNCTION__, shf_backticks_buffer_size);
+            SHF_DEBUG("- increased buffer size to %u\n", shf_backticks_buffer_size);
         }
     }
 
@@ -96,7 +118,8 @@ shf_backticks(const char * command) /* e.g. buf_used = shf_backticks("ls -la | g
         shf_backticks_buffer_used --; /* trim trailing whitespace */
     }
     shf_backticks_buffer[shf_backticks_buffer_used] = '\0';
-    int value = pclose(fp); SHF_ASSERT(0 == value, "pclose(): %u: ", errno);
+    // todo: why in value 2 if 'which does-not-exist'? int value = pclose(fp); SHF_ASSERT(0 == value, "pclose(): %u: ", errno);
+    pclose(fp);
 
     return shf_backticks_buffer;
 } /* shf_backticks() */
@@ -207,8 +230,9 @@ shf_attach_existing(
 
         int value = close(fd); SHF_ASSERT(-1 != value, "close(): %u: ", errno);
 
-        shf->path = strdup(path);
-        shf->name = strdup(name);
+        shf->path        = strdup(path);
+        shf->name        = strdup(name);
+        shf->is_lockable = 1;
     }
 
     SHF_DEBUG("- return %p // shf\n", shf);
@@ -245,8 +269,9 @@ shf_tab_create(
 
 SHF *
 shf_attach(
-    const char * path, /* e.g. '/dev/shm' */
-    const char * name) /* e.g. 'myshf'    */
+    const char * path                    , /* e.g. '/dev/shm' */
+    const char * name                    , /* e.g. 'myshf'    */
+    uint32_t     delete_upon_process_exit) /* 0 means do nothing, 1 means delete shf when calling process exits */
 {
     char file_name[256];
     char path_name[256];
@@ -254,7 +279,7 @@ shf_attach(
     int  value;
     int  tabs = 0;
 
-    SHF_DEBUG("%s(path='%s', name='%s')\n", __FUNCTION__, path, name);
+    SHF_DEBUG("%s(path='%s', name='%s', delete_upon_process_exit=%u)\n", __FUNCTION__, path, name, delete_upon_process_exit);
     SHF_ASSERT(shf_init_called, "shf_init() not previously called");
 
     SHF_SNPRINTF(1, file_name, "%s/%s.shf/%s.shf", path, name, name);
@@ -301,6 +326,17 @@ shf_attach(
             }
             shf->shf_mmap->wins[win].tabs_used = tabs;
         }
+    }
+
+    if (delete_upon_process_exit) {
+        char pid[256];
+        SHF_SNPRINTF(1, pid, "%u", getpid());
+
+        const char * shf_monitor_path = shf_backticks("which shf.monitor");
+        SHF_ASSERT_INTERNAL(strlen(shf_monitor_path), "ERROR: 'which shf.monitor' found nothing; ensure shf.monitor can be found in the PATH if calling %s() with delete_upon_process_exit=1; PATH=%s", __FUNCTION__, shf_backticks("echo $PATH"));
+        SHF_DEBUG("- launching: '%s %s %s'\n", shf_monitor_path, pid, path_name);
+        pid_t pid_child = shf_exec_child(shf_monitor_path, "shf.monitor", pid, path_name);
+        SHF_ASSERT(0 == kill(pid_child, 0), "ERROR: INTERNAL: pid %u does not exist as expected: %u: ", pid_child, errno);
     }
 
     return shf;
@@ -609,7 +645,7 @@ SHF_NEED_NEW_TAB_AFTER_PARTING:;
     uint32_t row  = shf_hash.u16[2] %             SHF_ROWS_PER_TAB       ;
     uint32_t rnd  = shf_hash.u32[2] % (1 << (32 - SHF_TABS_PER_WIN_BITS));
 
-    SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock);
+    if (shf->is_lockable) { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
     uint16_t tab = shf->shf_mmap->wins[win].tabs[tab2].tab;
@@ -639,7 +675,7 @@ SHF_NEED_NEW_TAB_AFTER_PARTING:;
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
     shf_tab_part(shf, win, tab);
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-    SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock);
+    if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
     goto SHF_NEED_NEW_TAB_AFTER_PARTING;
 
 SHF_SKIP_ROW_FULL_CHECK:;
@@ -651,7 +687,7 @@ SHF_SKIP_ROW_FULL_CHECK:;
         SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
     }
 
-    SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock);
+    if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
 
     SHF_DEBUG("%s(shf=?, val=?, val_len=%u){} // return 0x%08x=%02x-%03x-%03x-%01x=%s\n", __FUNCTION__, val_len, uid.as_u32, uid.as_part.win, uid.as_part.tab, uid.as_part.row, uid.as_part.ref, SHF_UID_NONE == uid.as_u32 ? "failure" : "success");
 
@@ -697,8 +733,8 @@ shf_find_key_internal(
     }
 
     if   ((SHF_FIND_KEY_OR_UID              == what)
-    ||    (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }
-    else                                              { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
+    ||    (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { if (shf->is_lockable) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }}
+    else                                              { if (shf->is_lockable) { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
     tab = shf->shf_mmap->wins[win].tabs[tab2].tab; /* important that this is looked up after the lock! */
@@ -770,8 +806,8 @@ shf_find_key_internal(
         }
     }
     if   ((SHF_FIND_KEY_OR_UID              == what)
-    ||    (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }
-    else                                              { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
+    ||    (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { if (shf->is_lockable) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }}
+    else                                              { if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
 
     SHF_DEBUG("%s(shf=?){} // return 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, tmp_uid.as_u32, tmp_uid.as_part.win, tmp_uid.as_part.tab, tab, tmp_uid.as_part.row, tmp_uid.as_part.ref, result ? "exists" : "not exists");
 
@@ -817,6 +853,15 @@ shf_set_data_need_factor(
     SHF_ASSERT(shf_data_needed_factor > 0, "ERROR: data_needed_factor must be > 0");
     shf_data_needed_factor = data_needed_factor;
 } /* shf_set_data_need_factor() */
+
+void
+shf_set_is_lockable(
+    SHF      * shf       ,
+    uint32_t   is_lockable)
+{
+    SHF_ASSERT_INTERNAL(is_lockable <= 1, "ERROR: is_locable must be 0 or 1");
+    shf->is_lockable = is_lockable;
+} /* shf_set_is_lockable() */
 
 void * /* address of q items array; also sets shf_qiid_addr & shf_qiid_addr_len */
 shf_q_get(

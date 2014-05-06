@@ -40,26 +40,6 @@
 #include <shf.h>
 #include "tap.h"
 
-static pid_t
-test_exec_child(
-    const char  * child_path      ,
-    const char  * child_file      ,
-    const char  * child_argument_1,
-          char  * child_argument_2)
-{
-    pid_t pid_child = fork(); SHF_ASSERT(pid_child >= 0, "fork(): %d: ", errno);
-
-    if(0 == pid_child) {
-        execl(child_path, child_file, child_argument_1, child_argument_2, NULL);
-        /* should never come here unless error! */
-        SHF_ASSERT(0, "execl(): %d: ", errno);
-   }
-   else {
-        SHF_DEBUG("parent forked child child with pid %u\n", pid_child);
-   }
-   return pid_child;
-} /* test_exec_child() */
-
 static double
 test_dummy(void)
 {
@@ -161,7 +141,7 @@ FINISH_LINE_4C:;
           shf_debug_verbosity_less();
           shf_init                ();
           shf_set_data_need_factor(1);
-    shf = shf_attach              (test_shf_folder, test_shf_name); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
+    shf = shf_attach              (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
 
     {
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"   ));
@@ -194,8 +174,8 @@ FINISH_LINE_4C:;
     }
 
     pid_t child_pid = 0;
-    if      (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = test_exec_child(shf_backticks("which nodejs"  ), "nodejs"      , "TestIpcQueue.js", test_shf_name); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = test_exec_child(              "./TestIpcQueue" , "TestIpcQueue", "4c"             , test_shf_name); }
+    if      (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which nodejs"  ), "nodejs"      , "TestIpcQueue.js", test_shf_name); }
+    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = shf_exec_child(              "./TestIpcQueue" , "TestIpcQueue", "4c"             , test_shf_name); }
     else                                                           { SHF_ASSERT(0, "ERROR: should never get here!"); }
 
     shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);

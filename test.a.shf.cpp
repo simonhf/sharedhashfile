@@ -46,7 +46,7 @@ main(/* int argc,char **argv */)
     SharedHashFile * shf = new SharedHashFile;
     ok(              shf                                                    , "c++: new SharedHashFile returned object as expected"            );
     ok(0          == shf->AttachExisting(testShfFolder, testShfName        ), "c++: ->AttachExisting() fails for non-existing file as expected");
-    ok(0          != shf->Attach        (testShfFolder, testShfName        ), "c++: ->Attach()         works for non-existing file as expected");
+    ok(0          != shf->Attach        (testShfFolder, testShfName, 1     ), "c++: ->Attach()         works for non-existing file as expected");
                      shf->MakeHash      (         "key" , sizeof("key") - 1)                                                                    ;
     ok(0          == shf->GetKeyValCopy (                                  ), "c++: ->GetKeyValCopy() could not find unput key as expected"    );
     ok(0          == shf->DelKeyVal     (                                  ), "c++: ->DelKeyVal()     could not find unput key as expected"    );

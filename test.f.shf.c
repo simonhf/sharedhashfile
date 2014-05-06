@@ -140,7 +140,7 @@
     pid_t pid              = getpid(); \
     SHF_SNPRINTF(1, test_db_name, "test-shf-%05u", pid); \
                 shf_init  (); \
-    SHF * shf = shf_attach(test_db_folder, test_db_name); \
+    SHF * shf = shf_attach(test_db_folder, test_db_name, 1 /* delete upon process exit */); \
                 shf_set_data_need_factor(250)
 
 #define TEST_INIT_CHILD() \

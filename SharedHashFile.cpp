@@ -51,11 +51,12 @@ SharedHashFile::AttachExisting(
 
 bool
 SharedHashFile::Attach(
-    const char * path, /* e.g. '/dev/shm' */
-    const char * name) /* e.g. 'myshf'    */
+    const char * path                    , /* e.g. '/dev/shm' */
+    const char * name                    , /* e.g. 'myshf'    */
+    uint32_t     delete_upon_process_exit) /* 0 means do nothing, 1 means delete shf when calling process exits */
 {
     SHF_DEBUG("%s(path='%s', name='%s')\n", __FUNCTION__, path, name);
-    shf = shf_attach(path, name);
+    shf = shf_attach(path, name, delete_upon_process_exit);
     return shf;
 }
 

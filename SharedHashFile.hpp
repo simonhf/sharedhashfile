@@ -34,7 +34,7 @@ public:
     SharedHashFile();
     ~SharedHashFile();
     bool       AttachExisting    (const char * path, const char * name);
-    bool       Attach            (const char * path, const char * name);
+    bool       Attach            (const char * path, const char * name, uint32_t delete_upon_process_exit);
     void       MakeHash          (const char * key, uint32_t key_len);
     bool       GetKeyValCopy     ();
     bool       GetUidValCopy     (uint32_t uid);
