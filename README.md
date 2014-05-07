@@ -316,7 +316,6 @@ DB size: 2.6G   /dev/shm/test-lmdb-20848
 
 ## TODO
 
-* Support detaching from a hash table.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.
