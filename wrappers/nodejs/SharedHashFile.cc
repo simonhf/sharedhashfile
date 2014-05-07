@@ -160,6 +160,7 @@ private:
     sharedHashFile();
     ~sharedHashFile();
 
+    static v8::Handle<v8::Value> Backticks         (const v8::Arguments& args);
     static v8::Handle<v8::Value> New               (const v8::Arguments& args);
     static v8::Handle<v8::Value> Detach            (const v8::Arguments& args);
     static v8::Handle<v8::Value> AttachExisting    (const v8::Arguments& args);
@@ -219,6 +220,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->InstanceTemplate()->SetInternalFieldCount(1); // todo: figure out what this is good for! see: http://stackoverflow.com/questions/16600735/what-is-an-internal-field-count-and-what-is-setinternalfieldcount-used-for
 
     // Prototype
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("backticks"         ), FunctionTemplate::New(Backticks         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("detach"            ), FunctionTemplate::New(Detach            )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attachExisting"    ), FunctionTemplate::New(AttachExisting    )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attach"            ), FunctionTemplate::New(Attach            )->GetFunction());
@@ -263,6 +265,18 @@ sharedHashFile::Init(Handle<Object> target) {
 
     Persistent<Function> constructor = Persistent<Function>::New(tpl->GetFunction());
     target->Set(String::NewSymbol("sharedHashFile"), constructor);
+}
+
+Handle<Value>
+sharedHashFile::Backticks(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_STRING(0);
+
+    char * output = shf_backticks(*arg0);
+
+    return scope.Close(String::New(output, strlen(output)));
 }
 
 Handle<Value>

@@ -114,12 +114,14 @@ shf.setDataNeedFactor(250);
 
 {
     shf.debugVerbosityLess();
+    var rss_size_before = shf.backticks("ps -o rss -p "+process.pid+" | perl -lane 'print if(m~[0-9]~);'");
     var testStartTime = Date.now() / 1000;
     for (var i = 0; i < testKeys; i++) {
         shf.putKeyVal("key"+i, "val"+i);
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
-    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second");
+    var rss_size_after = shf.backticks("ps -o rss -p "+process.pid+" | perl -lane 'print if(m~[0-9]~);'");
+    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second, "+(rss_size_after - rss_size_before)+"KB RAM");
     shf.debugVerbosityMore();
 }
 
@@ -164,6 +166,57 @@ ok(0 == shf.debugGetGarbage(), "nodejs: graceful growth cleans up after itself a
 }
 
 ok(0 != shf.debugGetGarbage(), "nodejs: del does not    clean  up after itself as expected");
+
+var h = new Object();
+{
+    shf.debugVerbosityLess();
+    var rss_size_before = shf.backticks("ps -o rss -p "+process.pid+" | perl -lane 'print if(m~[0-9]~);'");
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
+        h["key"+i] = "val"+i;
+    }
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    var rss_size_after = shf.backticks("ps -o rss -p "+process.pid+" | perl -lane 'print if(m~[0-9]~);'");
+    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second via js hash table, "+(rss_size_after - rss_size_before)+"KB RAM");
+    shf.debugVerbosityMore();
+}
+
+{
+    shf.debugVerbosityLess();
+    var testStartTime = Date.now() / 1000;
+    for (var i = (testKeys * 2); i < (testKeys * 3); i++) {
+        var value = h["key"+i];
+        if ('undefined' === typeof value) { /**/ }
+        else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
+    }
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: got expected number of non-existing keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second via js hash table");
+    shf.debugVerbosityMore();
+}
+
+{
+    shf.debugVerbosityLess();
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
+        var value = h["key"+i];
+        if (value === "val"+i) { /**/ }
+        else { console.log("INTERNAL: unexpected value: "+value); process.exit(1); }
+    }
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: got expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second via js hash table");
+    shf.debugVerbosityMore();
+}
+
+{
+    shf.debugVerbosityLess();
+    var testStartTime = Date.now() / 1000;
+    for (var i = 0; i < testKeys; i++) {
+        delete h["key"+i];
+    }
+    var testElapsedTime = (Date.now() / 1000 - testStartTime);
+    ok(1, "nodejs: del expected number of     existing keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second via js hash table");
+    shf.debugVerbosityMore();
+}
 
 testQItems = 100000;
 shf.setDataNeedFactor(1);

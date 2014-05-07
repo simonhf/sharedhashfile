@@ -111,13 +111,16 @@ main(/* int argc,char **argv */)
 
     {
         shf->DebugVerbosityLess();
+        char command[256]; SHF_SNPRINTF(1, command, "ps -o rss -p %u | perl -lane 'print if(m~[0-9]~);'", getpid());
+        int32_t rss_size_before = atoi(shf_backticks(command));
         double testStartTime = shf_get_time_in_seconds();
         for (uint32_t i = 0; i < testKeys; i++) {
             shf->MakeHash (SHF_CAST(const char *, &i), sizeof(i));
             shf->PutKeyVal(SHF_CAST(const char *, &i), sizeof(i));
         }
         double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
-        ok(1, "c++: put expected number of              keys // estimate %'.0f keys per second", testKeys / testElapsedTime);
+        int32_t rss_size_after = atoi(shf_backticks(command));
+        ok(1, "c++: put expected number of              keys // estimate %'.0f keys per second, %uKB RAM", testKeys / testElapsedTime, rss_size_after - rss_size_before);
         shf->DebugVerbosityMore();
     }
 
