@@ -1067,7 +1067,10 @@ shf_q_new_name(
     shf->q.q_next ++; SHF_ASSERT(shf->q.q_next <= shf->q.qs, "ERROR: called %s() %u times but only allocated %u queues", __FUNCTION__, shf->q.q_next, shf->q.qs);
 
     shf_debug_verbosity_less();
-    shf_make_hash(name, name_len); uint32_t uid_qid = shf_put_key_val(shf, SHF_CAST(const char *, &qid), sizeof(qid)); SHF_ASSERT(SHF_UID_NONE != uid_qid, "ERROR: could not put key '%.*s'", name_len, name);
+    shf_make_hash(name, name_len);
+    SHF_ASSERT_INTERNAL(0 == shf_get_key_val_copy(shf), "ERROR: %s(): unique queue name already exists!", __FUNCTION__);
+    uint32_t uid_qid = shf_put_key_val(shf, SHF_CAST(const char *, &qid), sizeof(qid));
+    SHF_ASSERT(SHF_UID_NONE != uid_qid, "ERROR: could not put key '%.*s'", name_len, name);
     // todo: somehow store name for use in debug messages
     shf_debug_verbosity_more();
 
