@@ -852,12 +852,21 @@ int    shf_del_uid_val     (SHF * shf, uint32_t uid) { return shf_find_key_inter
 void   shf_debug_verbosity_less(void) { shf_debug_disabled ++; }
 void   shf_debug_verbosity_more(void) { shf_debug_disabled --; }
 
-void
-shf_del(
-    SHF * shf)
+char *
+shf_del( /* shf_detach() & then delete the folder structure on /dev/shm or disk */
+    SHF      * shf)
 {
     SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
-    SHF_DEBUG("todo: implement shf_del(); delete entire shf");
+
+    char du_rm_folder[256]; SHF_SNPRINTF(1, du_rm_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", shf->path, shf->name, shf->path, shf->name);
+
+    shf_detach(shf);
+
+    char * du_rm_output = shf_backticks(du_rm_folder);
+
+    // todo: double check that rm command worked
+
+    return du_rm_output;
 } /* shf_del() */
 
 uint64_t
@@ -879,6 +888,7 @@ void
 shf_set_data_need_factor(
     uint32_t data_needed_factor)
 {
+    SHF_DEBUG("%s(data_needed_factor=%u){}", __FUNCTION__, data_needed_factor);
     SHF_ASSERT(shf_data_needed_factor > 0, "ERROR: data_needed_factor must be > 0");
     shf_data_needed_factor = data_needed_factor;
 } /* shf_set_data_need_factor() */
@@ -888,7 +898,7 @@ shf_set_is_lockable(
     SHF      * shf       ,
     uint32_t   is_lockable)
 {
-    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf             , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     SHF_ASSERT_INTERNAL(is_lockable <= 1, "ERROR: is_locable must be 0 or 1");
     shf->is_lockable = is_lockable;
 } /* shf_set_is_lockable() */

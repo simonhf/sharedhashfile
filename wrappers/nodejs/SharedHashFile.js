@@ -221,15 +221,6 @@ shf.setDataNeedFactor(1);
     ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second using 1 function");
 }
 
-ok(1 == shf.isAttached(), "nodejs: .isAttached()     attached as expected");
-        shf.detach    ();
-ok(0 == shf.isAttached(), "nodejs: .isAttached() not attached as expected");
+ok(1, "nodejs: .del() // size before deletion: "+shf.del());
 
 delete shf;
-
-var exec    = require('child_process').exec;
-var command = "echo 'test: shf size before deletion: '`du -h -d 0 "+testShfFolder+"/"+testShfName+".shf` ; rm -rf "+testShfFolder+"/"+testShfName+".shf/"; // todo: change this to auto delete mechanism
-exec(command, function (error, output) {
-    console.log(output);
-    exit_status();
-});

@@ -24,6 +24,8 @@
 #ifndef BUILDING_NODE_EXTENSION
 #define BUILDING_NODE_EXTENSION
 #endif
+#include <string.h> /* for strlen() */
+
 #include <node.h>
 #include <node_buffer.h>
 
@@ -165,6 +167,7 @@ private:
     static v8::Handle<v8::Value> IsAttached        (const v8::Arguments& args);
     static v8::Handle<v8::Value> Uid               (const v8::Arguments& args);
     static v8::Handle<v8::Value> MakeHash          (const v8::Arguments& args);
+    static v8::Handle<v8::Value> Del               (const v8::Arguments& args);
     static v8::Handle<v8::Value> DelKeyVal         (const v8::Arguments& args);
     static v8::Handle<v8::Value> DelUidVal         (const v8::Arguments& args);
     static v8::Handle<v8::Value> PutKeyVal         (const v8::Arguments& args);
@@ -222,6 +225,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("isAttached"        ), FunctionTemplate::New(IsAttached        )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("uid"               ), FunctionTemplate::New(Uid               )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("makeHash"          ), FunctionTemplate::New(MakeHash          )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("del"               ), FunctionTemplate::New(Del               )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("delKeyVal"         ), FunctionTemplate::New(DelKeyVal         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("delUidVal"         ), FunctionTemplate::New(DelUidVal         )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("putKeyVal"         ), FunctionTemplate::New(PutKeyVal         )->GetFunction());
@@ -363,6 +367,18 @@ sharedHashFile::PutKeyVal(const Arguments& args) {
     uint32_t uid = obj->shf->PutKeyVal(*arg1, arg1.length());
 
     return scope.Close(Number::New(uid));
+}
+
+Handle<Value>
+sharedHashFile::Del(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    char * hint = obj->shf->Del();
+
+    return scope.Close(String::New(hint, strlen(hint)));
 }
 
 Handle<Value>

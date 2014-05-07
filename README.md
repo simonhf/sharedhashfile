@@ -68,7 +68,7 @@ Note: When a queue element is moved from one queue to another then it is not cop
 Build the release code using ```make```, and the debug code using ```make debug```. Tests are run automatically.
 
 ```
-root@16vcpu:/# make clean ; rm -rf /dev/shm/test-*/ ; make
+root@16vcpu:/# make clean ; make
 rm -rf release debug
 make: variable: PROD_SRCS=murmurhash3.c shf.c tap.c
 make: variable: PROD_OBJS=release/murmurhash3.o release/shf.o release/tap.o
@@ -170,7 +170,7 @@ Notes:
 Here's an example on an 8 core Lenovo W530 laptop showing a hash table with 100 million keys, and then doing 2% delete/insert and 98% read at a rate of over 10 million operations per second:
 
 ```
-$ make clean ; rm -rf /dev/shm/test-*/ ; SHF_ENABLE_PERFORMANCE_TEST=1 make
+$ make clean ; SHF_ENABLE_PERFORMANCE_TEST=1 make
 ...
 perf testing: SharedHashFile
 running tests on: via command: 'cat /proc/cpuinfo | egrep 'model name' | head -n 1'

@@ -127,6 +127,16 @@ SharedHashFile::DelUidVal(uint32_t uid)
     return shf_del_uid_val(shf, uid);
 }
 
+char *
+SharedHashFile::Del()
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    char * hint = shf_del(shf);
+    shf        = NULL;
+    isAttached = 0;
+    return hint;
+}
+
 uint64_t
 SharedHashFile::DebugGetGarbage()
 {

@@ -95,7 +95,7 @@ extern void     * shf_get_key_val_addr     (SHF * shf);
 extern void     * shf_get_uid_val_addr     (SHF * shf, uint32_t uid);
 extern int        shf_del_key_val          (SHF * shf);
 extern int        shf_del_uid_val          (SHF * shf, uint32_t uid);
-extern void       shf_del                  (SHF * shf);
+extern char     * shf_del                  (SHF * shf);
 extern uint64_t   shf_debug_get_garbage    (SHF * shf);
 extern void       shf_debug_verbosity_less (void);
 extern void       shf_debug_verbosity_more (void);

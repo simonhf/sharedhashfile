@@ -43,6 +43,7 @@ public:
     uint32_t   PutKeyVal         (const char * val, uint32_t val_len);
     bool       DelKeyVal         ();
     bool       DelUidVal         (uint32_t uid);
+    char     * Del               ();
     uint64_t   DebugGetGarbage   ();
     void       DebugVerbosityLess();
     void       DebugVerbosityMore();

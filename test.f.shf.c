@@ -128,7 +128,7 @@
 
 #define TEST_FINI_MASTER() \
     char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s;  ; rm -rf %s", test_db_folder, test_db_folder); \
-    fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
+    fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder));
 
 #else
 
@@ -182,8 +182,7 @@
     shf_detach(shf);
 
 #define TEST_FINI_MASTER() \
-    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_db_folder, test_db_name, test_db_folder, test_db_name); \
-    fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder));
+    fprintf(stderr, "test: DB size before deletion: %s\n", shf_del(shf));
 
 #endif
 

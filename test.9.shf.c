@@ -32,7 +32,7 @@
 
 int main(void)
 {
-    plan_tests(39);
+    plan_tests(40);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -215,10 +215,7 @@ int main(void)
         shf_debug_verbosity_more();
     }
 
-    shf_detach(shf);
-
-    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", test_shf_folder, test_shf_name, test_shf_folder, test_shf_name);
-    fprintf(stderr, "test: shf size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
+    ok(1, "c: shf_del() // size before deletion: %s", shf_del(shf));
 
     return exit_status();
 } /* main() */

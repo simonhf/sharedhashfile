@@ -34,7 +34,7 @@ extern "C" {
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(45);
+    plan_tests(44);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -221,14 +221,9 @@ main(/* int argc,char **argv */)
         shf->DebugVerbosityMore();
     }
 
-    ok(1 == shf->IsAttached(), "c++: ->IsAttached()     attached as expected");
-            shf->Detach    ();
-    ok(0 == shf->IsAttached(), "c++: ->IsAttached() not attached as expected");
+    ok(1, "c++: ->Del() // size before deletion: %s", shf->Del());
 
     delete  shf;
-
-    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", testShfFolder, testShfName, testShfFolder, testShfName);
-    fprintf(stderr, "test: shf size before deletion: %s\n", shf_backticks(test_du_folder)); // todo: change this to auto delete mechanism
 
     return exit_status();
 }
