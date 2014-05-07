@@ -121,7 +121,7 @@ shf.setDataNeedFactor(250);
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
     var rss_size_after = shf.backticks("ps -o rss -p "+process.pid+" | perl -lane 'print if(m~[0-9]~);'");
-    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second, "+(rss_size_after - rss_size_before)+"KB RAM");
+    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second, "+(rss_size_after - rss_size_before).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+"KB RAM");
     shf.debugVerbosityMore();
 }
 
@@ -177,7 +177,7 @@ var h = new Object();
     }
     var testElapsedTime = (Date.now() / 1000 - testStartTime);
     var rss_size_after = shf.backticks("ps -o rss -p "+process.pid+" | perl -lane 'print if(m~[0-9]~);'");
-    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second via js hash table, "+(rss_size_after - rss_size_before)+"KB RAM");
+    ok(1, "nodejs: put expected number of              keys // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" keys per second via js hash table, "+(rss_size_after - rss_size_before).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+"KB RAM");
     shf.debugVerbosityMore();
 }
 

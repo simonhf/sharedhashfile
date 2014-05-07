@@ -49,6 +49,8 @@ main(int argc, char **argv)
 
     SHF_DEBUG("shf.monitor: monitoring pid %u to delete %s\n", shf_monitor_parent_pid, shf_monitor_path_name);
 
+    signal(SIGINT, SIG_IGN); /* ignore SIGINT, e.g. if parent process gets ctrl-c */
+
     while (1) {
         //debug usleep(1000000); /* wait 1/1000th of a second */
         //debug fprintf(stderr, "shf.monitor: everyday I'm monitoring %u %s\n", shf_monitor_parent_pid, shf_monitor_path_name);

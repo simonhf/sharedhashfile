@@ -114,7 +114,7 @@ int main(void)
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         int32_t rss_size_after = atoi(shf_backticks(command));
-        ok(1, "c: put expected number of              keys // estimate %'.0f keys per second, %uKB RAM", test_keys / test_elapsed_time, rss_size_after - rss_size_before);
+        ok(1, "c: put expected number of              keys // estimate %'.0f keys per second, %'uKB RAM", test_keys / test_elapsed_time, rss_size_after - rss_size_before);
         shf_debug_verbosity_more();
     }
 
