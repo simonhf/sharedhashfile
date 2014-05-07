@@ -36,6 +36,7 @@ public:
     void       Detach            ();
     bool       AttachExisting    (const char * path, const char * name);
     bool       Attach            (const char * path, const char * name, uint32_t delete_upon_process_exit);
+    bool       IsAttached        ();
     void       MakeHash          (const char * key, uint32_t key_len);
     bool       GetKeyValCopy     ();
     bool       GetUidValCopy     (uint32_t uid);
@@ -56,12 +57,13 @@ public:
     uint32_t   QTakeItem         (uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
     uint32_t   QPushHeadPullTail (uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
     void       QFlush            (uint32_t pull_qid);
-    uint32_t   QIsReady          ();
+    bool       QIsReady          ();
     void       RaceInit          (const char * name, uint32_t name_len                 );
     void       RaceStart         (const char * name, uint32_t name_len, uint32_t horses);
 
 private:
-    SHF * shf;
+    SHF      * shf;
+    uint32_t   isAttached;
 };
 
 #endif /* __SHAREDHASHFILE_HPP__ */

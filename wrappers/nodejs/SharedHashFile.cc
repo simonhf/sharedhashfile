@@ -162,6 +162,7 @@ private:
     static v8::Handle<v8::Value> Detach            (const v8::Arguments& args);
     static v8::Handle<v8::Value> AttachExisting    (const v8::Arguments& args);
     static v8::Handle<v8::Value> Attach            (const v8::Arguments& args);
+    static v8::Handle<v8::Value> IsAttached        (const v8::Arguments& args);
     static v8::Handle<v8::Value> Uid               (const v8::Arguments& args);
     static v8::Handle<v8::Value> MakeHash          (const v8::Arguments& args);
     static v8::Handle<v8::Value> DelKeyVal         (const v8::Arguments& args);
@@ -218,6 +219,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("detach"            ), FunctionTemplate::New(Detach            )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attachExisting"    ), FunctionTemplate::New(AttachExisting    )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("attach"            ), FunctionTemplate::New(Attach            )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("isAttached"        ), FunctionTemplate::New(IsAttached        )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("uid"               ), FunctionTemplate::New(Uid               )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("makeHash"          ), FunctionTemplate::New(MakeHash          )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("delKeyVal"         ), FunctionTemplate::New(DelKeyVal         )->GetFunction());
@@ -310,6 +312,18 @@ sharedHashFile::Attach(const Arguments& args) {
 
     uint32_t deleteUponProcessExit = arg2;
     uint32_t value = obj->shf->Attach(*arg0, *arg1, deleteUponProcessExit);
+
+    return scope.Close(Number::New(value));
+}
+
+Handle<Value>
+sharedHashFile::IsAttached(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    uint32_t value = obj->shf->IsAttached();
 
     return scope.Close(Number::New(value));
 }

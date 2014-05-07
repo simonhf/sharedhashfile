@@ -39,7 +39,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(35);
+plan_tests(40);
 
 console.log('nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -50,8 +50,11 @@ var testShfName   = "test-js-"+process.pid;
 var shfUidNone    = 4294967295;
 
 var        shf =      new SharedHashFile.sharedHashFile();
+ok(0           ==         shf.isAttached    (                             ), "nodejs: .isAttached()               not attached      as expected");
 ok(0           ==         shf.attachExisting(testShfFolder, testShfName   ), "nodejs: .attachExisting() fails for non-existing file as expected");
+ok(0           ==         shf.isAttached    (                             ), "nodejs: .isAttached()               not attached      as expected");
 ok(0           !=         shf.attach        (testShfFolder, testShfName, 1), "nodejs: .attach()         works for non-existing file as expected");
+ok(1           ==         shf.isAttached    (                             ), "nodejs: .isAttached()                   attached      as expected");
 ok('undefined' === typeof shf.getKeyVal     ("key"                        ), "nodejs: .getKeyVal() could not find unput key as expected"        );
 ok(0           ==         shf.delKeyVal     ("key"                        ), "nodejs: .delKeyVal() could not find unput key as expected"        );
 var        uid =          shf.putKeyVal     ("key", "val"                 )                                                                      ;
@@ -218,9 +221,11 @@ shf.setDataNeedFactor(1);
     ok(testQItems == testPullItems, "nodejs: moved   expected number of new queue items // estimate "+Math.round(testQItems / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" q items per second using 1 function");
 }
 
-shf.detach();
+ok(1 == shf.isAttached(), "nodejs: .isAttached()     attached as expected");
+        shf.detach    ();
+ok(0 == shf.isAttached(), "nodejs: .isAttached() not attached as expected");
 
-// todo: delete shf;
+delete shf;
 
 var exec    = require('child_process').exec;
 var command = "echo 'test: shf size before deletion: '`du -h -d 0 "+testShfFolder+"/"+testShfName+".shf` ; rm -rf "+testShfFolder+"/"+testShfName+".shf/"; // todo: change this to auto delete mechanism

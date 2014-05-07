@@ -31,12 +31,15 @@ SharedHashFile::SharedHashFile()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     shf_init();
+    isAttached = 0;
 }
 
 SharedHashFile::~SharedHashFile()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
-    //todo if attached then shf_detach(shf);
+    if (isAttached) {
+        Detach();
+    }
 }
 
 void
@@ -44,6 +47,8 @@ SharedHashFile::Detach()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     shf_detach(shf);
+    shf        = NULL;
+    isAttached = 0;
 }
 
 bool
@@ -53,6 +58,7 @@ SharedHashFile::AttachExisting(
 {
     SHF_DEBUG("%s(path='%s', name='%s')\n", __FUNCTION__, path, name);
     shf = shf_attach_existing(path, name);
+    isAttached = shf ? 1 : 0;
     return shf;
 }
 
@@ -64,7 +70,15 @@ SharedHashFile::Attach(
 {
     SHF_DEBUG("%s(path='%s', name='%s')\n", __FUNCTION__, path, name);
     shf = shf_attach(path, name, delete_upon_process_exit);
+    isAttached = shf ? 1 : 0;
     return shf;
+}
+
+bool
+SharedHashFile::IsAttached()
+{
+    SHF_DEBUG("%s() // isAttached=%u\n", __FUNCTION__, isAttached);
+    return isAttached;
 }
 
 void
@@ -207,7 +221,7 @@ SharedHashFile::QFlush(uint32_t pull_qid) {
     return shf_q_flush(shf, pull_qid);
 }
 
-uint32_t
+bool
 SharedHashFile::QIsReady() {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_q_is_ready(shf);
