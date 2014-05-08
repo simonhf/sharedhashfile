@@ -81,7 +81,7 @@ shf_exec_child(
     if(0 == pid_child) {
         execl(child_path, child_file, child_argument_1, child_argument_2, NULL);
         /* should never come here unless error! */
-        SHF_ASSERT(0, "execl(): %d: ", errno);
+        SHF_ASSERT(0, "execl(child_path='%s', ...): %d: ", child_path, errno);
    }
    else {
         SHF_DEBUG("parent forked child child with pid %u\n", pid_child);

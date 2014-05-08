@@ -39,7 +39,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(40);
+plan_tests(43);
 
 console.log('nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -277,3 +277,5 @@ shf.setDataNeedFactor(1);
 ok(1, "nodejs: .del() // size before deletion: "+shf.del());
 
 delete shf;
+
+exit_status();

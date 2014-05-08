@@ -48,24 +48,26 @@ test_dummy(void)
 
 int
 main(int argc, char **argv) {
-    SHF_UNUSE(argc);
-    SHF_UNUSE(argv);
+    const char * mode = NULL;
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
-    SHF_ASSERT(argc >= 2, "ERROR: please supply an argument; c2js, c2c, or 4c");
-    SHF_ASSERT((0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js")))
-    ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" )))
-    ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))), "ERROR: please supply an argument; c2js, c2c, or 4c; got: '%s'", argv[1]);
+    if (argc >= 2) {
+        SHF_ASSERT((0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js")))
+        ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" )))
+        ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))), "ERROR: please supply an argument; c2js, c2py, c2c, or 4c; got: '%s'", argv[1]);
+    }
 
-         if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests(5); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests(9); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests(7); }
+         if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests(5); mode = strdup(argv[1]); }
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2py"))) { plan_tests(5); mode = strdup(argv[1]); }
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests(9); mode = strdup(argv[1]); }
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests(7); mode = strdup(argv[1]); }
+    else                                                                       { plan_tests(9); mode = "c2c"          ; } /* default if no arguments */
 
     pid_t pid = getpid();
-    SHF_DEBUG("pid %u started\n", pid);
+    SHF_DEBUG("pid %u started; mode is '%s'\n", pid, mode);
 
-    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { /* just for fun, test C to C call speed; useful for comparing to V8 to C call speed */
+    if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { /* just for fun, test C to C call speed; useful for comparing to V8 to C call speed */
         double test_start_time = shf_get_time_in_seconds();
         double test_iterations = 0;
         do {
@@ -83,7 +85,7 @@ main(int argc, char **argv) {
     uint32_t   uid;
     uint32_t   test_keys = 100000;
 
-    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"))) {
+    if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("4c"))) {
         SHF_DEBUG("'4c' mode; behaving as client\n");
         SHF_ASSERT(argc == 3, "ERROR: please supply arguments; 4c <name of shf>");
 
@@ -149,7 +151,7 @@ FINISH_LINE_4C:;
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"   ));
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"));
 
-        if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
+        if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c"))) {
                       SHF_MAKE_HASH  (                     "lock");
                uid =  shf_put_key_val(shf, NULL, sizeof(SHF_LOCK));
             ok(uid != SHF_UID_NONE                                , "   c2*: put lock in value as expected");
@@ -176,8 +178,9 @@ FINISH_LINE_4C:;
     }
 
     pid_t child_pid = 0;
-    if      (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which nodejs"  ), "nodejs"      , "TestIpcQueue.js", test_shf_name); }
-    else if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = shf_exec_child(              "./TestIpcQueue" , "TestIpcQueue", "4c"             , test_shf_name); }
+    if      (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which nodejs"      ), "nodejs"      , "TestIpcQueue.js", test_shf_name); }
+    else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2py"))) { child_pid = shf_exec_child(shf_backticks("which python"      ), "python"      , "TestIpcQueue.py", test_shf_name); }
+    else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = shf_exec_child(shf_backticks("which test.q.shf.t"), "test.q.shf.t", "4c"             , test_shf_name); }
     else                                                           { SHF_ASSERT(0, "ERROR: should never get here!"); }
 
     shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);
@@ -191,7 +194,8 @@ FINISH_LINE_4C:;
                                    test_pull_items ++;
                 if (1000000     == test_pull_items) { shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a); goto FINISH_LINE_C2; }
             }
-            if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js" ))) { /* the rw spin locks are fair but don't create unnecessary contention for javascript client */
+            if ((0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js")))
+            ||  (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2py")))) { /* the rw spin locks are fair but don't create unnecessary contention for javascript or python client */
                 usleep(1000); /* 1/1000th of a second */
             }
         }
@@ -201,7 +205,7 @@ FINISH_LINE_C2:;
         ok(1, "   c2*: moved   expected number of new queue items // estimate %'.0f q items per second with contention", test_pull_items / test_elapsed_time);
     }
 
-    if (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c"))) {
+    if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c"))) {
         shf_debug_verbosity_more(); SHF_DEBUG("testing process a IPC lock speed\n"); shf_debug_verbosity_less();
 
                                 SHF_MAKE_HASH       ("lock");

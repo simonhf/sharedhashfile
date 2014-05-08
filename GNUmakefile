@@ -126,12 +126,9 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcSocket.c
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket TestIpcSocket.o shf.o murmurhash3.o
 	@cd $(BUILD_TYPE) && ./TestIpcSocket
-	@echo "make: building and running test: IPC: SharedHashFile Queue"
-	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.* .
-	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcQueue.c
-	@cd $(BUILD_TYPE) && gcc -o TestIpcQueue TestIpcQueue.o shf.o murmurhash3.o tap.o
-	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./TestIpcQueue c2js
-	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./TestIpcQueue c2c
+	@echo "make: running test: IPC: SharedHashFile Queue"
+	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.js .
+	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./test.q.shf.t c2js
 else
 	@echo "make: note: !!! node-gyp not found; cannot build nodejs interface; e.g. install via: sudo apt-get install nodejs && sudo apt-get install node-gyp !!!"
 endif
