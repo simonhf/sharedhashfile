@@ -178,6 +178,7 @@ private:
     static v8::Handle<v8::Value> DebugVerbosityLess(const v8::Arguments& args);
     static v8::Handle<v8::Value> DebugVerbosityMore(const v8::Arguments& args);
     static v8::Handle<v8::Value> SetDataNeedFactor (const v8::Arguments& args);
+    static v8::Handle<v8::Value> SetIsLockable     (const v8::Arguments& args);
     static v8::Handle<v8::Value> QNew              (const v8::Arguments& args);
     static v8::Handle<v8::Value> QGet              (const v8::Arguments& args);
     static v8::Handle<v8::Value> QDel              (const v8::Arguments& args);
@@ -237,6 +238,7 @@ sharedHashFile::Init(Handle<Object> target) {
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityLess"), FunctionTemplate::New(DebugVerbosityLess)->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("debugVerbosityMore"), FunctionTemplate::New(DebugVerbosityMore)->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("setDataNeedFactor" ), FunctionTemplate::New(SetDataNeedFactor )->GetFunction());
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("setIsLockable"     ), FunctionTemplate::New(SetIsLockable     )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qNew"              ), FunctionTemplate::New(QNew              )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qGet"              ), FunctionTemplate::New(QGet              )->GetFunction());
     tpl->PrototypeTemplate()->Set(String::NewSymbol("qDel"              ), FunctionTemplate::New(QDel              )->GetFunction());
@@ -494,6 +496,19 @@ sharedHashFile::SetDataNeedFactor(const Arguments& args) {
     SHF_GET_SHAREDHASHFILE_OBJ();
 
     obj->shf->SetDataNeedFactor(arg0);
+
+    return scope.Close(Undefined());
+}
+
+Handle<Value>
+sharedHashFile::SetIsLockable(const Arguments& args) {
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    SHF_HANDLE_SCOPE();
+    SHF_VALIDATE_ARG_COUNT_REQUIRED(1);
+    SHF_VALIDATE_ARG_IS_INT32(0);
+    SHF_GET_SHAREDHASHFILE_OBJ();
+
+    obj->shf->SetIsLockable(arg0);
 
     return scope.Close(Undefined());
 }

@@ -333,10 +333,10 @@ ok 34 - nodejs: del expected number of     existing keys // estimate 1,369,864 k
 Comparing stats for 5,000,000 short keys then the performance & size of RAM differences are clearer; first SharedHashFile, then javascript:
 
 ```
-ok 25 - nodejs: put expected number of              keys // estimate 907,441 keys per second, 324,104KB RAM
-ok 26 - nodejs: got expected number of non-existing keys // estimate 1,761,184 keys per second
-ok 27 - nodejs: got expected number of     existing keys // estimate 1,404,494 keys per second
-ok 29 - nodejs: del expected number of     existing keys // estimate 1,569,366 keys per second
+ok 25 - nodejs: put expected number of              keys // estimate 958,222 keys per second, 324,348KB RAM
+ok 26 - nodejs: got expected number of non-existing keys // estimate 1,925,298 keys per second
+ok 27 - nodejs: got expected number of     existing keys // estimate 1,438,435 keys per second
+ok 29 - nodejs: del expected number of     existing keys // estimate 1,662,787 keys per second
 
 ok 31 - nodejs: put expected number of              keys // estimate 875,350 keys per second via js hash table, 710,088KB RAM
 ok 32 - nodejs: got expected number of non-existing keys // estimate 1,766,784 keys per second via js hash table
@@ -347,15 +347,15 @@ ok 34 - nodejs: del expected number of     existing keys // estimate 1,549,907 k
 However, comparing stats for 6,000,000 short keys then the performance & size of RAM differences are huge; first SharedHashFile, then javascript:
 
 ```
-ok 25 - nodejs: put expected number of              keys // estimate 895,522 keys per second, 356,112KB RAM
-ok 26 - nodejs: got expected number of non-existing keys // estimate 1,815,431 keys per second
-ok 27 - nodejs: got expected number of     existing keys // estimate 1,438,849 keys per second
-ok 29 - nodejs: del expected number of     existing keys // estimate 1,601,709 keys per second
+ok 25 - nodejs: put expected number of              keys // estimate 978,314 keys per second, 356,104KB RAM
+ok 26 - nodejs: got expected number of non-existing keys // estimate 1,881,467 keys per second
+ok 27 - nodejs: got expected number of     existing keys // estimate 1,460,209 keys per second
+ok 29 - nodejs: del expected number of     existing keys // estimate 1,545,197 keys per second
 
-ok 31 - nodejs: put expected number of              keys // estimate 339,924 keys per second via js hash table, 1,395,944KB RAM
-ok 32 - nodejs: got expected number of non-existing keys // estimate 264,702 keys per second via js hash table
-ok 33 - nodejs: got expected number of     existing keys // estimate 177,599 keys per second via js hash table
-ok 34 - nodejs: del expected number of     existing keys // estimate 827,586 keys per second via js hash table
+ok 31 - nodejs: put expected number of              keys // estimate 332,650 keys per second via js hash table, 1,395,824KB RAM
+ok 32 - nodejs: got expected number of non-existing keys // estimate 249,211 keys per second via js hash table
+ok 33 - nodejs: got expected number of     existing keys // estimate 169,678 keys per second via js hash table
+ok 34 - nodejs: del expected number of     existing keys // estimate 885,217 keys per second via js hash table
 ```
 
 Reasons to use SharedHashFile in nodejs instead of native javascript associative arrays:

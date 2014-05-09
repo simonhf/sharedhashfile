@@ -82,7 +82,7 @@ $(info make: variable: NODE_SRCS=$(NODE_SRCS))
 endif
 endif
 
-all: $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
+all: tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
 	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|CPUS|KEYS)=(1|4|10000000) to run perf test"
@@ -136,9 +136,12 @@ endif
 debug: all
 
 fixme:
-	find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep -i fixme | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){exit 1}else{print qq[make: fixme not found in any source file!]}}'
+	 find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep -i fixme | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with fixme\n],length $$any; exit(length $$any>0)}'
 
-.PHONY: all clean debug fixme
+tab:
+	@find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep -P "\\t" | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with tab\n],length $$any; exit(length $$any>0)}'
+
+.PHONY: all clean debug fixme tab
 
 clean:
 	rm -rf release debug wrappers/nodejs/build

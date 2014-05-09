@@ -48,6 +48,7 @@ public:
     void       DebugVerbosityLess();
     void       DebugVerbosityMore();
     void       SetDataNeedFactor (uint32_t data_needed_factor);
+    void       SetIsLockable     (uint32_t is_lockable);
     void     * QNew              (uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size, uint32_t qids_nolock_max);
     void     * QGet              ();
     void       QDel              ();

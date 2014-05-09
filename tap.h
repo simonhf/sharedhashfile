@@ -45,7 +45,7 @@
  * and use skip() if you don't actually run some tests.
  *
  * Example:
- *	plan_tests(13);
+ *      plan_tests(13);
  */
 void plan_tests(unsigned int tests);
 
@@ -85,7 +85,7 @@ void plan_tests(unsigned int tests);
  * file name, line number, and the expression itself.
  *
  * Example:
- *	ok1(init_subsystem() == 1);
+ *      ok1(init_subsystem() == 1);
  */
 # define ok1(e) ((e) ?                                                                                 \
                  _gen_result(0, (const void *)1, (const void *)0, (TAP_CMP_CAST)0, (TAP_TO_STR_CAST)0, \
@@ -103,13 +103,13 @@ void plan_tests(unsigned int tests);
  * than simply the expression itself.
  *
  * Example:
- *	ok1(init_subsystem() == 1);
- *	ok(init_subsystem() == 0, "Second initialization should fail");
+ *      ok1(init_subsystem() == 1);
+ *      ok(init_subsystem() == 0, "Second initialization should fail");
  */
 # define ok(e, ...) ((e) ?                                                                                 \
-		     _gen_result(0, (const void *)1, (const void *)0, (TAP_CMP_CAST)0, (TAP_TO_STR_CAST)0, \
+                     _gen_result(0, (const void *)1, (const void *)0, (TAP_CMP_CAST)0, (TAP_TO_STR_CAST)0, \
                                  __func__, __FILE__, __LINE__, __VA_ARGS__) :                              \
-		     _gen_result(0, (const void *)0, (const void *)0, (TAP_CMP_CAST)0, (TAP_TO_STR_CAST)0, \
+                     _gen_result(0, (const void *)0, (const void *)0, (TAP_CMP_CAST)0, (TAP_TO_STR_CAST)0, \
                                  __func__, __FILE__, __LINE__, __VA_ARGS__))
 
 /**
@@ -120,11 +120,11 @@ void plan_tests(unsigned int tests);
  * branch and fail() in another.
  *
  * Example:
- *	x = do_something();
- *	if (!checkable(x) || check_value(x))
- *		pass("do_something() returned a valid value");
- *	else
- *		fail("do_something() returned an invalid value");
+ *      x = do_something();
+ *      if (!checkable(x) || check_value(x))
+ *              pass("do_something() returned a valid value");
+ *      else
+ *              fail("do_something() returned an invalid value");
  */
 # define pass(...) ok(1, __VA_ARGS__)
 
@@ -138,16 +138,16 @@ void plan_tests(unsigned int tests);
 # define fail(...) ok(0, __VA_ARGS__)
 
 /* I don't find these to be useful. */
-# define skip_if(cond, n, ...)				\
-	if (cond) skip((n), __VA_ARGS__);		\
-	else
+# define skip_if(cond, n, ...)                          \
+        if (cond) skip((n), __VA_ARGS__);               \
+        else
 
-# define skip_start(test, n, ...)			\
-	do {						\
-		if((test)) {				\
-			skip(n,  __VA_ARGS__);		\
-			continue;			\
-		}
+# define skip_start(test, n, ...)                       \
+        do {                                            \
+                if((test)) {                            \
+                        skip(n,  __VA_ARGS__);          \
+                        continue;                       \
+                }
 
 # define skip_end } while(0)
 
@@ -171,7 +171,7 @@ unsigned int _gen_result(int, const void *, const void *,
  * result by the TAP test harness.  It will append '\n' for you.
  *
  * Example:
- *	diag("Now running complex tests");
+ *      diag("Now running complex tests");
  */
 int diag(const char *fmt, ...) PRINTF_ATTRIBUTE(1, 2);
 
@@ -190,11 +190,11 @@ int diag(const char *fmt, ...) PRINTF_ATTRIBUTE(1, 2);
  *   Internet connection and one isn't available.
  *
  * Example:
- *	#ifdef HAVE_SOME_FEATURE
- *	ok1(test_some_feature());
- *	#else
- *	skip(1, "Don't have SOME_FEATURE");
- *	#endif
+ *      #ifdef HAVE_SOME_FEATURE
+ *      ok1(test_some_feature());
+ *      #else
+ *      skip(1, "Don't have SOME_FEATURE");
+ *      #endif
  */
 void skip(unsigned int n, const char *fmt, ...) PRINTF_ATTRIBUTE(2, 3);
 
@@ -217,9 +217,9 @@ void skip(unsigned int n, const char *fmt, ...) PRINTF_ATTRIBUTE(2, 3);
  *   put tests in your testing script (always a good idea).
  *
  * Example:
- *	todo_start("dwim() not returning true yet");
- *	ok(dwim(), "Did what the user wanted");
- *	todo_end();
+ *      todo_start("dwim() not returning true yet");
+ *      ok(dwim(), "Did what the user wanted");
+ *      todo_end();
  */
 void todo_start(const char *fmt, ...) PRINTF_ATTRIBUTE(1, 2);
 
@@ -238,7 +238,7 @@ void todo_end(void);
  * succeed succeeded).
  *
  * Example:
- *	exit(exit_status());
+ *      exit(exit_status());
  */
 int exit_status(void);
 
@@ -254,10 +254,10 @@ int exit_status(void);
  * Remember, if you fail to plan, you plan to fail.
  *
  * Example:
- *	plan_no_plan();
- *	while (random() % 2)
- *		ok1(some_test());
- *	exit(exit_status());
+ *      plan_no_plan();
+ *      while (random() % 2)
+ *              ok1(some_test());
+ *      exit(exit_status());
  */
 void plan_no_plan(void);
 
@@ -271,11 +271,11 @@ void plan_no_plan(void);
  * in the running kernel) use plan_skip_all() instead of plan_tests().
  *
  * Example:
- *	if (!have_some_feature) {
- *		plan_skip_all("Need some_feature support");
- *		exit(exit_status());
- *	}
- *	plan_tests(13);
+ *      if (!have_some_feature) {
+ *              plan_skip_all("Need some_feature support");
+ *              exit(exit_status());
+ *      }
+ *      plan_tests(13);
  */
 void plan_skip_all(const char *reason);
 

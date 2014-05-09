@@ -163,6 +163,13 @@ SharedHashFile::SetDataNeedFactor(uint32_t data_needed_factor)
     shf_set_data_need_factor(data_needed_factor);
 }
 
+void
+SharedHashFile::SetIsLockable(uint32_t is_lockable)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_set_is_lockable(shf, is_lockable);
+}
+
 void *
 SharedHashFile::QNew(uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size, uint32_t qids_nolock_max)
 {

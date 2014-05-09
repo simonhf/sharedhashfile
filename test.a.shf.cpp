@@ -50,6 +50,7 @@ main(/* int argc,char **argv */)
     ok(0          == shf->IsAttached    (                                  ), "c++: ->IsAttached()               not attached      as expected");
     ok(0          != shf->Attach        (testShfFolder, testShfName, 1     ), "c++: ->Attach()         works for non-existing file as expected");
     ok(1          == shf->IsAttached    (                                  ), "c++: ->IsAttached()                   attached      as expected");
+                     shf->SetIsLockable (0                                 ); /* single threaded test; no need to lock */
                      shf->MakeHash      (         "key" , sizeof("key") - 1)                                                                    ;
     ok(0          == shf->GetKeyValCopy (                                  ), "c++: ->GetKeyValCopy() could not find unput key as expected"    );
     ok(0          == shf->DelKeyVal     (                                  ), "c++: ->DelKeyVal()     could not find unput key as expected"    );

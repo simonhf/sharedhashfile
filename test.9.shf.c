@@ -44,6 +44,7 @@ int main(void)
                     shf_init            ();
     SHF    * shf =  shf_attach_existing (test_shf_folder, test_shf_name                                  ); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
              shf =  shf_attach          (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
+                    shf_set_is_lockable (shf, 0); /* single threaded test; no need to lock */
                     SHF_MAKE_HASH       (         "key"    );
     ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find unput key as expected");
     ok(0         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could not find unput key as expected");

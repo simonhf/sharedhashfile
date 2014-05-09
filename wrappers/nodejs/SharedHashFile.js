@@ -55,6 +55,7 @@ ok(0           ==         shf.attachExisting(testShfFolder, testShfName   ), "no
 ok(0           ==         shf.isAttached    (                             ), "nodejs: .isAttached()               not attached      as expected");
 ok(0           !=         shf.attach        (testShfFolder, testShfName, 1), "nodejs: .attach()         works for non-existing file as expected");
 ok(1           ==         shf.isAttached    (                             ), "nodejs: .isAttached()                   attached      as expected");
+                          shf.setIsLockable (0                            ); /* single threaded test; no need to lock */
 ok('undefined' === typeof shf.getKeyVal     ("key"                        ), "nodejs: .getKeyVal() could not find unput key as expected"        );
 ok(0           ==         shf.delKeyVal     ("key"                        ), "nodejs: .delKeyVal() could not find unput key as expected"        );
 var        uid =          shf.putKeyVal     ("key", "val"                 )                                                                      ;
