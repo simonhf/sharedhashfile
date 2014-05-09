@@ -19,17 +19,17 @@ make: running test: perf test calling dummy C++ functions
 1..12
 nodejs: debug: about to require  SharedHashFile
 nodejs: debug:          required SharedHashFile
-ok 1 - nodejs: did expected number of .dummy1()  calls  // estimate 24998832 calls per second; object: n/a, input: n/a, output: n/a
-ok 2 - nodejs: did expected number of .dummy2()  calls  // estimate 20000496 calls per second; object: unwrapped, input: n/a, output: n/a
-ok 3 - nodejs: did expected number of .dummy3a() calls  // estimate 16666550 calls per second; object: unwrapped, input: 1 int, output: n/a
-ok 4 - nodejs: did expected number of .dummy3b() calls  // estimate 12500161 calls per second; object: unwrapped, input: 3 ints, output: n/a
-ok 5 - nodejs: did expected number of .dummy4()  calls  // estimate 9090780 calls per second; object: unwrapped, input: 3 ints, output: int
-ok 6 - nodejs: did expected number of .dummy5()  calls  // estimate 5882367 calls per second; object: unwrapped, input: 3 ints, output: 8 byte str
-ok 7 - nodejs: did expected number of .dummy6()  calls  // estimate 1333332 calls per second; object: unwrapped, input: 3 ints, output: 4KB byte str
-ok 8 - nodejs: did expected number of .dummy7a() calls  // estimate 4545488 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external
-ok 9 - nodejs: did expected number of .dummy7b() calls  // estimate 2380949 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x1 in array
-ok 10 - nodejs: did expected number of .dummy7c() calls  // estimate 613497 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x10 in array
-ok 11 - nodejs: did expected number of .dummy8()  calls  // estimate 342466 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer
-ok 12 - nodejs: did expected number of .dummy9()  calls  // estimate 540541 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer external
+ok 1 - nodejs: did expected number of .dummy1()  calls  // estimate 25,000,322 calls per second; object: n/a, input: n/a, output: n/a
+ok 2 - nodejs: did expected number of .dummy2()  calls  // estimate 20,000,496 calls per second; object: unwrapped, input: n/a, output: n/a
+ok 3 - nodejs: did expected number of .dummy3a() calls  // estimate 16,666,550 calls per second; object: unwrapped, input: 1 int, output: n/a
+ok 4 - nodejs: did expected number of .dummy3b() calls  // estimate 14,285,777 calls per second; object: unwrapped, input: 3 ints, output: n/a
+ok 5 - nodejs: did expected number of .dummy4()  calls  // estimate 10,000,010 calls per second; object: unwrapped, input: 3 ints, output: int
+ok 6 - nodejs: did expected number of .dummy5()  calls  // estimate 5,882,284 calls per second; object: unwrapped, input: 3 ints, output: 8 byte str
+ok 7 - nodejs: did expected number of .dummy6()  calls  // estimate 1,315,790 calls per second; object: unwrapped, input: 3 ints, output: 4KB byte str
+ok 8 - nodejs: did expected number of .dummy7a() calls  // estimate 5,000,005 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external
+ok 9 - nodejs: did expected number of .dummy7b() calls  // estimate 2,857,136 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x1 in array
+ok 10 - nodejs: did expected number of .dummy7c() calls  // estimate 609,756 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte str external x10 in array
+ok 11 - nodejs: did expected number of .dummy8()  calls  // estimate 321,544 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer
+ok 12 - nodejs: did expected number of .dummy9()  calls  // estimate 549,450 calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer external
 ...
 ```
