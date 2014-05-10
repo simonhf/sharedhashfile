@@ -2,6 +2,8 @@
 
 SharedHashFile is a lightweight NoSQL key value store / hash table, & a zero-copy IPC queue library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
 
+![Nailed It](src/10m-tps-nailed-it.jpeg?raw=true)
+
 ## Project Goals
 
 * Faster speed.
