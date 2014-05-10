@@ -5,7 +5,7 @@
           {
             "target_name": "SharedHashFile",
               'include_dirs': [
-                '../..',
+                '../../src',
               ],
               "configurations": {
                 # This augments the `Debug` configuration used when calling `node-gyp`

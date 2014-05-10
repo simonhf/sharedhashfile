@@ -25,7 +25,7 @@ CC              = gcc
 CXXFLAGS        = -c -g -W -Waggregate-return -Wall -Werror -Wcast-align -Wcast-qual -Wchar-subscripts
 CXXFLAGS       += -Wcomment -Wformat -Wmissing-declarations -Wparentheses -Wpointer-arith -Wredundant-decls
 CXXFLAGS       +=  -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wwrite-strings -O
-CXXFLAGS       += -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I.
+CXXFLAGS       += -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
 CFLAGS          = -Wimplicit -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes -std=gnu99
 ifneq ($(filter debug,$(MAKECMDGOALS)),)
 BUILD_TYPE      = debug
@@ -36,23 +36,23 @@ BUILD_TYPE = release
 BUILD_TYPE_NODE = Release
 CXXFLAGS       += -O3
 endif
-DEPS_H          = $(wildcard *.h)
-DEPS_HPP        = $(wildcard *.hpp)
-NODE_SRCS       =                              $(filter-out %build,$(wildcard ./wrappers/nodejs/*))
-PROD_SRCS_C     =                              $(filter-out test%,$(wildcard *.c))
-PROD_SRCS_C     =                              $(filter-out main%,$(wildcard *.c))
-PROD_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.c,%.o,$(PROD_SRCS_C))))
-PROD_SRCS_CPP   =                              $(filter-out test%,$(wildcard *.cpp))
-PROD_OBJS_CPP   = $(patsubst %,$(BUILD_TYPE)/%,$(filter-out test%,$(patsubst %.cpp,%.o,$(PROD_SRCS_CPP))))
-MAIN_SRCS_C     =                              $(filter     main%,$(wildcard *.c))
-MAIN_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter     main%,$(patsubst %.c,%.o,$(MAIN_SRCS_C))))
-MAIN_EXES       = $(patsubst %,$(BUILD_TYPE)/%,$(filter         %,$(patsubst main.%.c,%,$(MAIN_SRCS_C))))
-TEST_SRCS_C     =                              $(filter     test%,$(wildcard *.c))
-TEST_OBJS_C     = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.o,$(TEST_SRCS_C))))
-TEST_SRCS_CPP   =                              $(filter     test%,$(wildcard *.cpp))
-TEST_OBJS_CPP   = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.o,$(TEST_SRCS_CPP))))
-TEST_EXES       = $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.c,%.t,$(TEST_SRCS_C)))) \
-                  $(patsubst %,$(BUILD_TYPE)/%,$(filter     test%,$(patsubst %.cpp,%.t,$(TEST_SRCS_CPP))))
+DEPS_H          = $(wildcard ./src/*.h)
+DEPS_HPP        = $(wildcard ./src/*.hpp)
+NODE_SRCS       =                                    $(filter-out %build,$(wildcard ./wrappers/nodejs/*))
+PROD_SRCS_C     =                                    $(filter-out ./src/test%,$(wildcard ./src/*.c))
+PROD_SRCS_C     =                                    $(filter-out ./src/main%,$(wildcard ./src/*.c))
+PROD_OBJS_C     = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter-out ./src/test%,$(patsubst %.c,%.o,$(PROD_SRCS_C))))
+PROD_SRCS_CPP   =                                    $(filter-out ./src/test%,$(wildcard ./src/*.cpp))
+PROD_OBJS_CPP   = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter-out ./src/test%,$(patsubst %.cpp,%.o,$(PROD_SRCS_CPP))))
+MAIN_SRCS_C     =                                    $(filter     ./src/main%,$(wildcard ./src/*.c))
+MAIN_OBJS_C     = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter     ./src/main%,$(patsubst %.c,%.o,$(MAIN_SRCS_C))))
+MAIN_EXES       = $(patsubst       %,$(BUILD_TYPE)/%,$(filter               %,$(patsubst ./src/main.%.c,%,$(MAIN_SRCS_C))))
+TEST_SRCS_C     =                                    $(filter     ./src/test%,$(wildcard ./src/*.c))
+TEST_OBJS_C     = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter     ./src/test%,$(patsubst %.c,%.o,$(TEST_SRCS_C))))
+TEST_SRCS_CPP   =                                    $(filter     ./src/test%,$(wildcard ./src/*.cpp))
+TEST_OBJS_CPP   = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter     ./src/test%,$(patsubst %.cpp,%.o,$(TEST_SRCS_CPP))))
+TEST_EXES       = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter     ./src/test%,$(patsubst %.c,%.t,$(TEST_SRCS_C)))) \
+                  $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter     ./src/test%,$(patsubst %.cpp,%.t,$(TEST_SRCS_CPP))))
 
 ifneq ($(filter clean,$(MAKECMDGOALS)),)
 else
@@ -88,11 +88,11 @@ all: tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/
 	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|CPUS|KEYS)=(1|4|10000000) to run perf test"
 	@echo "make: built and tested $(BUILD_TYPE) version"
 
-$(BUILD_TYPE)/%.o: %.c $(DEPS_H)
+$(BUILD_TYPE)/%.o: ./src/%.c $(DEPS_H)
 	@echo "make: compiling: $@"
 	@$(CC) -o $@ $< $(CXXFLAGS) $(CFLAGS)
 
-$(BUILD_TYPE)/%.o: %.cpp $(DEPS_H) $(DEPS_HPP)
+$(BUILD_TYPE)/%.o: ./src/%.cpp $(DEPS_H) $(DEPS_HPP)
 	@echo "make: compiling: $@"
 	@$(CC) -o $@ $< $(CXXFLAGS)
 
@@ -123,7 +123,7 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod nodejs ./SharedHashFileDummy.js
 	@echo "make: building and running test: IPC: Unix Domain Socket"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcSocket.* .
-	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I .. TestIpcSocket.c
+	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I ../src TestIpcSocket.c
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket TestIpcSocket.o shf.o murmurhash3.o
 	@cd $(BUILD_TYPE) && ./TestIpcSocket
 	@echo "make: running test: IPC: SharedHashFile Queue"
