@@ -37,20 +37,6 @@
 #include <shf.private.h>
 #include <shf.h>
 
-static void
-exec_nodejs(char * nodejs_argument) {
-    pid_t pid_child = fork(); SHF_ASSERT(pid_child >= 0, "fork(): %d: ", errno);
-
-    if(0 == pid_child) {
-        execl(shf_backticks("which nodejs"), "nodejs", "TestIpcSocket.js", nodejs_argument, NULL);
-        /* should never come here unless error! */
-        SHF_ASSERT(0, "execl(): %d: ", errno);
-   }
-   else {
-        SHF_DEBUG("parent forked nodejs child with pid %u\n", pid_child);
-   }
-} /* exec_nodejs() */
-
 int
 main(int argc, char **argv) {
     pid_t pid = getpid();
@@ -76,7 +62,7 @@ main(int argc, char **argv) {
     int status =   bind(fd, (struct sockaddr*)&addr, sizeof(addr)); SHF_ASSERT(-1 != status,   "bind(): %d: ", errno);
         status = listen(fd, 5                                    ); SHF_ASSERT(-1 != status, "listen(): %d: ", errno);
 
-    exec_nodejs(unix_domain_socket_path);
+    shf_exec_child(shf_backticks("which node || which nodejs"), shf_backticks("which node || which nodejs"), "TestIpcSocket.js", unix_domain_socket_path);
 
     SHF_DEBUG("waiting for nodejs to connect\n");
     int client = accept(fd, NULL, NULL); SHF_ASSERT(-1 != client, "accept(): %d: ", errno);

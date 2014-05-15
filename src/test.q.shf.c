@@ -178,9 +178,9 @@ FINISH_LINE_4C:;
     }
 
     pid_t child_pid = 0;
-    if      (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which nodejs"      ), "nodejs"      , "TestIpcQueue.js", test_shf_name); }
-    else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2py"))) { child_pid = shf_exec_child(shf_backticks("which python"      ), "python"      , "TestIpcQueue.py", test_shf_name); }
-    else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = shf_exec_child(shf_backticks("which test.q.shf.t"), "test.q.shf.t", "4c"             , test_shf_name); }
+    if      (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which node || which nodejs"), shf_backticks("which node || which nodejs"), "TestIpcQueue.js", test_shf_name); }
+    else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2py"))) { child_pid = shf_exec_child(shf_backticks("which python"              ), "python"                                   , "TestIpcQueue.py", test_shf_name); }
+    else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = shf_exec_child(shf_backticks("which test.q.shf.t"        ), "test.q.shf.t"                             , "4c"             , test_shf_name); }
     else                                                           { SHF_ASSERT(0, "ERROR: should never get here!"); }
 
     shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);
