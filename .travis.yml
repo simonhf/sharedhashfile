@@ -4,4 +4,5 @@ compiler:
 before_install:
 - sudo apt-get update
 - sudo apt-get install nodejs
+- sudo apt-get install node-gyp
 script: make release && make
