@@ -4,8 +4,7 @@ SharedHashFile is a lightweight NoSQL key value store / hash table, & a zero-cop
 
 ![Nailed It](src/10m-tps-nailed-it.jpeg?raw=true)
 
-Travis build status:
-image:https://travis-ci.org/simonhf/sharedhashfile.png[Build Status,link=https://travis-ci.org/simonhf/sharedhashfile]
+[![Build Status](https://travis-ci.org/simonhf/sharedhashfile.svg?branch=master)](https://travis-ci.org/simonhf/sharedhashfile)
 
 ## Project Goals
 
