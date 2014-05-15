@@ -110,6 +110,8 @@ $(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
 	@g++ -o $@ $^
 
+NODEJS_EXE = node
+
 $(BUILD_TYPE)/SharedHashFile.node: $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(NODE_SRCS)
 	@echo "make: building: $@"
 ifneq ($(findstring node-gyp,$(NODE_GYP)),)
@@ -118,9 +120,9 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cp ./wrappers/nodejs/build/$(BUILD_TYPE_NODE)/SharedHashFile.node $(BUILD_TYPE)/.
 	@cp ./wrappers/nodejs/SharedHashFile*.js $(BUILD_TYPE)/.
 	@echo "make: running test"
-	@cd $(BUILD_TYPE) && PATH=$$PATH:. NODE_DEBUG=mymod nodejs ./SharedHashFile.js
+	@cd $(BUILD_TYPE) && PATH=$$PATH:. NODE_DEBUG=mymod $(NODEJS_EXE) ./SharedHashFile.js
 	@echo "make: running test: perf test calling dummy C++ functions"
-	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod nodejs ./SharedHashFileDummy.js
+	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod $(NODEJS_EXE) ./SharedHashFileDummy.js
 	@echo "make: building and running test: IPC: Unix Domain Socket"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcSocket.* .
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I ../src TestIpcSocket.c
