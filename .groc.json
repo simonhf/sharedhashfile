@@ -1,0 +1,5 @@
+{
+  "glob": ["README.md", "src/test.*"],
+  "github": true,
+  "repository-url": "https://github.com/simonhf/sharedhashfile"
+}
