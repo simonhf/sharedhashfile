@@ -1,0 +1,371 @@
+<!DOCTYPE html><html lang="en"><head><title>src/test.f.shf</title></head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0"><meta name="groc-relative-root" content="../"><meta name="groc-document-path" content="src/test.f.shf"><meta name="groc-project-path" content="src/test.f.shf.c"><link rel="stylesheet" type="text/css" media="all" href="../assets/style.css"><script type="text/javascript" src="../assets/behavior.js"></script><body><div id="meta"><div class="file-path">src/test.f.shf.c</div></div><div id="document"><div class="segment"><div class="code"><div class="wrapper"><span class="cm">/*</span>
+<span class="cm"> * ============================================================================</span>
+<span class="cm"> * Copyright (c) 2014 Hardy-Francis Enterprises Inc.</span>
+<span class="cm"> * This file is part of SharedHashFile.</span>
+<span class="cm"> *</span>
+<span class="cm"> * SharedHashFile is free software: you can redistribute it and/or modify it</span>
+<span class="cm"> * under the terms of the GNU Affero General Public License as published by</span>
+<span class="cm"> * the Free Software Foundation, either version 3 of the License, or (at your</span>
+<span class="cm"> * option) any later version.</span>
+<span class="cm"> *</span>
+<span class="cm"> * SharedHashFile is distributed in the hope that it will be useful, but</span>
+<span class="cm"> * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY</span>
+<span class="cm"> * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public</span>
+<span class="cm"> * License for more details.</span>
+<span class="cm"> *</span>
+<span class="cm"> * You should have received a copy of the GNU Affero General Public License</span>
+<span class="cm"> * along with this program. If not, see www.gnu.org/licenses/.</span>
+<span class="cm"> * ----------------------------------------------------------------------------</span>
+<span class="cm"> * To use SharedHashFile in a closed-source product, commercial licenses are</span>
+<span class="cm"> * available; email office [@] sharedhashfile [.] com for more information.</span>
+<span class="cm"> * ============================================================================</span>
+<span class="cm"> */</span>
+
+<span class="cp">#define _GNU_SOURCE   </span><span class="cm">/* See feature_test_macros(7) */</span><span class="cp"></span>
+<span class="cp">#include &lt;sys/mman.h&gt; </span><span class="cm">/* for mremap() */</span><span class="cp"></span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><h1 id="includestringhformemcmp">include <string.h>   /* for memcmp() */</h1></div></div><div class="code"><div class="wrapper"><span class="cp">#include &quot;shf.private.h&quot;</span>
+<span class="cp">#include &quot;shf.h&quot;</span>
+
+<span class="cp">#ifdef TEST_LMDB</span>
+
+<span class="cp">#include &quot;lmdb.h&quot;</span>
+
+<span class="cp">#define TEST_WHAT &quot;LMDB aka Lightning MDB&quot;</span>
+
+<span class="cp">#define TEST_INIT() \</span>
+<span class="cp">    pid_t pid = getpid(); \</span>
+<span class="cp">    char test_db_folder[256]   ; SHF_SNPRINTF(1, test_db_folder   , &quot;/dev/shm/test-lmdb-%05u&quot;, pid           ); \</span>
+<span class="cp">    char test_mkdir_folder[256]; SHF_SNPRINTF(1, test_mkdir_folder, &quot;mkdir %s&quot;               , test_db_folder); \</span>
+<span class="cp">    shf_backticks(test_mkdir_folder); \</span>
+<span class="cp">    int rc; \</span>
+<span class="cp">    MDB_env *env; \</span>
+<span class="cp">    MDB_dbi dbi; \</span>
+<span class="cp">    MDB_val lmdb_key, data; \</span>
+<span class="cp">    MDB_txn *txn; \</span>
+<span class="cp">    MDB_cursor *cursor; \</span>
+<span class="cp">    char sval1[32]; \</span>
+<span class="cp">    char sval2[32]; \</span>
+<span class="cp">    rc = mdb_env_create(&amp;env); \</span>
+<span class="cp">         mdb_env_set_mapsize(env, 4096 * 1000000L); \</span>
+<span class="cp">    rc = mdb_env_open(env, test_db_folder, 0, 0664); \</span>
+<span class="cp">    rc = mdb_txn_begin(env, NULL, 0, &amp;txn); \</span>
+<span class="cp">    rc = mdb_open(txn, NULL, 0, &amp;dbi); \</span>
+<span class="cp">    lmdb_key.mv_size = sizeof(uint32_t); \</span>
+<span class="cp">    lmdb_key.mv_data = sval1           ; \</span>
+<span class="cp">    data.mv_size     = sizeof(uint32_t); \</span>
+<span class="cp">    data.mv_data     = sval2           ; \</span>
+<span class="cp">    </span><span class="cm">/* mdb_txn_abort(txn); */</span><span class="cp"> \</span>
+<span class="cp">    rc = mdb_txn_commit(txn); if (rc) { fprintf(stderr, &quot;mdb_txn_commit: (%d) %s\n&quot;, rc, mdb_strerror(rc)); exit(1); } \</span>
+<span class="cp">    mdb_close(env, dbi); \</span>
+<span class="cp">    mdb_env_close(env)</span>
+
+<span class="cp">#define TEST_INIT_CHILD() \</span>
+<span class="cp">    rc = mdb_env_create     (&amp;env                        ); if (rc) { fprintf(stderr, &quot;mdb_env_create(): (%d) %s\n&quot;, rc, mdb_strerror(rc)); exit(1); } \</span>
+<span class="cp">         mdb_env_set_mapsize(env, 4096 * 1000000L        ); \</span>
+<span class="cp">    rc = mdb_env_open       (env, test_db_folder, 0, 0664); if (rc) { fprintf(stderr, &quot;mdb_env_open(): (%d) %s\n&quot;  , rc, mdb_strerror(rc)); exit(1); } \</span>
+<span class="cp">    rc = mdb_txn_begin      (env, NULL, 0, &amp;txn          ); if (rc) { fprintf(stderr, &quot;mdb_txn_begin(): (%d) %s\n&quot; , rc, mdb_strerror(rc)); exit(1); } \</span>
+<span class="cp">    rc = mdb_open           (txn, NULL, 0, &amp;dbi          ); if (rc) { fprintf(stderr, &quot;mdb_open(): (%d) %s\n&quot;      , rc, mdb_strerror(rc)); exit(1); }</span>
+
+<span class="cp">#define TEST_PUT() \</span>
+<span class="cp">    ((uint32_t *)sval1)[0] = key     ; \</span>
+<span class="cp">    ((uint32_t *)sval2)[0] = key + 10; \</span>
+<span class="cp">    if (0 == i % 1000) { \</span>
+<span class="cp">        rc = mdb_txn_commit(txn               ); if (rc) { fprintf(stderr, &quot;mdb_txn_commit: (%d) %s at %d\n&quot;, rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">        rc = mdb_txn_begin (env, NULL, 0, &amp;txn); if (rc) { fprintf(stderr, &quot;mdb_txn_begin: (%d) %s at %d\n&quot; , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">    } \</span>
+<span class="cp">    rc = mdb_put(txn, dbi, &amp;lmdb_key, &amp;data, 0);  if (rc) { fprintf(stderr, &quot;mdb_put: (%d) %s at %d\n&quot; , rc, mdb_strerror(rc), i); exit(1); }</span>
+
+<span class="cp">#define TEST_PUT_POST() \</span>
+<span class="cp">    rc = mdb_txn_commit(txn)</span>
+
+<span class="cp">#define TEST_MIX_PRE()</span>
+
+<span class="cp">#define TEST_MIX() \</span>
+<span class="cp">    if (0 == i % 50) { \</span>
+<span class="cp">        ((uint32_t *)sval1)[0] = key; \</span>
+<span class="cp">        rc = mdb_txn_begin(env, NULL, 0, &amp;txn       ); if (rc) { fprintf(stderr, &quot;mdb_txn_begin(): (%d) %s at %d\n&quot; , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">        rc = mdb_del      (txn, dbi, &amp;lmdb_key, NULL); if (MDB_NOTFOUND == rc) { printf(&quot;ERROR: process #%u: key %u; MDB_NOTFOUND (1a)\n&quot;, process, key); exit(1); } \</span>
+<span class="cp">        ((uint32_t *)sval1)[0] = key     ; \</span>
+<span class="cp">        ((uint32_t *)sval2)[0] = key + 10; \</span>
+<span class="cp">        </span><span class="cm">/* need to re-init these after del or corruption occurs */</span><span class="cp"> \</span>
+<span class="cp">        lmdb_key.mv_size = sizeof(uint32_t); \</span>
+<span class="cp">        lmdb_key.mv_data = sval1           ; \</span>
+<span class="cp">        data.mv_size     = sizeof(uint32_t); \</span>
+<span class="cp">        data.mv_data     = sval2           ; \</span>
+<span class="cp">        rc = mdb_put       (txn, dbi, &amp;lmdb_key, &amp;data, 0); if (rc) { fprintf(stderr, &quot;mdb_put(): (%d) %s at %d\n&quot;       , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">        rc = mdb_txn_commit(txn                          ); if (rc) { fprintf(stderr, &quot;mdb_txn_commit(): (%d) %s at %d\n&quot;, rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">    } \</span>
+<span class="cp">    else { \</span>
+<span class="cp">        ((uint32_t *)sval1)[0] = key; \</span>
+<span class="cp">        rc = mdb_txn_begin (env, NULL, MDB_RDONLY, &amp;txn); if (rc) { fprintf(stderr, &quot;mdb_txn_begin(): (%d) %s at %d\n&quot; , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">        rc = mdb_get       (txn, dbi, &amp;lmdb_key, &amp;data ); if (rc) { fprintf(stderr, &quot;mdb_get(): (%d) %s at %d\n&quot;       , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">        rc = mdb_txn_commit(txn                        ); if (rc) { fprintf(stderr, &quot;mdb_txn_commit(): (%d) %s at %d\n&quot;, rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">        if (MDB_NOTFOUND == rc) { printf(&quot;ERROR: process #%u: key %u; MDB_NOTFOUND (1b)\n&quot;, process, key); exit(1); } \</span>
+<span class="cp">        if (((uint32_t *)lmdb_key.mv_data)[0] != key) { printf(&quot;ERROR: process #%u: key i=%u not returned; got %u instead (1)\n&quot;, process, key, ((uint32_t *)lmdb_key.mv_data)[0]); exit(1); } \</span>
+<span class="cp">        if (((uint32_t *)data.mv_data)[0] != key + 10) { printf(&quot;ERROR: process #%u: data i=%u not returned; got %u instead (1)\n&quot;, process, key + 10, ((uint32_t *)data.mv_data)[0]); exit(1); } \</span>
+<span class="cp">    } \</span>
+<span class="cp">    mix_counts[process] ++;</span>
+
+<span class="cp">#define TEST_MIX_POST()</span>
+
+<span class="cp">#define TEST_GET_PRE()</span>
+
+<span class="cp">#define TEST_GET() \</span>
+<span class="cp">    ((uint32_t *)sval1)[0] = key; \</span>
+<span class="cp">    rc = mdb_txn_begin (env, NULL, MDB_RDONLY, &amp;txn); if (rc) { fprintf(stderr, &quot;mdb_txn_begin(): (%d) %s at %d\n&quot; , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">    rc = mdb_get       (txn, dbi, &amp;lmdb_key, &amp;data ); if (rc) { fprintf(stderr, &quot;mdb_get(): (%d) %s at %d\n&quot;       , rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">    rc = mdb_txn_commit(txn                        ); if (rc) { fprintf(stderr, &quot;mdb_txn_commit(): (%d) %s at %d\n&quot;, rc, mdb_strerror(rc), i); exit(1); } \</span>
+<span class="cp">    if (MDB_NOTFOUND == rc) { printf(&quot;ERROR: process #%u: key %u; MDB_NOTFOUND (2)\n&quot;, process, key); exit(1); } \</span>
+<span class="cp">    if (((uint32_t *)lmdb_key.mv_data)[0] != key     ) { printf(&quot;ERROR: process #%u: key i=%u not returned; got %u instead (2)\n&quot; , process, key     , ((uint32_t *)lmdb_key.mv_data)[0]); exit(1); } \</span>
+<span class="cp">    if (((uint32_t *)data.mv_data)[0]     != key + 10) { printf(&quot;ERROR: process #%u: data i=%u not returned; got %u instead (2)\n&quot;, process, key + 10, ((uint32_t *)data.mv_data)[0]    ); exit(1); } \</span>
+<span class="cp">    get_counts[process] ++;</span>
+
+<span class="cp">#define TEST_GET_POST()</span>
+
+<span class="cp">#define TEST_FINI()</span>
+
+<span class="cp">#define TEST_FINI_MASTER() \</span>
+<span class="cp">    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, &quot;du -h -d 0 %s;  rm -rf %s&quot;, test_db_folder, test_db_folder); \</span>
+<span class="cp">    fprintf(stderr, &quot;test: DB size before deletion: %s\n&quot;, shf_backticks(test_du_folder));</span>
+
+<span class="cp">#else</span>
+
+<span class="cp">#define TEST_SHF 1</span>
+
+<span class="cp">#define TEST_WHAT &quot;SharedHashFile&quot;</span>
+
+<span class="cp">#define TEST_INIT() \</span>
+<span class="cp">    char  test_db_name[256]; \</span>
+<span class="cp">    char  test_db_folder[] = &quot;/dev/shm&quot;; \</span>
+<span class="cp">    pid_t pid              = getpid(); \</span>
+<span class="cp">    SHF_SNPRINTF(1, test_db_name, &quot;test-shf-%05u&quot;, pid); \</span>
+<span class="cp">                shf_init  (); \</span>
+<span class="cp">    SHF * shf = shf_attach(test_db_folder, test_db_name, 1 </span><span class="cm">/* delete upon process exit */</span><span class="cp">); \</span>
+<span class="cp">                shf_set_data_need_factor(250)</span>
+
+<span class="cp">#define TEST_INIT_CHILD() \</span>
+<span class="cp">    shf_debug_verbosity_less(); \</span>
+<span class="cp">    shf = shf_attach_existing(test_db_folder, test_db_name)</span>
+
+<span class="cp">#define TEST_PUT() \</span>
+<span class="cp">    shf_make_hash       (SHF_CAST(const char *, &amp;key), sizeof(key)); \</span>
+<span class="cp">    shf_put_key_val(shf, SHF_CAST(const char *, &amp;key), sizeof(key))</span>
+
+<span class="cp">#define TEST_PUT_POST()</span>
+
+<span class="cp">#define TEST_MIX_PRE()</span>
+
+<span class="cp">#define TEST_MIX() \</span>
+<span class="cp">    shf_make_hash(SHF_CAST(const char *, &amp;key), sizeof(key)); \</span>
+<span class="cp">    if (0 == i % 50) { \</span>
+<span class="cp">        shf_del_key_val(shf); \</span>
+<span class="cp">        shf_put_key_val(shf, SHF_CAST(const char *, &amp;key), sizeof(key)); \</span>
+<span class="cp">        mix_counts[process] ++; \</span>
+<span class="cp">    } \</span>
+<span class="cp">    else { \</span>
+<span class="cp">        mix_counts[process] += shf_get_key_val_copy(shf); \</span>
+<span class="cp">    }</span>
+
+<span class="cp">#define TEST_MIX_POST()</span>
+
+<span class="cp">#define TEST_GET_PRE()</span>
+
+<span class="cp">#define TEST_GET() \</span>
+<span class="cp">    shf_make_hash(SHF_CAST(const char *, &amp;key), sizeof(key)); \</span>
+<span class="cp">    get_counts[process] += shf_get_key_val_copy(shf)</span>
+
+<span class="cp">#define TEST_GET_POST()</span>
+
+<span class="cp">#define TEST_FINI() \</span>
+<span class="cp">    shf_detach(shf);</span>
+
+<span class="cp">#define TEST_FINI_MASTER() \</span>
+<span class="cp">    fprintf(stderr, &quot;test: DB size before deletion: %s\n&quot;, shf_del(shf));</span>
+
+<span class="cp">#endif</span>
+
+<span class="k">static</span> <span class="kt">uint32_t</span>
+<span class="nf">test_get_cpu_count</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">long</span> <span class="n">cpu_count</span>     <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="kt">long</span> <span class="n">cpu_count_max</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+<span class="cp">#ifndef _SC_NPROCESSORS_ONLN</span>
+    <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;Cannot count CPUs; sysconf(_SC_NPROCESSORS_ONLN) not available</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="cp">#endif</span>
+    <span class="n">cpu_count</span>     <span class="o">=</span> <span class="n">sysconf</span><span class="p">(</span><span class="n">_SC_NPROCESSORS_ONLN</span><span class="p">);</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">cpu_count</span>     <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;%ld=sysconf(_SC_NPROCESSORS_ONLN): %u:  &quot;</span><span class="p">,</span> <span class="n">cpu_count</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="n">cpu_count_max</span> <span class="o">=</span> <span class="n">sysconf</span><span class="p">(</span><span class="n">_SC_NPROCESSORS_CONF</span><span class="p">);</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">cpu_count_max</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;%ld=sysconf(_SC_NPROCESSORS_CONF): %u:  &quot;</span><span class="p">,</span> <span class="n">cpu_count</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="n">SHF_DEBUG</span><span class="p">(</span><span class="s">&quot;- %ld of %ld CPUs available</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">cpu_count</span><span class="p">,</span> <span class="n">cpu_count_max</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">cpu_count</span><span class="p">;</span>
+<span class="p">}</span> <span class="cm">/* test_get_cpu_count() */</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;SHF_PERFORMANCE_TEST_ENABLE&quot;</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="n">atoi</span><span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;SHF_PERFORMANCE_TEST_ENABLE&quot;</span><span class="p">)))</span> <span class="p">{</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="p">{</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;NOTE: prefix make with SHF_PERFORMANCE_TEST_ENABLE=1 ?</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+        <span class="k">goto</span> <span class="n">EARLY_EXIT</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kt">uint32_t</span> <span class="n">cpu_count_desired</span> <span class="o">=</span> <span class="n">getenv</span><span class="p">(</span><span class="s">&quot;SHF_PERFORMANCE_TEST_CPUS&quot;</span><span class="p">)</span> <span class="o">?</span> <span class="n">atoi</span><span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;SHF_PERFORMANCE_TEST_CPUS&quot;</span><span class="p">))</span> <span class="o">:</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">test_keys_desired</span> <span class="o">=</span> <span class="n">getenv</span><span class="p">(</span><span class="s">&quot;SHF_PERFORMANCE_TEST_KEYS&quot;</span><span class="p">)</span> <span class="o">?</span> <span class="n">atoi</span><span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;SHF_PERFORMANCE_TEST_KEYS&quot;</span><span class="p">))</span> <span class="o">:</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="n">TEST_INIT</span><span class="p">();</span>
+
+<span class="cp">#define TEST_MAX_PROCESSES (16)</span>
+
+<span class="cp">#ifdef TEST_LMDB</span>
+             <span class="kt">uint32_t</span>   <span class="n">test_keys_default</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="mi">1000000</span><span class="p">;</span> <span class="cm">/* assume enough RAM is available for LMDB */</span>
+<span class="cp">#else</span>
+             <span class="kt">uint64_t</span>   <span class="n">vfs_available_md</span>  <span class="o">=</span> <span class="n">shf_get_vfs_available</span><span class="p">(</span><span class="n">shf</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">/</span> <span class="mi">1024</span><span class="p">;</span>
+             <span class="kt">uint32_t</span>   <span class="n">test_keys_10m</span>     <span class="o">=</span> <span class="n">vfs_available_md</span> <span class="o">/</span> <span class="mi">436</span> <span class="o">*</span> <span class="mi">10</span><span class="p">;</span> <span class="cm">/* 10M keys is about 436MB */</span>
+             <span class="kt">uint32_t</span>   <span class="n">test_keys_default</span> <span class="o">=</span> <span class="n">test_keys_10m</span> <span class="o">&gt;</span> <span class="mi">100</span> <span class="o">?</span> <span class="mi">100</span> <span class="o">*</span> <span class="mi">1000000</span> <span class="o">:</span> <span class="n">test_keys_10m</span> <span class="o">*</span> <span class="mi">1000000</span><span class="p">;</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">test_keys_default</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ERROR: only %luMB available on /dev/shm but 10M keys takes at least 436MB for SharedHashFile&quot;</span><span class="p">,</span> <span class="n">vfs_available_md</span><span class="p">);</span>
+<span class="cp">#endif</span>
+             <span class="kt">uint32_t</span>   <span class="n">test_keys</span>         <span class="o">=</span> <span class="n">test_keys_desired</span> <span class="o">?</span> <span class="n">test_keys_desired</span> <span class="o">:</span> <span class="n">test_keys_default</span><span class="p">;</span>
+             <span class="kt">uint32_t</span>   <span class="n">cpu_count</span>         <span class="o">=</span> <span class="n">cpu_count_desired</span> <span class="o">?</span> <span class="n">cpu_count_desired</span> <span class="o">:</span> <span class="n">test_get_cpu_count</span><span class="p">();</span>
+             <span class="kt">uint32_t</span>   <span class="n">process</span><span class="p">;</span>
+             <span class="kt">uint32_t</span>   <span class="n">processes</span> <span class="o">=</span> <span class="n">cpu_count</span> <span class="o">&gt;</span> <span class="n">TEST_MAX_PROCESSES</span> <span class="o">?</span> <span class="n">TEST_MAX_PROCESSES</span> <span class="o">:</span> <span class="n">cpu_count</span><span class="p">;</span>
+             <span class="kt">uint32_t</span>   <span class="n">counts_old</span><span class="p">[</span><span class="n">TEST_MAX_PROCESSES</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">0</span> <span class="p">};</span>
+    <span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="o">*</span> <span class="n">put_counts</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">SHF_MOD_PAGE</span><span class="p">(</span><span class="n">TEST_MAX_PROCESSES</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)),</span> <span class="n">PROT_READ</span><span class="o">|</span><span class="n">PROT_WRITE</span><span class="p">,</span> <span class="n">MAP_ANONYMOUS</span> <span class="o">|</span> <span class="n">MAP_SHARED</span> <span class="o">|</span> <span class="n">MAP_NORESERVE</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">MAP_FAILED</span> <span class="o">!=</span> <span class="n">put_counts</span><span class="p">,</span> <span class="s">&quot;mmap(): %u: &quot;</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="o">*</span> <span class="n">get_counts</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">SHF_MOD_PAGE</span><span class="p">(</span><span class="n">TEST_MAX_PROCESSES</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)),</span> <span class="n">PROT_READ</span><span class="o">|</span><span class="n">PROT_WRITE</span><span class="p">,</span> <span class="n">MAP_ANONYMOUS</span> <span class="o">|</span> <span class="n">MAP_SHARED</span> <span class="o">|</span> <span class="n">MAP_NORESERVE</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">MAP_FAILED</span> <span class="o">!=</span> <span class="n">get_counts</span><span class="p">,</span> <span class="s">&quot;mmap(): %u: &quot;</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="o">*</span> <span class="n">mix_counts</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">SHF_MOD_PAGE</span><span class="p">(</span><span class="n">TEST_MAX_PROCESSES</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)),</span> <span class="n">PROT_READ</span><span class="o">|</span><span class="n">PROT_WRITE</span><span class="p">,</span> <span class="n">MAP_ANONYMOUS</span> <span class="o">|</span> <span class="n">MAP_SHARED</span> <span class="o">|</span> <span class="n">MAP_NORESERVE</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">MAP_FAILED</span> <span class="o">!=</span> <span class="n">mix_counts</span><span class="p">,</span> <span class="s">&quot;mmap(): %u: &quot;</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="k">volatile</span> <span class="kt">uint64_t</span> <span class="o">*</span> <span class="n">start_line</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">SHF_MOD_PAGE</span><span class="p">(</span>                 <span class="mi">3</span><span class="o">*</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint64_t</span><span class="p">)),</span> <span class="n">PROT_READ</span><span class="o">|</span><span class="n">PROT_WRITE</span><span class="p">,</span> <span class="n">MAP_ANONYMOUS</span> <span class="o">|</span> <span class="n">MAP_SHARED</span> <span class="o">|</span> <span class="n">MAP_NORESERVE</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="n">MAP_FAILED</span> <span class="o">!=</span> <span class="n">mix_counts</span><span class="p">,</span> <span class="s">&quot;mmap(): %u: &quot;</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="n">SHF_ASSERT</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint64_t</span><span class="p">)</span> <span class="o">==</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">long</span><span class="p">),</span> <span class="s">&quot;INTERNAL: expected sizeof(uint64_t) == sizeof(long), but got %lu == %lu&quot;</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">uint64_t</span><span class="p">),</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">long</span><span class="p">));</span>
+    <span class="n">start_line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">start_line</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">start_line</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">process</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">process</span> <span class="o">&lt;</span> <span class="n">processes</span><span class="p">;</span> <span class="n">process</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kt">pid_t</span> <span class="n">fork_pid</span> <span class="o">=</span> <span class="n">fork</span><span class="p">();</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">fork_pid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>     <span class="cm">/*child*/</span>
+            <span class="n">SHF_DEBUG</span><span class="p">(</span><span class="s">&quot;test process #%u with pid %5u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">process</span><span class="p">,</span> <span class="n">getpid</span><span class="p">());</span>
+            <span class="p">{</span>
+                <span class="kt">long</span> <span class="n">previous_long_value</span><span class="p">;</span>
+                <span class="n">SHF_UNUSE</span><span class="p">(</span><span class="n">previous_long_value</span><span class="p">);</span>
+
+                <span class="n">previous_long_value</span> <span class="o">=</span> <span class="n">InterlockedExchangeAdd</span><span class="p">((</span><span class="kt">long</span> <span class="k">volatile</span> <span class="o">*</span><span class="p">)</span> <span class="o">&amp;</span><span class="n">start_line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">);</span>
+                <span class="k">while</span> <span class="p">(</span><span class="n">processes</span> <span class="o">!=</span> <span class="n">start_line</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="p">{</span> <span class="n">SHF_YIELD</span><span class="p">();</span> <span class="p">}</span>
+                <span class="n">TEST_INIT_CHILD</span><span class="p">();</span>
+                <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">test_keys</span> <span class="o">/</span> <span class="n">processes</span><span class="p">));</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="kt">uint32_t</span> <span class="n">key</span> <span class="o">=</span> <span class="n">test_keys</span> <span class="o">/</span> <span class="n">processes</span> <span class="o">*</span> <span class="n">process</span> <span class="o">+</span> <span class="n">i</span><span class="p">;</span>
+                    <span class="n">put_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">++</span><span class="p">;</span>
+                    <span class="n">TEST_PUT</span><span class="p">();</span>
+                <span class="p">}</span>
+                <span class="n">TEST_PUT_POST</span><span class="p">();</span>
+                <span class="n">TEST_MIX_PRE</span><span class="p">();</span>
+                <span class="n">usleep</span><span class="p">(</span><span class="mi">2000000</span><span class="p">);</span> <span class="cm">/* 2 seconds */</span>
+                <span class="n">previous_long_value</span> <span class="o">=</span> <span class="n">InterlockedExchangeAdd</span><span class="p">((</span><span class="kt">long</span> <span class="k">volatile</span> <span class="o">*</span><span class="p">)</span> <span class="o">&amp;</span><span class="n">start_line</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">);</span>
+                <span class="k">while</span> <span class="p">(</span><span class="n">processes</span> <span class="o">!=</span> <span class="n">start_line</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="p">{</span> <span class="n">SHF_YIELD</span><span class="p">();</span> <span class="p">}</span>
+                <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">test_keys</span> <span class="o">/</span> <span class="n">processes</span><span class="p">));</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="kt">uint32_t</span> <span class="n">key</span> <span class="o">=</span> <span class="n">test_keys</span> <span class="o">/</span> <span class="n">processes</span> <span class="o">*</span> <span class="n">process</span> <span class="o">+</span> <span class="n">i</span><span class="p">;</span>
+                    <span class="n">TEST_MIX</span><span class="p">();</span>
+                <span class="p">}</span>
+                <span class="n">TEST_MIX_POST</span><span class="p">();</span>
+                <span class="n">TEST_GET_PRE</span><span class="p">();</span>
+                <span class="n">usleep</span><span class="p">(</span><span class="mi">2000000</span><span class="p">);</span> <span class="cm">/* 2 seconds */</span>
+                <span class="n">previous_long_value</span> <span class="o">=</span> <span class="n">InterlockedExchangeAdd</span><span class="p">((</span><span class="kt">long</span> <span class="k">volatile</span> <span class="o">*</span><span class="p">)</span> <span class="o">&amp;</span><span class="n">start_line</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">);</span>
+                <span class="k">while</span> <span class="p">(</span><span class="n">processes</span> <span class="o">!=</span> <span class="n">start_line</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="p">{</span> <span class="n">SHF_YIELD</span><span class="p">();</span> <span class="p">}</span>
+                <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">test_keys</span> <span class="o">/</span> <span class="n">processes</span><span class="p">));</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="kt">uint32_t</span> <span class="n">key</span> <span class="o">=</span> <span class="n">test_keys</span> <span class="o">/</span> <span class="n">processes</span> <span class="o">*</span> <span class="n">process</span> <span class="o">+</span> <span class="n">i</span><span class="p">;</span>
+                    <span class="n">TEST_GET</span><span class="p">();</span>
+                <span class="p">}</span>
+                <span class="n">TEST_GET_POST</span><span class="p">();</span>
+                <span class="n">TEST_FINI</span><span class="p">();</span>
+                <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">break</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">fork_pid</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> <span class="cm">/*parent*/</span>
+            <span class="cm">/* loop again */</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* parent monitors &amp; reports on forked children */</span>
+    <span class="kt">uint32_t</span> <span class="n">seconds</span>            <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">key_total</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">key_total_old</span>      <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">tabs_mmaps_old</span>     <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">tabs_mremaps_old</span>   <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">tabs_shrunk_old</span>    <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">tabs_parted_old</span>    <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">message</span>            <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">message_text</span> <span class="o">=</span> <span class="s">&quot;PUT&quot;</span><span class="p">;</span>
+<span class="cp">#ifdef SHF_DEBUG_VERSION</span>
+    <span class="kt">uint64_t</span> <span class="n">lock_conflicts_old</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="cp">#endif</span>
+    <span class="kt">char</span> <span class="n">graph_100</span><span class="p">[]</span> <span class="o">=</span> <span class="s">&quot;----------------------------------------------------------------------------------------------------&quot;</span><span class="p">;</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;perf testing: &quot;</span> <span class="n">TEST_WHAT</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;running tests on: via command: &#39;%s&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>               <span class="s">&quot;cat /proc/cpuinfo | egrep &#39;model name&#39; | head -n 1&quot;</span> <span class="p">);</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;running tests on: `%s`</span><span class="se">\n</span><span class="s">&quot;</span>             <span class="p">,</span> <span class="n">shf_backticks</span><span class="p">(</span><span class="s">&quot;cat /proc/cpuinfo | egrep &#39;model name&#39; | head -n 1&quot;</span><span class="p">));</span>
+    <span class="k">do</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="mi">0</span> <span class="o">==</span> <span class="n">seconds</span> <span class="o">%</span> <span class="mi">50</span><span class="p">)</span> <span class="p">{</span>
+<span class="cp">#ifdef SHF_DEBUG_VERSION</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;-LOCKC &quot;</span><span class="p">);</span>
+<span class="cp">#endif</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="cp">#ifdef SHF_DEBUG_VERSION</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;------ &quot;</span><span class="p">);</span>
+<span class="cp">#endif</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="n">seconds</span> <span class="o">++</span><span class="p">;</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>todo: add % system CPU time to per second summary line; why does put require so much system?</p></div></div><div class="code"><div class="wrapper"><span class="cp">#ifdef SHF_DEBUG_VERSION</span>
+        <span class="p">{</span>
+            <span class="kt">uint64_t</span> <span class="n">lock_conflicts</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">win</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">win</span> <span class="o">&lt;</span> <span class="n">SHF_WINS_PER_SHF</span><span class="p">;</span> <span class="n">win</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">lock_conflicts</span> <span class="o">+=</span> <span class="n">shf</span><span class="o">-&gt;</span><span class="n">shf_mmap</span><span class="o">-&gt;</span><span class="n">wins</span><span class="p">[</span><span class="n">win</span><span class="p">].</span><span class="n">lock</span><span class="p">.</span><span class="n">conflicts</span><span class="p">;</span>
+            <span class="p">}</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;%6lu &quot;</span><span class="p">,</span> <span class="n">lock_conflicts</span> <span class="o">-</span> <span class="n">lock_conflicts_old</span><span class="p">);</span>
+            <span class="n">lock_conflicts_old</span> <span class="o">=</span> <span class="n">lock_conflicts</span><span class="p">;</span>
+        <span class="p">}</span>
+<span class="cp">#endif</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;%s&quot;</span><span class="p">,</span> <span class="n">message_text</span><span class="p">);</span>
+        <span class="p">{</span>
+            <span class="kt">uint64_t</span> <span class="n">tabs_mmaps</span>   <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="kt">uint64_t</span> <span class="n">tabs_mremaps</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="kt">uint64_t</span> <span class="n">tabs_shrunk</span>  <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="kt">uint64_t</span> <span class="n">tabs_parted</span>  <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="cp">#ifdef TEST_SHF</span>
+            <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">win</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">win</span> <span class="o">&lt;</span> <span class="n">SHF_WINS_PER_SHF</span><span class="p">;</span> <span class="n">win</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">tabs_mmaps</span>   <span class="o">+=</span> <span class="n">shf</span><span class="o">-&gt;</span><span class="n">shf_mmap</span><span class="o">-&gt;</span><span class="n">wins</span><span class="p">[</span><span class="n">win</span><span class="p">].</span><span class="n">tabs_mmaps</span>  <span class="p">;</span>
+                <span class="n">tabs_mremaps</span> <span class="o">+=</span> <span class="n">shf</span><span class="o">-&gt;</span><span class="n">shf_mmap</span><span class="o">-&gt;</span><span class="n">wins</span><span class="p">[</span><span class="n">win</span><span class="p">].</span><span class="n">tabs_mremaps</span><span class="p">;</span>
+                <span class="n">tabs_shrunk</span>  <span class="o">+=</span> <span class="n">shf</span><span class="o">-&gt;</span><span class="n">shf_mmap</span><span class="o">-&gt;</span><span class="n">wins</span><span class="p">[</span><span class="n">win</span><span class="p">].</span><span class="n">tabs_shrunk</span> <span class="p">;</span>
+                <span class="n">tabs_parted</span>  <span class="o">+=</span> <span class="n">shf</span><span class="o">-&gt;</span><span class="n">shf_mmap</span><span class="o">-&gt;</span><span class="n">wins</span><span class="p">[</span><span class="n">win</span><span class="p">].</span><span class="n">tabs_parted</span> <span class="p">;</span>
+            <span class="p">}</span>
+<span class="cp">#endif</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;%5.1f %5.1f %4lu %4lu&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">tabs_mmaps</span>   <span class="o">-</span> <span class="n">tabs_mmaps_old</span>  <span class="p">)</span> <span class="o">/</span> <span class="mf">1000.0</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">tabs_mremaps</span> <span class="o">-</span> <span class="n">tabs_mremaps_old</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1000.0</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">tabs_shrunk</span>  <span class="o">-</span> <span class="n">tabs_shrunk_old</span> <span class="p">)</span>         <span class="p">,</span>
+                <span class="p">(</span><span class="n">tabs_parted</span>  <span class="o">-</span> <span class="n">tabs_parted_old</span> <span class="p">)</span>         <span class="p">);</span>
+            <span class="n">tabs_mmaps_old</span>   <span class="o">=</span> <span class="n">tabs_mmaps</span>  <span class="p">;</span>
+            <span class="n">tabs_mremaps_old</span> <span class="o">=</span> <span class="n">tabs_mremaps</span><span class="p">;</span>
+            <span class="n">tabs_shrunk_old</span>  <span class="o">=</span> <span class="n">tabs_shrunk</span> <span class="p">;</span>
+            <span class="n">tabs_parted_old</span>  <span class="o">=</span> <span class="n">tabs_parted</span> <span class="p">;</span>
+        <span class="p">}</span>
+        <span class="p">{</span>
+            <span class="n">key_total</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="kt">uint32_t</span> <span class="n">key_total_this_second</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">process</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">process</span> <span class="o">&lt;</span> <span class="n">TEST_MAX_PROCESSES</span><span class="p">;</span> <span class="n">process</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">key_total</span>             <span class="o">+=</span> <span class="n">put_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">get_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">mix_counts</span><span class="p">[</span><span class="n">process</span><span class="p">];</span>
+                <span class="n">key_total_this_second</span> <span class="o">+=</span> <span class="n">put_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">get_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">mix_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">-</span> <span class="n">counts_old</span><span class="p">[</span><span class="n">process</span><span class="p">];</span>
+            <span class="p">}</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot; %5.1f&quot;</span><span class="p">,</span> <span class="n">key_total</span> <span class="o">/</span> <span class="mf">1000.0</span> <span class="o">/</span> <span class="mf">1000.0</span><span class="p">);</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">process</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">process</span> <span class="o">&lt;</span> <span class="n">TEST_MAX_PROCESSES</span><span class="p">;</span> <span class="n">process</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;%3.0f&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">put_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">get_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">mix_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">-</span> <span class="n">counts_old</span><span class="p">[</span><span class="n">process</span><span class="p">])</span> <span class="o">*</span> <span class="mf">100.0</span> <span class="o">/</span> <span class="p">(</span><span class="mi">0</span> <span class="o">==</span> <span class="n">key_total_this_second</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="n">key_total_this_second</span><span class="p">));</span>
+                <span class="n">counts_old</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">=</span> <span class="n">put_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">get_counts</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">+</span> <span class="n">mix_counts</span><span class="p">[</span><span class="n">process</span><span class="p">];</span>
+            <span class="p">}</span>
+            <span class="kt">uint32_t</span> <span class="n">key_total_per_second</span> <span class="o">=</span> <span class="n">key_total</span> <span class="o">-</span> <span class="n">key_total_old</span><span class="p">;</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;%5.1f %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">key_total_per_second</span> <span class="o">/</span> <span class="mf">1000.0</span> <span class="o">/</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">graph_100</span><span class="p">[</span><span class="mi">100</span> <span class="o">-</span> <span class="p">(</span><span class="n">key_total_per_second</span> <span class="o">/</span> <span class="mi">750000</span><span class="p">)]);</span>
+            <span class="k">if</span>      <span class="p">(</span><span class="mi">0</span> <span class="o">==</span> <span class="n">message</span> <span class="o">&amp;&amp;</span> <span class="n">key_total</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="n">test_keys</span><span class="p">))</span> <span class="p">{</span> <span class="n">message</span> <span class="o">++</span><span class="p">;</span> <span class="n">message_text</span> <span class="o">=</span> <span class="s">&quot;MIX&quot;</span><span class="p">;</span> <span class="p">}</span>
+            <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="mi">1</span> <span class="o">==</span> <span class="n">message</span> <span class="o">&amp;&amp;</span> <span class="n">key_total</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">test_keys</span><span class="p">))</span> <span class="p">{</span> <span class="n">message</span> <span class="o">++</span><span class="p">;</span> <span class="n">message_text</span> <span class="o">=</span> <span class="s">&quot;GET&quot;</span><span class="p">;</span> <span class="p">}</span>
+            <span class="n">key_total_old</span> <span class="o">=</span> <span class="n">key_total</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">usleep</span><span class="p">(</span><span class="mi">1000000</span><span class="p">);</span> <span class="cm">/* one second */</span>
+    <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="n">key_total</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">test_keys</span><span class="p">));</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;* MIX is 2%% (%u) del/put, 98%% (%u) get</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">test_keys</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">/</span> <span class="mi">100</span><span class="p">,</span> <span class="n">test_keys</span> <span class="o">*</span> <span class="mi">98</span> <span class="o">/</span> <span class="mi">100</span><span class="p">);</span>
+
+    <span class="n">TEST_FINI_MASTER</span><span class="p">();</span>
+
+<span class="nl">EARLY_EXIT:</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span> <span class="cm">/* main() */</span></div></div></div></div></body></html>

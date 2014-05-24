@@ -1,0 +1,274 @@
+<!DOCTYPE html><html lang="en"><head><title>src/test.1.tap</title></head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0"><meta name="groc-relative-root" content="../"><meta name="groc-document-path" content="src/test.1.tap"><meta name="groc-project-path" content="src/test.1.tap.c"><link rel="stylesheet" type="text/css" media="all" href="../assets/style.css"><script type="text/javascript" src="../assets/behavior.js"></script><body><div id="meta"><div class="file-path">src/test.1.tap.c</div></div><div id="document"><div class="segment"><div class="code"><div class="wrapper"><span class="cm">/* We use the fact that pipes have a buffer greater than the size of</span>
+<span class="cm"> * any output, and change stdout and stderr to use that.</span>
+<span class="cm"> *</span>
+<span class="cm"> * Since we don&#39;t use libtap for output, this looks like one big test.</span>
+<span class="cm"> */</span>
+<span class="cp">#include &quot;tap.h&quot;</span>
+
+<span class="cp">#include &lt;fcntl.h&gt;</span>
+<span class="cp">#include &lt;stdio.h&gt;</span>
+<span class="cp">#include &lt;stdarg.h&gt;</span>
+<span class="cp">#include &lt;string.h&gt;</span>
+<span class="cp">#include &lt;stdlib.h&gt;</span>
+<span class="cp">#include &lt;sys/types.h&gt;</span>
+<span class="cp">#include &lt;limits.h&gt;</span>
+
+<span class="cm">/* Provide the things Windows doesn&#39;t have.</span>
+<span class="cm"> */</span>
+<span class="cp">#ifdef WINDOWS_NT</span>
+<span class="cp">#include &lt;io.h&gt;</span>
+<span class="cp">#include &lt;BaseTsd.h&gt;</span>
+<span class="cp">#define false          0</span>
+<span class="cp">#define true           1</span>
+<span class="cp">#define PIPE_BUF       4096</span>
+<span class="cp">#ifdef MAKE_MINGW</span>
+<span class="cp">#else</span>
+<span class="cp">#define STDERR_FILENO  fileno(stderr)</span>
+<span class="cp">#define STDOUT_FILENO  fileno(stdout)</span>
+<span class="cp">#endif</span>
+<span class="cp">#define err(eval, ...) {fprintf(stderr, &quot;test.1.tap.t: &quot; __VA_ARGS__); fprintf(stderr, &quot;: %s&quot;, strerror(errno)); exit(eval);}</span>
+<span class="cp">#define pipe(phandles) _pipe((phandles), PIPE_BUF, _O_BINARY)</span>
+<span class="cp">#define snprintf       _snprintf</span>
+<span class="k">typedef</span> <span class="n">SSIZE_T</span>        <span class="kt">ssize_t</span><span class="p">;</span>
+
+<span class="cm">/* Under UNIX, just get them from the OS headers.</span>
+<span class="cm"> */</span>
+<span class="cp">#else</span>
+<span class="cp">#include &lt;err.h&gt;</span>
+<span class="cp">#include &lt;fnmatch.h&gt;</span>
+<span class="cp">#include &lt;stdbool.h&gt;</span>
+<span class="cp">#include &lt;unistd.h&gt;</span>
+<span class="cp">#endif</span>
+
+<span class="k">static</span> <span class="kt">int</span> <span class="n">stderrfd</span><span class="p">;</span>    <span class="cm">/* We dup stderr to here. */</span>
+
+<span class="cm">/* Emulate Unix functions under Windows.</span>
+<span class="cm"> */</span>
+<span class="cp">#ifdef WINDOWS_NT</span>
+
+<span class="k">static</span> <span class="kt">int</span>
+<span class="nf">fnmatch</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">pattern</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">buffer</span><span class="p">,</span> <span class="kt">int</span> <span class="n">unused</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">char</span> <span class="o">*</span> <span class="n">star</span><span class="p">;</span>
+    <span class="kt">int</span>    <span class="n">len</span><span class="p">;</span>
+
+    <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">unused</span><span class="p">;</span>
+
+    <span class="cm">/* If there is a leading subpattern.</span>
+<span class="cm">     */</span>
+    <span class="k">if</span> <span class="p">((</span><span class="n">star</span> <span class="o">=</span> <span class="n">strchr</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="sc">&#39;*&#39;</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">len</span> <span class="o">=</span> <span class="n">star</span> <span class="o">-</span> <span class="n">pattern</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">strncmp</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">len</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="n">pattern</span> <span class="o">+=</span> <span class="n">len</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="n">buffer</span>  <span class="o">+=</span> <span class="n">len</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* If the star matches anything, skip it.</span>
+<span class="cm">     */</span>
+    <span class="k">if</span> <span class="p">((</span><span class="n">len</span> <span class="o">=</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="o">-</span> <span class="n">strlen</span><span class="p">(</span><span class="n">pattern</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">buffer</span> <span class="o">+=</span> <span class="n">len</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">strcmp</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">pattern</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="cp">#endif</span>
+
+<span class="cm">/* write_all inlined here to avoid circular dependency. */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">write_all</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">size</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kt">ssize_t</span> <span class="n">done</span><span class="p">;</span>
+
+        <span class="n">done</span> <span class="o">=</span> <span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">size</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">done</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">_exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+        <span class="n">data</span>  <span class="o">=</span> <span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">data</span> <span class="o">+</span> <span class="n">done</span><span class="p">;</span>
+        <span class="n">size</span> <span class="o">-=</span> <span class="n">done</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="cm">/* Simple replacement for err() */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">failmsg</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">fmt</span><span class="p">,</span> <span class="p">...)</span>
+<span class="p">{</span>
+    <span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">1024</span><span class="p">];</span>
+    <span class="kt">va_list</span> <span class="n">ap</span><span class="p">;</span>
+
+    <span class="cm">/* Write into buffer. */</span>
+    <span class="n">va_start</span><span class="p">(</span><span class="n">ap</span><span class="p">,</span> <span class="n">fmt</span><span class="p">);</span>
+    <span class="n">vsprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="n">fmt</span><span class="p">,</span> <span class="n">ap</span><span class="p">);</span>
+    <span class="n">va_end</span><span class="p">(</span><span class="n">ap</span><span class="p">);</span>
+
+    <span class="n">write_all</span><span class="p">(</span><span class="n">stderrfd</span><span class="p">,</span> <span class="s">&quot;# &quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="n">write_all</span><span class="p">(</span><span class="n">stderrfd</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+    <span class="n">write_all</span><span class="p">(</span><span class="n">stderrfd</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">_exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">expect</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pattern</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">char</span> <span class="n">buffer</span><span class="p">[</span><span class="n">PIPE_BUF</span><span class="o">+</span><span class="mi">1</span><span class="p">];</span>
+    <span class="kt">int</span> <span class="n">r</span><span class="p">;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">failmsg</span><span class="p">(</span><span class="s">&quot;reading from pipe&quot;</span><span class="p">);</span>
+    <span class="n">buffer</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="o">=</span> <span class="sc">&#39;\0&#39;</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">failmsg</span><span class="p">(</span><span class="s">&quot;Expected &#39;%s&#39; got &#39;%s&#39;&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">buffer</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">int</span>
+<span class="nf">one_int</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+     <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span>
+<span class="nf">one_str</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="s">&quot;one&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="n">obj</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">id</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="o">*</span>
+<span class="nf">one_obj</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">static</span> <span class="k">struct</span> <span class="n">obj</span> <span class="n">one</span><span class="p">;</span>
+
+    <span class="n">one</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="k">return</span> <span class="o">&amp;</span><span class="n">one</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">int</span>
+<span class="nf">obj_cmp</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span> <span class="o">*</span> <span class="n">obj1</span><span class="p">,</span> <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span> <span class="n">obj2</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span><span class="p">(((</span><span class="k">const</span> <span class="k">struct</span> <span class="n">obj</span> <span class="o">*</span><span class="p">)</span><span class="n">obj2</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">id</span> <span class="o">-</span> <span class="p">((</span><span class="k">const</span> <span class="k">struct</span> <span class="n">obj</span> <span class="o">*</span><span class="p">)</span><span class="n">obj1</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">id</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span>
+<span class="nf">obj_to_str</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span> <span class="o">*</span> <span class="n">obj</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">static</span> <span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+
+    <span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span> <span class="s">&quot;{id=%d}&quot;</span><span class="p">,</span> <span class="p">((</span><span class="k">const</span> <span class="k">struct</span> <span class="n">obj</span> <span class="o">*</span><span class="p">)</span><span class="n">obj</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">id</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">buf</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+    <span class="kt">int</span>        <span class="n">p</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+    <span class="kt">int</span>        <span class="n">stdoutfd</span><span class="p">;</span>
+        <span class="k">struct</span> <span class="n">obj</span> <span class="n">exp</span><span class="p">;</span>
+
+        <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">argc</span><span class="p">;</span>
+        <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">argv</span><span class="p">;</span>
+
+    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;1..1</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+    <span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+    <span class="n">stderrfd</span> <span class="o">=</span> <span class="n">dup</span><span class="p">(</span><span class="n">STDERR_FILENO</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">stderrfd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">err</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;dup of stderr failed&quot;</span><span class="p">);</span>
+
+    <span class="n">stdoutfd</span> <span class="o">=</span> <span class="n">dup</span><span class="p">(</span><span class="n">STDOUT_FILENO</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">stdoutfd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">err</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;dup of stdout failed&quot;</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">pipe</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">failmsg</span><span class="p">(</span><span class="s">&quot;pipe failed&quot;</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">dup2</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">STDERR_FILENO</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">dup2</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">STDOUT_FILENO</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">failmsg</span><span class="p">(</span><span class="s">&quot;Duplicating file descriptor&quot;</span><span class="p">);</span>
+
+    <span class="n">plan_tests</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;1..10</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">ok</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;msg1&quot;</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 1 - msg1</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">ok</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&quot;msg2&quot;</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 2 - msg2</span><span class="se">\n</span><span class="s">&quot;</span>
+           <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 199)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">ok1</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 3 - true</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">ok1</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 4 - false</span><span class="se">\n</span><span class="s">&quot;</span>
+           <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 206)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">pass</span><span class="p">(</span><span class="s">&quot;passed&quot;</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 5 - passed</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">fail</span><span class="p">(</span><span class="s">&quot;failed&quot;</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 6 - failed</span><span class="se">\n</span><span class="s">&quot;</span>
+           <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 213)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">skip</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&quot;skipping %s&quot;</span><span class="p">,</span> <span class="s">&quot;test&quot;</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 7 # skip skipping test</span><span class="se">\n</span><span class="s">&quot;</span>
+           <span class="s">&quot;ok 8 # skip skipping test</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+    <span class="n">todo_start</span><span class="p">(</span><span class="s">&quot;todo&quot;</span><span class="p">);</span>
+    <span class="n">ok1</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 9 - false # TODO todo</span><span class="se">\n</span><span class="s">&quot;</span>
+                 <span class="s">&quot;#     Failed (TODO) test (*test.1.tap.c:main() at line 222)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+    <span class="n">ok1</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+    <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 10 - true # TODO todo</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+    <span class="n">todo_end</span><span class="p">();</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">exit_status</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">failmsg</span><span class="p">(</span><span class="s">&quot;Expected exit status 3, not %i&quot;</span><span class="p">,</span> <span class="n">exit_status</span><span class="p">());</span>
+
+        <span class="n">is</span><span class="p">(</span><span class="n">one_int</span><span class="p">(),</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;one_int() returns 1&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 11 - one_int() returns 1</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+        <span class="n">is</span><span class="p">(</span><span class="n">one_int</span><span class="p">(),</span> <span class="mi">2</span><span class="p">,</span> <span class="s">&quot;one_int() returns 2&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 12 - one_int() returns 2</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 234)</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#          got: 1</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     expected: 2</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+        <span class="n">is_eq</span><span class="p">(</span><span class="n">one_str</span><span class="p">(),</span> <span class="s">&quot;one&quot;</span><span class="p">,</span> <span class="s">&quot;one_str() returns &#39;one&#39;&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 13 - one_str() returns &#39;one&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+        <span class="n">is_eq</span><span class="p">(</span><span class="n">one_str</span><span class="p">(),</span> <span class="s">&quot;two&quot;</span><span class="p">,</span> <span class="s">&quot;one_str() returns &#39;two&#39;&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 14 - one_str() returns &#39;two&#39;</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 242)</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#          got: </span><span class="se">\&quot;</span><span class="s">one</span><span class="se">\&quot;\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     expected: </span><span class="se">\&quot;</span><span class="s">two</span><span class="se">\&quot;\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+        <span class="n">exp</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="n">is_cmp</span><span class="p">(</span><span class="n">one_obj</span><span class="p">(),</span> <span class="o">&amp;</span><span class="n">exp</span><span class="p">,</span> <span class="n">obj_cmp</span><span class="p">,</span> <span class="n">obj_to_str</span><span class="p">,</span> <span class="s">&quot;one_obj() has id 1&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 15 - one_obj() has id 1</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+        <span class="n">exp</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+        <span class="n">is_cmp</span><span class="p">(</span><span class="n">one_obj</span><span class="p">(),</span> <span class="o">&amp;</span><span class="n">exp</span><span class="p">,</span> <span class="n">obj_cmp</span><span class="p">,</span> <span class="n">obj_to_str</span><span class="p">,</span> <span class="s">&quot;one_obj() has id 2&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 16 - one_obj() has id 2</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 252)</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#          got: {id=1}</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     expected: {id=2}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+        <span class="n">is_strstr</span><span class="p">(</span><span class="n">one_str</span><span class="p">(),</span> <span class="s">&quot;n&quot;</span><span class="p">,</span> <span class="s">&quot;one_str() contains &#39;n&#39;&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;ok 17 - one_str() contains &#39;n&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+        <span class="n">is_strstr</span><span class="p">(</span><span class="n">one_str</span><span class="p">(),</span> <span class="s">&quot;w&quot;</span><span class="p">,</span> <span class="s">&quot;one_str() contains &#39;w&#39;&quot;</span><span class="p">);</span>
+        <span class="n">expect</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;not ok 18 - one_str() contains &#39;w&#39;</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     Failed test (*test.1.tap.c:main() at line 260)</span><span class="se">\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#                     got: </span><span class="se">\&quot;</span><span class="s">one</span><span class="se">\&quot;\n</span><span class="s">&quot;</span>
+               <span class="s">&quot;#     expected to contain: </span><span class="se">\&quot;</span><span class="s">w</span><span class="se">\&quot;\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="cp">#if 0</span><span class="c"></span>
+<span class="c">    /* Manually run the atexit command. */</span>
+<span class="c">    _cleanup();</span>
+<span class="c">    expect(p[0], &quot;# Looks like you failed 2 tests of 9.\n&quot;);</span>
+<span class="cp">#endif</span>
+
+    <span class="n">write_all</span><span class="p">(</span><span class="n">stdoutfd</span><span class="p">,</span> <span class="s">&quot;ok 1 - All passed</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+          <span class="n">strlen</span><span class="p">(</span><span class="s">&quot;ok 1 - All passed</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">));</span>
+    <span class="n">_exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span></div></div></div></div></body></html>
