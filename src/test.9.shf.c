@@ -32,19 +32,26 @@
 
 int main(void)
 {
+    // Tell tap (test anything protocol) how many tests we expect to run.
     plan_tests(40);
 
+    // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
+    // Create a shared hash file in ```/dev/shm``` shared memory and call it a unique (because we use the pid) name so that it cannot conflict with any other tests.
     char  test_shf_name[256];
     char  test_shf_folder[] = "/dev/shm";
     pid_t pid               = getpid();
     SHF_SNPRINTF(1, test_shf_name, "test-%05u", pid);
 
+    // ## Functional tests: Key value
+    // Create a new shared hash file.
                     shf_init            ();
     SHF    * shf =  shf_attach_existing (test_shf_folder, test_shf_name                                  ); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
              shf =  shf_attach          (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
                     shf_set_is_lockable (shf, 0); /* single threaded test; no need to lock */
+                    
+    // Functional tests to exercise the API.
                     SHF_MAKE_HASH       (         "key"    );
     ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find unput key as expected");
     ok(0         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could not find unput key as expected");
@@ -63,6 +70,8 @@ int main(void)
     ok(0         == memcmp              (shf_val, "val2", 4), "c: shf_val                                         as expected");
     ok(1         == shf_del_key_val     (shf               ), "c: shf_del_key_val()      could     find reput key as expected");
 
+    // ## Functional tests: IPC queues
+    // Create a some queue elements and a bunch of queues using the exiting test shared hash file from the tests above.
     uint32_t test_pull_items  = 0;
     uint32_t test_qs          = 3;
     uint32_t test_q_items     = 10;
@@ -77,6 +86,7 @@ int main(void)
     ok(      test_qid_a2b    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )        ), "c: shf_q_get_name('qid-a2b' ) returned qid as expected");
     ok(      test_qid_b2a    == shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )        ), "c: shf_q_get_name('qid-b2a' ) returned qid as expected");
 
+    // Functional test to move all the queue elements from queue ```qid-free``` to ```qid-a2b```.
     test_pull_items = 0;
     while(SHF_QIID_NONE != shf_q_pull_tail(shf, test_qid_free          )) {                                                                                        /* e.g. q items from unused to a2b q by process a */
                            shf_q_push_head(shf, test_qid_a2b , shf_qiid);
