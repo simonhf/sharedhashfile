@@ -1437,7 +1437,7 @@ void
 (*shf_log_output_indirect)(const char * log_line) = shf_log_output_stderr;
 
 void
-shf_log(const char * format_type, int line, const char * file, const char * strerror, const char * eol, const char * format_user, ...) /* see shf.defines.h for example usage */
+shf_log(const char * format_type, int line, const char * file, const char * str_error, const char * eol, const char * format_user, ...) /* see shf.defines.h for example usage */
 {
     va_list      ap;
     char         log_buffer[SHF_LOG_BUFFER_SIZE];
@@ -1446,10 +1446,10 @@ shf_log(const char * format_type, int line, const char * file, const char * stre
 
     va_start(ap, format_user);
 
-    if (shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only         ))    /* append log type, e.g. debug or error */
-    &&  shf_log_safe_append(log_buffer, &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                      ))    /* append              user log message */
-    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , strerror ? strerror : ""))    /* append optional system error message */
-    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol      ? eol      : ""))) { /* append optional          eol message */
+    if (shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only           ))    /* append log type, e.g. debug or error */
+    &&  shf_log_safe_append(log_buffer, &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                        ))    /* append              user log message */
+    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , str_error ? str_error : ""))    /* append optional system error message */
+    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol       ? eol       : ""))) { /* append optional          eol message */
         /* if we made it to here then SHF_LOG_BUFFER_SIZE is big enough! */
     }
 
