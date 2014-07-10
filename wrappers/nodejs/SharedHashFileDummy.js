@@ -41,9 +41,9 @@ function exit_status() {
 
 plan_tests(12);
 
-console.log('nodejs: debug: about to require  SharedHashFile');
+console.log('----:nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
-console.log('nodejs: debug:          required SharedHashFile');
+console.log('----:nodejs: debug:          required SharedHashFile');
 
 var shf = new SharedHashFile.sharedHashFile();
 

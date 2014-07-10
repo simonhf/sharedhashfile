@@ -104,7 +104,7 @@ $(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
 	@g++ -o $@ $^
 	@echo "make: running: $@"
-	@PATH=$$PATH:$(BUILD_TYPE) ./$@
+	@PATH=$$PATH:$(BUILD_TYPE) ./$@ 2>&1 | perl src/verbose-if-fail.pl $@.tout
 
 $(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
@@ -118,17 +118,17 @@ ifneq ($(findstring node-gyp,$(NODE_GYP)),)
 	@cp ./wrappers/nodejs/build/$(BUILD_TYPE_NODE)/SharedHashFile.node $(BUILD_TYPE)/.
 	@cp ./wrappers/nodejs/SharedHashFile*.js $(BUILD_TYPE)/.
 	@echo "make: running test"
-	@cd $(BUILD_TYPE) && PATH=$$PATH:. NODE_DEBUG=mymod $(NODEJS) ./SharedHashFile.js
+	@cd $(BUILD_TYPE) && PATH=$$PATH:. NODE_DEBUG=mymod $(NODEJS) ./SharedHashFile.js 2>&1 | perl ../src/verbose-if-fail.pl SharedHashFile.js.tout
 	@echo "make: running test: perf test calling dummy C++ functions"
-	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod $(NODEJS) ./SharedHashFileDummy.js
+	@cd $(BUILD_TYPE) && NODE_DEBUG=mymod $(NODEJS) ./SharedHashFileDummy.js 2>&1 | perl ../src/verbose-if-fail.pl SharedHashFileDummy.js.tout
 	@echo "make: building and running test: IPC: Unix Domain Socket"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcSocket.* .
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I ../src TestIpcSocket.c
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket TestIpcSocket.o shf.o murmurhash3.o
-	@cd $(BUILD_TYPE) && ./TestIpcSocket
+	@cd $(BUILD_TYPE) && ./TestIpcSocket 2>&1 | perl ../src/verbose-if-fail.pl TestIpcSocket.tout
 	@echo "make: running test: IPC: SharedHashFile Queue"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.js .
-	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./test.q.shf.t c2js
+	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./test.q.shf.t c2js 2>&1 | perl ../src/verbose-if-fail.pl test.q.shf.t.tout
 else
 	@echo "make: note: !!! node-gyp not found; cannot build nodejs interface; e.g. install via: sudo apt-get install nodejs && sudo apt-get install node-gyp !!!"
 endif

@@ -24,9 +24,9 @@
 var assert = require('assert');
 
 process.argv.forEach(function (val, index, array) {
-    console.log("TestIpcSocketjs: debug: command line argument #" + index + ': ' + val);
+    console.log("----:TestIpcSocketjs: debug: command line argument #" + index + ': ' + val);
 });
-assert(3 == process.argv.length, "TestIpcSocketjs: debug: ASSERT: please include path to unix domain socket on command line!");
+assert(3 == process.argv.length, "----:TestIpcSocketjs: ERROR: assertion: please include path to unix domain socket on command line!");
 var unix_domain_socket = process.argv[2];
 
 var incoming_messages = 0;
@@ -34,22 +34,22 @@ var incoming_messages_max = 10000;
 var net = require('net');
 var client = net.connect({path: unix_domain_socket},
     function() { //'connect' listener
-        console.log('TestIpcSocketjs: debug: client connected; sending connect, waiting for hello');
+        console.log('----:TestIpcSocketjs: debug: client connected; sending connect, waiting for hello');
         client.write('connect!');
 });
 client.on('data', function(data) {
     incoming_messages ++;
     if (incoming_messages <= 3) {
-        console.log('TestIpcSocketjs: debug: read: ' + data.length + " bytes: " + data.toString().substr(0,5) + "...");
+        console.log('----:TestIpcSocketjs: debug: read: ' + data.length + " bytes: " + data.toString().substr(0,5) + "...");
     }
     if (incoming_messages < incoming_messages_max) {
         client.write('world!');
     }
     else {
-        console.log('TestIpcSocketjs: debug: ending after ' + incoming_messages_max + ' messages');
+        console.log('----:TestIpcSocketjs: debug: ending after ' + incoming_messages_max + ' messages');
         client.end();
     }
 });
 client.on('end', function() {
-    console.log('TestIpcSocketjs: debug: client disconnected');
+    console.log('----:TestIpcSocketjs: debug: client disconnected');
 });

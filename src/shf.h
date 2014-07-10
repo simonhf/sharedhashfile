@@ -114,6 +114,7 @@ extern void       shf_q_flush              (SHF * shf, uint32_t pull_qid);
 extern uint32_t   shf_q_is_ready           (SHF * shf);
 extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
 extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);
+extern void       shf_log_output_set       (void (*shf_log_output_new)(const char * log_line));
 
 // Useful links regarding /dev/shm:
 // http://gerardnico.com/wiki/linux/shared_memory - Linux - Shared Memory (SHM) (/dev/shm)

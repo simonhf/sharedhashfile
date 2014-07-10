@@ -24,9 +24,9 @@
 var assert = require('assert');
 
 process.argv.forEach(function (val, index, array) {
-    console.log("TestIpcQueuejs: debug: command line argument #" + index + ': ' + val);
+    console.log("----:TestIpcQueuejs: debug: command line argument #" + index + ': ' + val);
 });
-assert(3 == process.argv.length, "TestIpcQueuejs: debug: ASSERT: please include path to unix domain socket on command line!");
+assert(3 == process.argv.length, "----:TestIpcQueuejs: ERROR: assertion: please include path to unix domain socket on command line!");
 var testShfName = process.argv[2];
 
 var ok_tests = 0;
@@ -47,9 +47,9 @@ function exit_status() {
 
 plan_tests(7);
 
-console.log('nodejs: debug: about to require  SharedHashFile');
+console.log('----:nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
-console.log('nodejs: debug:          required SharedHashFile');
+console.log('----:nodejs: debug:          required SharedHashFile');
 
 var testShfFolder = "/dev/shm";
 var shfUidNone    = 4294967295;
@@ -60,7 +60,7 @@ var                   shf = new SharedHashFile.sharedHashFile();
                       shf.debugVerbosityLess();
 ok(0               != shf.attachExisting(testShfFolder, testShfName), "nodejs: .attachExisting() works for existing file as expected");
 
-var testQItemSize     = 4096; // todo: parse this via SharedHashFile from process A
+var testQItemSize     = 4096  ; // todo: parse this via SharedHashFile from process A
 var testQItems        = 100000; // todo: parse this via SharedHashFile from process A
 var shfQItems         = shf.qGet();
 ok( shfQItems.length != 0                       , "nodejs: .qGet() returned as expected");

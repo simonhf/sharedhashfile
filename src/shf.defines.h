@@ -25,16 +25,19 @@
 #define __SHF_DEFINES_H__
 
 #include <stdint.h>
+#include <string.h> /* for strerror() */
 
 extern int32_t shf_debug_disabled;
 
+extern void shf_log(const char * format_type, int line, const char * file, const char * strerror, const char * eol, const char * format_user, ...);
+
 #define SHF_CAST(TYPE, PTR) ((TYPE)(uintptr_t)(PTR))
-#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { fprintf(stderr, "ERROR: assertion @ line %u of file %s: ", __LINE__, __FILE__); fprintf(stderr, ARGS); if (0 != errno) { perror(NULL); } else { fprintf(stderr, "\n"); } exit(EXIT_FAILURE); }
-#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { fprintf(stderr, "ERROR: assertion @ line %u of file %s: ", __LINE__, __FILE__); fprintf(stderr, ARGS);                                          fprintf(stderr, "\n");   exit(EXIT_FAILURE); }
+#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log("%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", ARGS); exit(EXIT_FAILURE); }
+#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log("%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", ARGS); exit(EXIT_FAILURE); }
 #define SHF_UNUSE(ARGUMENT) (void)(ARGUMENT)
 
 #ifdef SHF_DEBUG_VERSION
-#define SHF_DEBUG(ARGS...)      if (shf_debug_disabled > 0) { } else { fprintf(stderr, "%s: debug: ", __FILE__); fprintf(stderr, ARGS); }
+#define SHF_DEBUG(ARGS...)      if (shf_debug_disabled > 0) { } else { shf_log("%04u:%s: debug: ", __LINE__, __FILE__, NULL, NULL, ARGS); }
 #define SHF_DEBUG_FILE(ARGS...) \
     shf_debug_file = fopen("/tmp/debug.shf", "a"); SHF_ASSERT(NULL != shf_debug_file, "fopen(): %u: ", errno); \
     fprintf(shf_debug_file, ARGS); \

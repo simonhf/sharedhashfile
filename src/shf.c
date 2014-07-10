@@ -24,6 +24,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>      /* for va_start() et al */
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1408,3 +1409,57 @@ shf_race_start(
     __sync_fetch_and_add_8(race_line, 1); /* atomic increment */
     while (horses != *race_line) { SHF_CPU_PAUSE(); }
 } /* shf_race_start() */
+
+#define SHF_LOG_BUFFER_SIZE 4096
+
+static int /* bool */
+shf_log_safe_append(char * log_buffer, unsigned * index_ptr, int appended)
+{
+    if ((appended < 0) || ((unsigned)appended >= SHF_LOG_BUFFER_SIZE - *index_ptr)) {
+        log_buffer[SHF_LOG_BUFFER_SIZE - 4] = '.';
+        log_buffer[SHF_LOG_BUFFER_SIZE - 3] = '.';
+        log_buffer[SHF_LOG_BUFFER_SIZE - 2] = '\n';
+        log_buffer[SHF_LOG_BUFFER_SIZE - 1] = '\0';
+        return 0 /* false */;
+    }
+
+    *index_ptr += appended;
+    return 1 /* true */;
+} /* shf_log_safe_append() */
+
+static void
+shf_log_output_stderr(const char * log_line)
+{
+    fprintf(stderr, "%s", log_line);
+} /* shf_log_stderr() */
+
+void
+(*shf_log_output_indirect)(const char * log_line) = shf_log_output_stderr;
+
+void
+shf_log(const char * format_type, int line, const char * file, const char * strerror, const char * eol, const char * format_user, ...) /* see shf.defines.h for example usage */
+{
+    va_list      ap;
+    char         log_buffer[SHF_LOG_BUFFER_SIZE];
+    const char * file_only = strchr(file, '/') ? 1 + strrchr(file, '/') : file; /* if path, remove it */
+    unsigned     i         = 0;
+
+    va_start(ap, format_user);
+
+    if (shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only         ))    /* append log type, e.g. debug or error */
+    &&  shf_log_safe_append(log_buffer, &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                      ))    /* append              user log message */
+    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , strerror ? strerror : ""))    /* append optional system error message */
+    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol      ? eol      : ""))) { /* append optional          eol message */
+        /* if we made it to here then SHF_LOG_BUFFER_SIZE is big enough! */
+    }
+
+    (*shf_log_output_indirect)(log_buffer);
+
+    va_end(ap);
+} /* shf_log() */
+
+void
+shf_log_output_set(void (*shf_log_output_new)(const char * log_line)) /* todo: write a test for this! */
+{
+    shf_log_output_indirect = shf_log_output_new;
+} /* shf_log_output_set() */
