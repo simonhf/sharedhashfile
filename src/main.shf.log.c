@@ -93,8 +93,8 @@ main(int argc, char **argv)
         //debug fprintf(stderr, "shf.log: everyday I'm logging to %s\n", shf_log_path_name);
         usleep(10000); /* wait 1/100th of a second */
         while (is_ready(fileno(stdin))) {
-            ssize_t read = getline(&line, &len, stdin);
-            if (-1 == read) {
+            ssize_t chars_read = getline(&line, &len, stdin);
+            if (-1 == chars_read) {
                 goto EARLY_OUT;
             }
             append_line(line);
