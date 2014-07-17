@@ -373,11 +373,13 @@ Reasons to use SharedHashFile in nodejs instead of native javascript associative
 
 ## TODO
 
+* Add API documentation via doxygen.
+* Add API documentation via literate programming.
+* Convert shf.log to work with shared memory instead of slower fopen().
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.
 * Support stack key types, e.g. push, pop, shift, unshift.
-* Add API documentation.
 * Add logging.
 * Add networking layer for distributed hash table.
 * Add more tests & enforce 100% code coverage.

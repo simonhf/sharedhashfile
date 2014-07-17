@@ -21,6 +21,76 @@
  * ============================================================================
  */
 
+/** @file shf.h
+ * @brief SharedHashFile API
+ *
+ * @mainpage SharedHashFile (S)hared Memory (H)ash Table Using (F)iles (SHF) & IPC queue
+ *
+ * @section intro_sec Introduction
+ * 
+ * SharedHashFile is a lightweight NoSQL key value store / hash table, &
+ * a zero-copy IPC queue library written in C for Linux. There is no
+ * server process. Data is read and written directly from/to shared
+ * memory or SSD; no sockets are used between SharedHashFile and the
+ * application program. APIs for C, C++, & nodejs.
+ * 
+ * ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
+ * 
+ * @section ipc_sec Zero-Copy IPC Queues
+ * 
+ * How does it work? Create X fixed-sized queue elements, and Y queues
+ * to push & pull those queue elements to/from.
+ * 
+ * Example: Imagine two processes ```Process A``` & ```Process B```.
+ * ```Process A``` creates 100,000 queue elements and 3 queues;
+ * ```queue-free```, ```queue-a2b```, and ```queue-b2a```. Intitally,
+ * all queue elements are pushed onto ```queue-free```. ```Process A```
+ * then spawns ```Process B``` which attaches to the SharedHashFile in
+ * order to pull from ```queue-a2b```. To perform zero-copy IPC then
+ * ```Process A``` can pull queue elements from ```queue-free```,
+ * manipulate the fixed size, shared memory queue elements, and push the
+ * queue elements into ```queue-a2b```. ```Process B``` does the
+ * opposite; pulls queue elements from ```queue-a2b```, manipulates the
+ * fixed size, shared memory queue queue elements, and pushes the queue
+ * elements into ```queue-b2a```. ```Process A``` can also pull queue
+ * items from ```queue-b2a``` in order to digest the results from
+ * ```Process B```.
+ * 
+ * So how many queue elements per second can be moved back and forth by
+ * ```Processes A``` & ```Process B```? On a Lenovo W530 laptop then
+ * about 90 million per second if both ```Process A``` & ```Process B```
+ * are written in C. Or about 7 million per second if  ```Process A```
+ * is written in C and ```Process B``` is written in javascript for
+ * nodejs.
+ * 
+ * Note: When a queue element is moved from one queue to another then it
+ *  is not copied, only a reference is updated.
+ *
+ * @author
+ * 
+ * Simon Hardy-Francis, Hardy-Francis Enterprises Inc.
+ *
+ * @copyright
+ * 
+ * Copyright (c) 2014 Hardy-Francis Enterprises Inc.
+ *
+ * SharedHashFile is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * SharedHashFile is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see www.gnu.org/licenses/.
+ *
+ * To use SharedHashFile in a closed-source product, commercial licenses are
+ * available; email office [@] sharedhashfile [.] com for more information.
+ */
+
 #ifndef __SHF_H__
 #define __SHF_H__
 
@@ -79,6 +149,13 @@ extern __thread uint32_t   shf_qiid         ;
 extern __thread char     * shf_qiid_addr    ;
 extern __thread uint32_t   shf_qiid_addr_len;
 
+/** @brief Spawn a child process & return its pid.
+ *  @param[in] child_path       todo
+ *  @param[in] child_file       todo
+ *  @param[in] child_argument_1 todo
+ *  @param[in] child_argument_2 todo
+ *  @retval The pid of the spawned child.
+ */
 extern pid_t      shf_exec_child           (const char * child_path, const char * child_file, const char * child_argument_1, char  * child_argument_2);
 extern char     * shf_backticks            (const char * command);
 extern double     shf_get_time_in_seconds  (void);
@@ -106,11 +183,12 @@ extern void     * shf_q_get                (SHF * shf);
 extern void       shf_q_del                (SHF * shf);
 extern uint32_t   shf_q_new_name           (SHF * shf, const char * name, uint32_t name_len);
 extern uint32_t   shf_q_get_name           (SHF * shf, const char * name, uint32_t name_len);
-extern void       shf_q_push_head          (SHF * shf, uint32_t qid, uint32_t qiid);
-extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern void       shf_q_push_head          (SHF * shf, uint32_t      qid, uint32_t qiid);
+extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t      qid                                       ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
-extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t      qid                                       ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 extern void       shf_q_flush              (SHF * shf, uint32_t pull_qid);
+extern void       shf_q_size               (SHF * shf, uint32_t      qid);
 extern uint32_t   shf_q_is_ready           (SHF * shf);
 extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
 extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);

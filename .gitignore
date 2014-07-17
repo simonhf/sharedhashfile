@@ -21,3 +21,4 @@
 release
 debug
 wrappers/nodejs/build
+.html

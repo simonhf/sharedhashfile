@@ -136,10 +136,10 @@ endif
 debug: all
 
 fixme:
-	 find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep -i fixme | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with fixme\n],length $$any; exit(length $$any>0)}'
+	 find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep -i fixme | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with fixme\n],length $$any; exit(length $$any>0)}'
 
 tab:
-	@find -type f | egrep -v "/(release|debug)/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep -P "\\t" | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with tab\n],length $$any; exit(length $$any>0)}'
+	@find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep -P "\\t" | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with tab\n],length $$any; exit(length $$any>0)}'
 
 .PHONY: all clean debug fixme tab
 

@@ -1193,11 +1193,6 @@ shf_q_push_head(
     if (SHF_QIID_NONE != push_qiid) { SHF_ASSERT(push_qiid < shf->q.q_items, "ERROR: expected 0 <= push_qiid < %u but got %u", shf->q.q_items, push_qiid); }
 #endif
 
-    if (shf->q.qids_nolock_push[push_qid].size >= shf->q.qids_nolock_max) {
-        /* come here if local push queue is full */
-        shf_q_flush(shf, SHF_QID_NONE);
-    }
-
     if (SHF_QIID_NONE != push_qiid) {
         shf->q.qids_nolock_push[push_qid].size ++;
 
@@ -1210,8 +1205,30 @@ shf_q_push_head(
 #ifdef SHF_DEBUG_VERSION
         SHF_DEBUG("%s() // nolock push q size=%u, push_qid=%u, push_qiid=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_push[push_qid].size, push_qid, push_qiid, qiid_last, shf->q.qids_nolock_push[push_qid].head, shf->q.qids_nolock_push[push_qid].tail);
 #endif
+
+        if (shf->q.qids_nolock_push[push_qid].size >= shf->q.qids_nolock_max) {
+            /* come here if local push queue is full */
+            shf_q_flush(shf, SHF_QID_NONE);
+        }
     }
 } /* shf_q_push_head() */
+
+void
+shf_q_size( /* this function only used for debugging... */
+    SHF      * shf,
+    uint32_t   qid)
+{
+    SHF_UNUSE(qid); /* only used in debug version */
+
+    SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
+
+    shf_debug_verbosity_less(); SHF_LOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
+
+    SHF_DEBUG("%s(shf=?, qid=%u) // shf->q.qids_nolock_push[qid].size=%u, shf->q.qids[qid].size=%u, shf->q.qids_nolock_pull[qid].size=%u\n", __FUNCTION__, qid, shf->q.qids_nolock_push[qid].size, shf->q.qids[qid].size, shf->q.qids_nolock_pull[qid].size);
+
+    shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
+} /* shf_q_size() */
 
 void
 shf_q_flush(
@@ -1224,7 +1241,7 @@ shf_q_flush(
     shf_debug_verbosity_less(); SHF_LOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 
 #ifdef SHF_DEBUG_VERSION
-    SHF_DEBUG("%s(shf=?, pull_qid=%u) // shf->q.qids[pull_qid].size=%u, shf->q.qids_nolock_pull[pull_qid].size=%u\n", __FUNCTION__, pull_qid, shf->q.qids[pull_qid].size, shf->q.qids_nolock_pull[pull_qid].size);
+    SHF_DEBUG("%s(shf=?, pull_qid=%u) // shf->q.qids[pull_qid].size=%u, shf->q.qids_nolock_pull[pull_qid].size=%u\n", __FUNCTION__, pull_qid, SHF_QID_NONE == pull_qid ? 0 : shf->q.qids[pull_qid].size, SHF_QID_NONE == pull_qid ? 0 : shf->q.qids_nolock_pull[pull_qid].size);
 #endif
 
     /* empty nolock push queues */
@@ -1323,12 +1340,6 @@ shf_q_push_head_pull_tail(
                                       SHF_ASSERT(pull_qid  < shf->q.qs     , "ERROR: expected 0 <= pull_qid < %u but got %u" , shf->q.qs     , pull_qid );
 #endif
 
-    if ((shf->q.qids_nolock_push[push_qid].size >= shf->q.qids_nolock_max)
-    ||  (shf->q.qids_nolock_pull[pull_qid].size == 0                     )) {
-        /* come here if local push queue is full or local pull queue is emtpy */
-        shf_q_flush(shf, pull_qid);
-    }
-
     if (SHF_QIID_NONE != push_qiid) {
         shf->q.qids_nolock_push[push_qid].size ++;
 
@@ -1341,6 +1352,12 @@ shf_q_push_head_pull_tail(
 #ifdef SHF_DEBUG_VERSION
         SHF_DEBUG("%s() // nolock push q size=%u, push_qid=%u, push_qiid=%u, qiid_last=%u, head=%u, tail=%u\n", __FUNCTION__, shf->q.qids_nolock_push[push_qid].size, push_qid, push_qiid, qiid_last, shf->q.qids_nolock_push[push_qid].head, shf->q.qids_nolock_push[push_qid].tail);
 #endif
+    }
+
+    if ((shf->q.qids_nolock_push[push_qid].size >= shf->q.qids_nolock_max)
+    ||  (shf->q.qids_nolock_pull[pull_qid].size == 0                     )) {
+        /* come here if local push queue is full or local pull queue is emtpy */
+        shf_q_flush(shf, pull_qid);
     }
 
     if (shf->q.qids_nolock_pull[pull_qid].size == 0) {
