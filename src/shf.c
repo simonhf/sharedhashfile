@@ -52,9 +52,9 @@ static                 FILE    * shf_debug_file            = 0   ;
        __thread       SHF_HASH   shf_hash                        ;
 
        __thread       uint32_t   shf_uid                         ;
-       __thread       uint32_t   shf_qiid                        ;
-       __thread       char     * shf_qiid_addr                   ;
-       __thread       uint32_t   shf_qiid_addr_len               ;
+       __thread       uint32_t   shf_qiid                        ; /*!< Set by                           shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
+       __thread       char     * shf_qiid_addr                   ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
+       __thread       uint32_t   shf_qiid_addr_len               ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
 
 static __thread       uint8_t  * shf_val_addr                    ;
 static __thread       uint32_t   shf_val_size                    ; /* mmap() size */
@@ -70,6 +70,21 @@ static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
 static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
 static __thread       uint32_t   shf_backticks_buffer_used       ;
 
+/**
+ * @brief Spawn a child process & return its pid.
+ * - Uses fork() & execl() under the covers.
+ *
+ * @param[in] child_path        e.g. "/usr/bin/python".
+ * @param[in] child_file        e.g. "python".
+ * @param[in] child_argument_1  e.g. "my-script.py".
+ * @param[in] child_argument_2  e.g.  my-script-command-line-arguments.
+ * @retval    pid               The pid of the spawned child.
+ *
+ * Example usage:
+ * @code
+ * pid_t child_pid = shf_exec_child(shf_backticks("which python"), "python", "my-script.py", my-script-command-line-arguments);
+ * @endcode
+ */
 pid_t
 shf_exec_child(
     const char  * child_path      ,
@@ -90,8 +105,23 @@ shf_exec_child(
    return pid_child;
 } /* shf_exec_child() */
 
+/**
+ * @brief Spawn a child process, block while it executes, capture its output, trim trailing whitespace.
+ * - Pointer is held in thread local storage to an mmap().
+ * - The mmap() is automatically resized bigger to hold all the output.
+ * - The mmap() is never freed.
+ * - Intention is a convenient way to capture relatively small command output without wasting too much memory.
+ *
+ * @param[in] command  Command to be executed, e.g. `"ls -la | grep \.log"`.
+ * @retval    Pointer  Pointer to captured output.
+ *
+ * Example usage:
+ * @code
+ * char * buf = shf_backticks("ls -la | grep \.log");
+ * @endcode
+ */
 char *
-shf_backticks(const char * command) /* e.g. buf_used = shf_backticks("ls -la | grep \.log", buf, sizeof(buf)); */
+shf_backticks(const char * command)
 {
     FILE     * fp;
     uint32_t   bytes_read;
@@ -904,7 +934,21 @@ shf_set_is_lockable(
     shf->is_lockable = is_lockable;
 } /* shf_set_is_lockable() */
 
-void * /* address of q items array; also sets shf_qiid_addr & shf_qiid_addr_len */
+/**
+ * @brief Get a set of -- already created -- queue items & queues for those items to be pulled and pushed to.
+ * - Sets the thread local variable @ref shf_qiid_addr to point to the first byte of the queue items array.
+ * - Sets the thread local variable @ref shf_qiid_addr_len the length in bytes of the queue items array.
+ * - Normally called by `Process B`; see @ref ipc_sec.
+ *
+ * @param[in] shf      Attached SHF.
+ * @retval    Pointer  Process specific pointer to the array of queue items.
+ *
+ * Example usage:
+ * @code
+ * char * qiid_array = shf_q_get(shf);
+ * @endcode
+ */
+void *
 shf_q_get(
     SHF * shf)
 {
@@ -946,6 +990,17 @@ shf_q_get(
     return shf->q.q_item_addr;
 } /* shf_q_get() */
 
+/**
+ * @brief Delete the set of queue items & queues for an SHF instance.
+ * - Normally called by `Process A`; see @ref ipc_sec.
+ *
+ * @param[in] shf  Attached SHF.
+ *
+ * Example usage:
+ * @code
+ * shf_q_del(shf);
+ * @endcode
+ */
 void
 shf_q_del(
     SHF * shf)
@@ -968,7 +1023,26 @@ shf_q_del(
     SHF_DEBUG("%s(shf=?){}\n", __FUNCTION__);
 } /* shf_q_del() */
 
-void * /* address of q items array; also sets shf_qiid_addr & shf_qiid_addr_len */
+/**
+ * @brief Create a set of queue items & queues for those items to be pulled and pushed to.
+ * - Sets the thread local variable @ref shf_qiid_addr to point to the first byte of the queue items array.
+ * - Sets the thread local variable @ref shf_qiid_addr_len the length in bytes of the queue items array.
+ * - Normally called by `Process A`; see @ref ipc_sec.
+ * - Currently only one set of queues can be created per SHF instance.
+ *
+ * @param[in] shf              Attached SHF.
+ * @param[in] qs               Number of queues to create.
+ * @param[in] q_items          Number of queue items to create.
+ * @param[in] q_item_size      Size of each queue item in bytes.
+ * @param[in] qids_nolock_max  Number of queue items to push or pull without locking, e.g. 1.
+ * @retval    Pointer          Process specific pointer to the array of queue items.
+ *
+ * Example usage:
+ * @code
+ * char * qiid_array = shf_q_new(shf, 3, 10, 1024, 1); // Create 10 qiids of size 1024 bytes each, to be shared between 3 qids; don't batch up locking
+ * @endcode
+ */
+void *
 shf_q_new(
     SHF      * shf            ,
     uint32_t   qs             ,
@@ -981,11 +1055,11 @@ shf_q_new(
     shf->q.q_item_size     = q_item_size    ;
     shf->q.qids_nolock_max = qids_nolock_max;
 
-    SHF_ASSERT_INTERNAL(shf->q.q_is_ready   == 0      , "ERROR: shf_q_new() already called"       );
-    SHF_ASSERT_INTERNAL(qs              >  2      , "ERROR: qs must be > 2"                   );
-    SHF_ASSERT_INTERNAL(q_items         >  1      , "ERROR: q_items must be > 2"              );
-    SHF_ASSERT_INTERNAL(qids_nolock_max >  0      , "ERROR: qids_nolock_max must be > 0"      );
-    SHF_ASSERT_INTERNAL(qids_nolock_max <  q_items, "ERROR: qids_nolock_max must be < q_items");
+    SHF_ASSERT_INTERNAL(shf->q.q_is_ready == 0      , "ERROR: shf_q_new() already called"       );
+    SHF_ASSERT_INTERNAL(qs                >  2      , "ERROR: qs must be > 2"                   );
+    SHF_ASSERT_INTERNAL(q_items           >  1      , "ERROR: q_items must be > 2"              );
+    SHF_ASSERT_INTERNAL(qids_nolock_max   >  0      , "ERROR: qids_nolock_max must be > 0"      );
+    SHF_ASSERT_INTERNAL(qids_nolock_max   <  q_items, "ERROR: qids_nolock_max must be < q_items");
 
     shf_debug_verbosity_less();
     shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"             )); uint32_t uid_qs              = shf_put_key_val(shf, SHF_CAST(const char *, &qs             ),           sizeof(qs             ));
@@ -1054,6 +1128,21 @@ shf_q_new(
     return shf->q.q_item_addr;
 } /* shf_q_new() */
 
+/**
+ * @brief Associate an unused qid with an ascii name.
+ * - After calling shf_q_new(), call this function q_items times.
+ * - Normally called by `Process A`; see @ref ipc_sec.
+ *
+ * @param[in] shf       Attached SHF.
+ * @param[in] name      Ascii name of qid.
+ * @param[in] name_len  Length of ascii name in bytes.
+ * @retval    qid       qid which is now used.
+ *
+ * Example usage:
+ * @code
+ * uint32_t qid = shf_q_new_name(shf, "qid-free");
+ * @endcode
+ */
 uint32_t
 shf_q_new_name(
     SHF        * shf     ,
@@ -1080,6 +1169,21 @@ shf_q_new_name(
     return qid;
 } /* shf_q_new_name() */
 
+/**
+ * @brief Associate an unused qid with an ascii name.
+ * - After calling shf_q_get(), call this function for each expected qid.
+ * - Normally called by `Process B`; see @ref ipc_sec.
+ *
+ * @param[in] shf       Attached SHF.
+ * @param[in] name      Ascii name of qid.
+ * @param[in] name_len  Length of ascii name in bytes.
+ * @retval    qid       qid which is now used.
+ *
+ * Example usage:
+ * @code
+ * uint32_t qid = shf_q_get_name(shf, "qid-free");
+ * @endcode
+ */
 uint32_t
 shf_q_get_name(
     SHF        * shf     ,
@@ -1114,25 +1218,54 @@ shf_q_get_name(
 // after : SHF_QID_NONE <--      <-- last <-- last <-- last
 // after :                           next --> next --> next --> SHF_QID_NONE
 
+/**
+ * @brief Take a qiid from a qid.
+ *
+ * @param[in] shf             Attached SHF.
+ * @param[in] qiid            qiid to remove from (maybe middle) of qid double linked list.
+ * @retval    #SHF_QIID_NONE  This function is not implemented yet!
+ *
+ * Example usage:
+ * @code
+ * uint32_t qiid = shf_q_take_item(shf, qiid);
+ * @endcode
+ */
 uint32_t
 shf_q_take_item(
-    SHF      * shf,
-    uint32_t   qid) /* sets both shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    SHF      * shf ,
+    uint32_t   qiid)
 {
     SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
 
-    SHF_UNUSE(qid);
+    SHF_UNUSE(qiid);
 
     // todo: implement shf_q_take_item()
 
     return SHF_QIID_NONE;
 } /* shf_q_take_item() */
 
+/**
+ * @brief Pull a qiid off qid tail.
+ * - Sets the thread local variable @ref shf_qiid          to the qiid pulled if found, else #SHF_QIID_NONE.
+ * - Sets the thread local variable @ref shf_qiid_addr     to point to the first byte of the queue item if found, else NULL.
+ * - Sets the thread local variable @ref shf_qiid_addr_len to the length in bytes of the queue item if found, else zero.
+ * - For a faster function see shf_q_push_head_pull_tail(); see @ref ipc_sec for why.
+ *
+ * @param[in] shf             Attached SHF.
+ * @param[in] pull_qid        qid to try and pull qiid from.
+ * @retval    qiid            qiid pulled from qid.
+ * @retval    #SHF_QIID_NONE  If no qiid available.
+ *
+ * Example usage:
+ * @code
+ * uint32_t qiid = shf_q_pull_tail(shf, qid_free);
+ * @endcode
+ */
 uint32_t
 shf_q_pull_tail(
     SHF      * shf     ,
-    uint32_t   pull_qid) /* sets both shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+    uint32_t   pull_qid)
 {
     SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
@@ -1179,6 +1312,24 @@ shf_q_pull_tail(
     return pull_qiid;
 } /* shf_q_pull_tail() */
 
+/**
+ * @brief Push a qiid on qid head.
+ * - Sets the thread local variable @ref shf_qiid          to the qiid pulled if found, else #SHF_QIID_NONE.
+ * - Sets the thread local variable @ref shf_qiid_addr     to point to the first byte of the queue item if found, else NULL.
+ * - Sets the thread local variable @ref shf_qiid_addr_len to the length in bytes of the queue item if found, else zero.
+ * - For a faster function see shf_q_push_head_pull_tail(); see @ref ipc_sec for why.
+ *
+ * @param[in] shf             Attached SHF.
+ * @param[in] push_qid        qid to push on to.
+ * @param[in] push_qiid       qiid to push.
+ * @retval    qiid            qiid pulled from qid.
+ * @retval    #SHF_QIID_NONE  If no qiid available.
+ *
+ * Example usage:
+ * @code
+ * uint32_t qiid = shf_q_pull_tail(shf, qid_free);
+ * @endcode
+ */
 void
 shf_q_push_head(
     SHF      * shf      ,
@@ -1213,6 +1364,13 @@ shf_q_push_head(
     }
 } /* shf_q_push_head() */
 
+/**
+ * @brief Diagnostic function for debugging to show qid queue sizes.
+ * - Shows the queue size for queue qid, and its associated 'nolock' push & pull queues; ; see @ref ipc_sec.
+ *
+ * @param[in] shf  Attached SHF.
+ * @param[in] qid  qid to show sizes for.
+ */
 void
 shf_q_size( /* this function only used for debugging... */
     SHF      * shf,
@@ -1230,6 +1388,14 @@ shf_q_size( /* this function only used for debugging... */
     shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 } /* shf_q_size() */
 
+/**
+ * @brief Flushes nolock push & pull queues.
+ * - This function is intended for internal use. Cannot think of a use case for the caller to use it.
+ * - See @ref ipc_sec regarding nolock push & pull queues.
+ *
+ * @param[in] shf       Attached SHF.
+ * @param[in] pull_qid  qid to flush from.
+ */
 void
 shf_q_flush(
     SHF      * shf     ,
@@ -1322,6 +1488,28 @@ shf_q_flush(
     shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 } /* shf_q_flush() */
 
+/**
+ * @brief If push_qiid is not #SHF_QIID_NONE then push it onto push_qid, then pull a qiid off pull_qid tail.
+ * - Sets the thread local variable @ref shf_qiid          to the qiid pulled if found, else #SHF_QIID_NONE.
+ * - Sets the thread local variable @ref shf_qiid_addr     to point to the first byte of the queue item if found, else NULL.
+ * - Sets the thread local variable @ref shf_qiid_addr_len to the length in bytes of the queue item if found, else zero.
+ * - This is faster than shf_q_push_head() & shf_q_pull_tail(); see @ref ipc_sec for why.
+ *
+ * @param[in] shf             Attached SHF.
+ * @param[in] push_qid        qid to push on to.
+ * @param[in] push_qiid       qiid to push.
+ * @param[in] pull_qid        qid to try and pull qiid from.
+ * @retval    qiid            qiid pulled from pull_qid.
+ * @retval    #SHF_QIID_NONE  If no qiid available.
+ *
+ * Example usage:
+ * @code
+ * shf_qiid = SHF_QIID_NONE;
+ * while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, qid_b2a, shf_qiid, qid_a2b)) {
+ *     // your business logic here
+ * }
+ * @endcode
+ */
 uint32_t
 shf_q_push_head_pull_tail(
     SHF      * shf      ,
@@ -1391,6 +1579,14 @@ shf_q_push_head_pull_tail(
     return pull_qiid;
 } /* shf_q_push_head_pull_tail() */
 
+/**
+ * @brief Checks if queue has been initialized via shf_q_new() or shf_q_get().
+ * - This function is intended for internal use. Cannot think of a use case for the caller to use it.
+ *
+ * @param[in] shf  Attached SHF.
+ * @retval    0    Queue is not initialized.
+ * @retval    1    Queue is     initialized.
+ */
 uint32_t
 shf_q_is_ready(SHF * shf)
 {

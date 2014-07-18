@@ -27,51 +27,159 @@
  * @mainpage SharedHashFile (S)hared Memory (H)ash Table Using (F)iles (SHF) & IPC queue
  *
  * @section intro_sec Introduction
- * 
+ *
  * SharedHashFile is a lightweight NoSQL key value store / hash table, &
  * a zero-copy IPC queue library written in C for Linux. There is no
  * server process. Data is read and written directly from/to shared
  * memory or SSD; no sockets are used between SharedHashFile and the
  * application program. APIs for C, C++, & nodejs.
- * 
+ *
  * ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
- * 
+ *
+ * @section kv_sec Key Value Store / Hash Table
+ *
+ * - todo: describe the big picture of how the key value store works.
+ *
  * @section ipc_sec Zero-Copy IPC Queues
- * 
- * How does it work? Create X fixed-sized queue elements, and Y queues
- * to push & pull those queue elements to/from.
- * 
- * Example: Imagine two processes ```Process A``` & ```Process B```.
- * ```Process A``` creates 100,000 queue elements and 3 queues;
- * ```queue-free```, ```queue-a2b```, and ```queue-b2a```. Intitally,
- * all queue elements are pushed onto ```queue-free```. ```Process A```
- * then spawns ```Process B``` which attaches to the SharedHashFile in
- * order to pull from ```queue-a2b```. To perform zero-copy IPC then
- * ```Process A``` can pull queue elements from ```queue-free```,
- * manipulate the fixed size, shared memory queue elements, and push the
- * queue elements into ```queue-a2b```. ```Process B``` does the
- * opposite; pulls queue elements from ```queue-a2b```, manipulates the
- * fixed size, shared memory queue queue elements, and pushes the queue
- * elements into ```queue-b2a```. ```Process A``` can also pull queue
- * items from ```queue-b2a``` in order to digest the results from
- * ```Process B```.
- * 
- * So how many queue elements per second can be moved back and forth by
- * ```Processes A``` & ```Process B```? On a Lenovo W530 laptop then
- * about 90 million per second if both ```Process A``` & ```Process B```
- * are written in C. Or about 7 million per second if  ```Process A```
- * is written in C and ```Process B``` is written in javascript for
- * nodejs.
- * 
- * Note: When a queue element is moved from one queue to another then it
- *  is not copied, only a reference is updated.
+ *
+ * Which data structures are used by SHF IPC queues?
+ * - Create an array of x fixed-sized (caller decides) queue items.
+ * - The index to a particular queue item is called a qiid.
+ * - Create y queues (think: queue item states).
+ * - A queue is called a qid.
+ * - All qiids are initially pushed onto qid #0.
+ * - A qid can be given a name to identify it:
+ *   - e.g. qid #0: "qid-free".
+ *   - e.g. qid #1: "qid-a2b".
+ *   - e.g. qid #2: "qid-b2a".
+ *
+ * @code
+ * +---+---+- - -+---+---+
+ * |   |   |     |   |   |  Array of x queue items of size s bytes
+ * |  0|  1|     |x-1|  x|  indexed by (q)ueue (i)tem (ID) aka qiid
+ * +---+---+- - -+---+---+
+ *
+ * +---+---+- - -+---+---+
+ * |   |   |     |   |   |  Array of y queues (double linked lists)
+ * |  0|  1|     |y-1|  y|  indexed by (q)ueue (ID) aka qid
+ * +---+---+- - -+---+---+
+ * |  0|                    All qiids are pushed onto qid 0
+ * +---+
+ * :   :
+ * +---+
+ * |  x|
+ * +---+
+ * @endcode
+ *
+ * Abstract example of moving a qiid from qid #0 to qid #1:
+ * - Pull next qiid from the tail of qid #0.
+ * - Push      qiid onto     head of qid #1.
+ *
+ * @code
+ * +---+---+- - -+---+---+
+ * |   |   |     |   |   |  Array of y queues (double linked lists)
+ * |  0|  1|     |y-1|  y|  indexed by (q)ueue (ID) aka qid
+ * +---+---+- - -+---+---+
+ * |  1|  0|                qiid pulled from qid 0 is pushed onto qid 1
+ * +---+---+
+ * :   :
+ * +---+
+ * |  x|
+ * +---+
+ * @endcode
+ *
+ * How is this useful for IPC between `Process A` & `Process B`?:
+ * - Both the queue items and queues exist in shared memory.
+ * - Queue items themselves never need to be copied (aka zero copy):
+ *   - `Process A` might write bytes into shared memory @ qiid #0.
+ *   - `Process B` might read  bytes from shared memory @ qiid #0.
+ * - Pushing/pulling qiids to/from qids updates double linked lists.
+ * - Example of IPC of a qiid from `Process A` to `Process B` and back:
+ *   - `Process A` might pull a   qiid from "qid-free".
+ *   - `Process A` might push the qiid onto "qid-a2b".
+ *   - `Process B` might pull the qiid from "qid-a2b".
+ *   - `Process B` might push the qiid onto "qid-b2a".
+ *   - `Process A` might pull the qiid from "qid-b2a".
+ *   - `Process A` might push the qiid onto "qid-free".
+ * - There does not need to be only 3 qids as in this example.
+ * - The number and/or name of qids is defined by the caller.
+ * - A more complicated example might have (chains of?) more processes
+ *   and/or fewer processes and more qids (think: states).
+ * - The number of qids and qiids is only limited by available memory.
+ * - Between pulling & pushing a qiid then it 'belongs' to no qid.
+ *   - This is when the shared memory @ qiid can be accessed safely.
+ *
+ * How many qiids per second can be pulled & pushed between 2 processes?
+ * - On a Lenovo W530 then ~ 90 million per second; C(++) <-> C(++).
+ * - On a Lenovo W530 then ~ 7 million per second; C(++) <-> nodejs.
+ * - Note: Figures based upon minimal qid memory access.
+ * - Note: Figures based upon the hybrid shf_q_push_head_pull_tail().
+ *
+ * Performance notes / how these figures were achieved:
+ * - Pushing or pulling requires an expensive lock for each operation.
+ * - So 1 million pushes & 1 million pulls == 2 million locks total.
+ * - However, the hybrid shf_q_push_head_pull_tail() uses 1 lock.
+ * - So 1 million hybrid calls == 1 million locks total.
+ * - However, shf_q_new() takes `qids_nolock_max`:
+ *   - Each queue caller (e.g. `Process A`) has an own pre-queue.
+ *   - This pre-queue is unlocked and contains `qids_nolock_max` items.
+ *   - Upon containing `qids_nolock_max` items then:
+ *     - A lock is taken.
+ *     - And `qids_nolock_max` items are moved to the qid.
+ *     - Only double linked list ends are updated to move many items.
+ *   - Therefore, if `qids_nolock_max` is set to 1,000 then:
+ *     - 1 million hybrid calls == only 1,000 locks total.
+ *   - The lockless pre-queues are not stored in shared memory.
+ * - The architecture is designed for maximum possible performance.
+ *
+ * Suggestion for caller hybrid poll / notification approach:
+ * - Processes poll for (& expect there to be) a new qiid to pull.
+ * - E.g. similar to how a busy NIC driver polls for the next packet.
+ * - For non-busy pollers, consider multi stage notification, e.g.:
+ *   - Process greedily polls until nothing left to poll.
+ *   - Use much slower OS notification mechanism to batch notify:
+ *     - E.g. let's say OS mechanism only manages 100k per second.
+ *     - But SHF IPC queues manages 90 millon per second.
+ *     - So pusher only need notify every 90M / 100k == 900 items.
+ *     - Otherwise throughput will lower to unwanted 100k per second.
+ *   - Use poller timer to sweep for last item sent.
+ *     - i.e. pusher sent 2 items in last single OS notify period.
+ *
+ * Suggestion for run-time order of operations / pattern:
+ * - `Process A` wants to IPC with (not yet started) `Process B`.
+ * - `Process A` creates unique SHF instance for later `Process B` IPC.
+ * - `Process A` creates necessary IPC queue in the unique SHF instance.
+ * - `Process A` spawns `Process B`; telling SHF instance to attach to.
+ * - `Process B` uses the queue embedded into the attached SHF instance.
+ * - `Process A` & `Process B` 'queue nirvana' at up to 90 million TPS.
+ * - `Process A` eventually exits and cleanly tells `Process B` to exit.
+ * - `Process A` deletes the SHF instance after `Process B` exited.
+ * - `Process A` exits.
+ * - Notes:
+ *   - `Process A` has created the unique SHF & its queue before
+ *     `Process B` exists so there is no race condition.
+ *   - The IPC queue is only used while both processes are alive.
+ *   - It is left up to `Process A` to decide how to communicate the SHF
+ *     instance to `Process B` (e.g. command line argument?).
+ *   - It is left up to `Process A` to decide that `Process B` is no
+ *     longer using the SHF instance, so that the SHF instance can be
+ *     deleted.
+ *   - If `Process B` exits (e.g. unexpectedly) then it should not be
+ *     expected that `Process A` can launch another `Process B` to
+ *     continue where the old `Process B` left off. This is because of
+ *     `qids_nolock_max`; see above.
+ *
+ * Caveats:
+ * - Once shf_q_new() or shf_q_get() has been called then the key value
+ *   store should no longer be used, or a seg fault might result. This
+ *   limitation will be fixed in a future update.
  *
  * @author
- * 
+ *
  * Simon Hardy-Francis, Hardy-Francis Enterprises Inc.
  *
  * @copyright
- * 
+ *
  * Copyright (c) 2014 Hardy-Francis Enterprises Inc.
  *
  * SharedHashFile is free software: you can redistribute it and/or modify it
@@ -98,6 +206,9 @@
 
 #include "shf.defines.h"
 
+/**
+ * @brief TODO: Change API to support these key types.
+ */
 typedef enum SHF_KEY_TYPES {
     SHF_KEY_TYPE_KEY_IS_UID     , /*  0: no key, UID accesses directly <- todo */
     SHF_KEY_TYPE_KEY_AT_UID     , /*  1:    key is value at UID        <- todo */
@@ -109,6 +220,9 @@ typedef enum SHF_KEY_TYPES {
     SHF_KEY_TYPE_KEY_IS_DELETED , /*  7:    0xFF == deleted            */
 } SHF_KEY_TYPES;
 
+/**
+ * @brief TODO: Change API to support these value types.
+ */
 typedef enum SHF_VAL_TYPES {
     SHF_VAL_TYPE_UNUSED         =     0,
     SHF_VAL_TYPE_VAL_AT_UID     , /*  1:    val is value at UID            <- todo */
@@ -137,10 +251,11 @@ typedef union SHF_DATA_TYPE {
     uint8_t as_u08;
 } __attribute__((packed)) SHF_DATA_TYPE;
 
+/* UINT32_MAX; note: defined here for use with either C or C++ clients */
 #define SHF_DATA_TYPE_DELETED (0xff)
-#define SHF_UID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
-#define SHF_QID_NONE          (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
-#define SHF_QIID_NONE         (4294967295U) /* UINT32_MAX; note: defined here for use with either C or C++ clients */
+#define SHF_UID_NONE          (4294967295U) /*!< Value used to represent no uid */
+#define SHF_QID_NONE          (4294967295U) /*!< Value used to represent no qid */
+#define SHF_QIID_NONE         (4294967295U) /*!< Value used to represent no qiid */
 
 extern __thread uint32_t   shf_uid          ;
 extern __thread char     * shf_val          ;
@@ -149,13 +264,6 @@ extern __thread uint32_t   shf_qiid         ;
 extern __thread char     * shf_qiid_addr    ;
 extern __thread uint32_t   shf_qiid_addr_len;
 
-/** @brief Spawn a child process & return its pid.
- *  @param[in] child_path       todo
- *  @param[in] child_file       todo
- *  @param[in] child_argument_1 todo
- *  @param[in] child_argument_2 todo
- *  @retval The pid of the spawned child.
- */
 extern pid_t      shf_exec_child           (const char * child_path, const char * child_file, const char * child_argument_1, char  * child_argument_2);
 extern char     * shf_backticks            (const char * command);
 extern double     shf_get_time_in_seconds  (void);
@@ -184,9 +292,9 @@ extern void       shf_q_del                (SHF * shf);
 extern uint32_t   shf_q_new_name           (SHF * shf, const char * name, uint32_t name_len);
 extern uint32_t   shf_q_get_name           (SHF * shf, const char * name, uint32_t name_len);
 extern void       shf_q_push_head          (SHF * shf, uint32_t      qid, uint32_t qiid);
-extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t      qid                                       ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
-extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
-extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t      qid                                       ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t      qid                                       );
+extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid);
+extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t      qiid                                      );
 extern void       shf_q_flush              (SHF * shf, uint32_t pull_qid);
 extern void       shf_q_size               (SHF * shf, uint32_t      qid);
 extern uint32_t   shf_q_is_ready           (SHF * shf);
