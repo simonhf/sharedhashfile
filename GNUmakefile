@@ -141,7 +141,7 @@ ifndef SHF_SKIP_TESTS
 	@cd $(BUILD_TYPE) && ./TestIpcSocket 2>&1 | perl ../src/verbose-if-fail.pl TestIpcSocket.tout
 	@echo "make: running test: IPC: SharedHashFile Queue"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcQueue.js .
-	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./test.q.shf.t c2js 2>&1 | perl ../src/verbose-if-fail.pl test.q.shf.t.tout
+	@cd $(BUILD_TYPE) && PATH=$$PATH:. ./test.q.shf.t c2js 2>&1 | perl ../src/verbose-if-fail.pl test.q.shf.t.c2js.tout
 endif
 else
 ifdef SHF_FORCE_MAKE_NODE

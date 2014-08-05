@@ -496,7 +496,7 @@ shf_make_hash(
         } \
         /* debug paranoia */ SHF_U08_AT(TAB_MMAP, new_tab_size - 1) ++; \
         /* debug paranoia */ SHF_U08_AT(TAB_MMAP, new_tab_size - 1) --; \
-        value     =     close(fd); SHF_ASSERT(-1 != value, "close(): %u: ", errno); \
+        value = close(fd); SHF_ASSERT(-1 != value, "close(): %u: ", errno); \
         SHF->tabs[win][TAB].tab_mmap = TAB_MMAP; \
         TAB_MMAP->tab_size           = new_tab_size; \
         SHF->tabs[win][TAB].tab_size = new_tab_size; \
@@ -712,7 +712,10 @@ SHF_NEED_NEW_TAB_AFTER_PARTING:;
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
     for (uint32_t ref = 0; ref < SHF_REFS_PER_ROW; ref ++) {
-        if (tab_mmap->row[row].ref[ref].pos) { /* row used */ } else {
+        if (tab_mmap->row[row].ref[ref].pos) {
+            /* row used */
+        }
+        else {
             uid.as_part.win = win;
             uid.as_part.tab = tab2;
             uid.as_part.row = row;
@@ -1595,6 +1598,14 @@ shf_q_is_ready(SHF * shf)
     return shf->q.q_is_ready;
 } /* shf_q_is_ready() */
 
+/**
+ * @brief Initialize race between two or more threads and/or processes.
+ * - Only one thread or processes should ever call this function; the race official.
+ *
+ * @param[in] shf       Attached SHF.
+ * @param[in] name      Race unique name.
+ * @param[in] name_len  Race unique name length.
+ */
 void
 shf_race_init(
     SHF        * shf     ,
@@ -1603,10 +1614,26 @@ shf_race_init(
 {
     SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
 
-                    shf_make_hash  (name, name_len);
-    uint32_t uid =  shf_put_key_val(shf, NULL, 1); SHF_ASSERT(SHF_UID_NONE != uid, "ERROR: %s() could not put key: '%.*s'", __FUNCTION__, name_len, name);
+                                   shf_make_hash       (name, name_len);
+    uint32_t uid                 = shf_put_key_val     (shf, NULL, 1  ); SHF_ASSERT_INTERNAL(SHF_UID_NONE != uid, "ERROR: %s() could not put key: '%.*s'", __FUNCTION__, name_len, name);
+#ifdef SHF_DEBUG_VERSION
+    volatile uint8_t * race_line = shf_get_key_val_addr(shf           ); SHF_ASSERT_INTERNAL(NULL != race_line, "ERROR: %s() could not get key: '%.*s'", __FUNCTION__, name_len, name);
+    SHF_ASSERT_INTERNAL(0 == *race_line, "ERROR: %s() incorrectly initialized value", __FUNCTION__);
+#endif
 } /* shf_race_init() */
 
+/**
+ * @brief Every thread and/or process (aka horse) in the race should call this function.
+ * - Once the race official has called shf_race_init() then each competing horse calls shf_race_start().
+ * - shf_race_start() only fires the gun once all horses have called shf_race_start().
+ * - If one or more horses take too long to call shf_race_start() then the waiting horses will assert.
+ * - Once the race is started all competing horses return from shf_race_start() roughly at the same time.
+ *
+ * @param[in] shf       Attached SHF.
+ * @param[in] name      Race unique name.
+ * @param[in] name_len  Race unique name length.
+ * @param[in] horses    Race horses competing.
+ */
 void
 shf_race_start(
     SHF        * shf     ,
@@ -1619,8 +1646,19 @@ shf_race_start(
                                    shf_make_hash       (name, name_len);
     volatile uint8_t * race_line = shf_get_key_val_addr(shf); SHF_ASSERT(NULL != race_line, "ERROR: %s() could not get key: '%.*s'", __FUNCTION__, name_len, name);
 
+    double start_time = shf_get_time_in_seconds();
     __sync_fetch_and_add_8(race_line, 1); /* atomic increment */
-    while (horses != *race_line) { SHF_CPU_PAUSE(); }
+    while (horses != *race_line) {
+        SHF_CPU_PAUSE();
+        if (shf_get_time_in_seconds() - start_time > 6.0 /* arbitrary many seconds */) {
+            SHF_ASSERT_INTERNAL(0, "ERROR: %s() timeout waiting for %u horses but only got %u", __FUNCTION__, horses, *race_line);
+        }
+    }
+#ifdef SHF_DEBUG_VERSION
+    shf_debug_verbosity_more();
+    SHF_DEBUG("%s() // %u horses started after %f seconds\n", __FUNCTION__, horses, shf_get_time_in_seconds() - start_time);
+    shf_debug_verbosity_less();
+#endif
 } /* shf_race_start() */
 
 #define SHF_LOG_BUFFER_SIZE 4096
