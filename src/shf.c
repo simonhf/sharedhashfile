@@ -1720,13 +1720,13 @@ shf_log_output_shf_log(char * log_line, uint32_t log_line_len)
 void (*shf_log_output_indirect)(char * log_line, uint32_t log_line_len) = shf_log_output_stdout;
 
 static int /* bool */
-shf_log_safe_append(char * log_buffer, uint32_t * index_ptr, int appended)
+shf_log_safe_append(char * log_buffer, uint32_t log_buffer_size, uint32_t * index_ptr, int appended)
 {
-    if ((appended < 0) || ((unsigned)appended >= SHF_LOG_BUFFER_SIZE - *index_ptr)) {
-        log_buffer[SHF_LOG_BUFFER_SIZE - 4] = '.';
-        log_buffer[SHF_LOG_BUFFER_SIZE - 3] = '.';
-        log_buffer[SHF_LOG_BUFFER_SIZE - 2] = '\n';
-        log_buffer[SHF_LOG_BUFFER_SIZE - 1] = '\0';
+    if ((appended < 0) || ((unsigned)appended >= log_buffer_size - *index_ptr)) {
+        log_buffer[log_buffer_size - 4] = '.';
+        log_buffer[log_buffer_size - 3] = '.';
+        log_buffer[log_buffer_size - 2] = '\n';
+        log_buffer[log_buffer_size - 1] = '\0';
         return 0 /* false */;
     }
 
@@ -1771,13 +1771,13 @@ shf_log_prefix_get(void)
                 shf_debug_verbosity_more();
 
                 tbd = "#";
-                shf_log_safe_append(shf_log_prefix, &shf_log_prefix_len, snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "?%13.6f %5u --> auto mapped to thread id %u\n", time_elapsed_now, shf->log->tid_id ? shf->log->tid_id : shf_log_tid, shf_log_tid));
+                shf_log_safe_append(shf_log_prefix, sizeof(shf_log_prefix), &shf_log_prefix_len, snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "?%13.6f %5u --> auto mapped to thread id %u\n", time_elapsed_now, shf->log->tid_id ? shf->log->tid_id : shf_log_tid, shf_log_tid));
             }
             shf_log_tid_id = shf->log->tids[shf_log_tid];
         }
     }
 
-    shf_log_safe_append(shf_log_prefix, &shf_log_prefix_len,  snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "%s%13.6f %5u ", tbd, time_elapsed_now, shf_log_tid_id ? shf_log_tid_id : shf_log_tid));
+    shf_log_safe_append(shf_log_prefix, sizeof(shf_log_prefix), &shf_log_prefix_len,  snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "%s%13.6f %5u ", tbd, time_elapsed_now, shf_log_tid_id ? shf_log_tid_id : shf_log_tid));
 
     return &shf_log_prefix[0];
 } /* shf_log_prefix_get() */
@@ -1796,11 +1796,11 @@ shf_log(char * prefix, const char * format_type, int line, const char * file, co
 
     va_start(ap, format_user);
 
-    if (shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , prefix                    ))    /* append log prefix, e.g. seconds & tid  */
-/*  &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only           )) */ /* append log type  , e.g. debug or error */
-    &&  shf_log_safe_append(log_buffer, &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                        ))    /* append                user log message */
-    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , str_error ? str_error : ""))    /* append optional   system error message */
-    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol       ? eol       : ""))) { /* append optional            eol message */
+    if (shf_log_safe_append(log_buffer, sizeof(log_buffer), &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , prefix                    ))    /* append log prefix, e.g. seconds & tid  */
+/*  &&  shf_log_safe_append(log_buffer, sizeof(log_buffer), &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only           )) */ /* append log type  , e.g. debug or error */
+    &&  shf_log_safe_append(log_buffer, sizeof(log_buffer), &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                        ))    /* append                user log message */
+    &&  shf_log_safe_append(log_buffer, sizeof(log_buffer), &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , str_error ? str_error : ""))    /* append optional   system error message */
+    &&  shf_log_safe_append(log_buffer, sizeof(log_buffer), &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol       ? eol       : ""))) { /* append optional            eol message */
         /* if we made it to here then SHF_LOG_BUFFER_SIZE is big enough! */
     }
 
@@ -2069,7 +2069,7 @@ shf_log_vfprintf(FILE * stream, const char * format, va_list ap)
 
     SHF_UNUSE(stream);
 
-    shf_log_safe_append(shf_log_fprintf_buffer, &shf_log_fprintf_buffer_i, vsnprintf(&shf_log_fprintf_buffer[shf_log_fprintf_buffer_i], SHF_LOG_BUFFER_SIZE - shf_log_fprintf_buffer_i, format, ap));
+    shf_log_safe_append(shf_log_fprintf_buffer, sizeof(shf_log_fprintf_buffer), &shf_log_fprintf_buffer_i, vsnprintf(&shf_log_fprintf_buffer[shf_log_fprintf_buffer_i], SHF_LOG_BUFFER_SIZE - shf_log_fprintf_buffer_i, format, ap));
     len = shf_log_fprintf_buffer_i - len;
 
     if ('\n' == shf_log_fprintf_buffer[shf_log_fprintf_buffer_i - 1]) {
