@@ -37,17 +37,19 @@
 #include <sys/time.h>    /* for gettimeofday() */
 #include <sys/statvfs.h> /* for statvfs() */
 #include <signal.h>      /* for kill() */
+#include <pthread.h>     /* for pthread_create() */
+#include <math.h>        /* for floor() */
+#include <syslog.h>
+#include <sys/syscall.h> /* for syscall() */
+#include <sys/resource.h>/* for setrlimit() */
 
 #include "shf.private.h"
 #include "shf.h"
 
 #include "murmurhash3.h"
 
+                      SHF      * shf_log_thread_instance   = NULL;
                       uint32_t   shf_init_called           = 0   ;
-                       int32_t   shf_debug_disabled        = 0   ;
-#ifdef SHF_DEBUG_VERSION
-static                 FILE    * shf_debug_file            = 0   ;
-#endif
 
        __thread       SHF_HASH   shf_hash                        ;
 
@@ -184,6 +186,18 @@ shf_init(void)
     }
     shf_init_called = 1;
 
+#ifdef SHF_DEBUG_VERSION
+    SHF_DEBUG("turning on core dump for debug");
+
+    struct rlimit core_limit;
+    core_limit.rlim_cur = RLIM_INFINITY;
+    core_limit.rlim_max = RLIM_INFINITY;
+
+    if (setrlimit(RLIMIT_CORE, &core_limit) < 0) {
+        SHF_DEBUG("setrlimit(): %s; WARN: core dumps may be truncated or non-existant\n", strerror(errno));
+    }
+#endif
+
     SHF_DEBUG("- SHF_SIZE_PAGE        :%u\n" , SHF_SIZE_PAGE          );
     SHF_DEBUG("- SHF_SIZE_CACHE_LINE  :%u\n" , SHF_SIZE_CACHE_LINE    );
     SHF_DEBUG("- SHF_REFS_PER_ROW     :%lu\n", SHF_REFS_PER_ROW       );
@@ -239,6 +253,9 @@ shf_detach( /* free any (c|m)alloc()d memory & munmap() any mmap()s */
     SHF_DEBUG("%s(shf=?)\n", __FUNCTION__);
     SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
 
+    if (shf->log_thread_acive)
+        shf_log_thread_del(shf);
+
     if (shf->q.qids_nolock_push) { free(shf->q.qids_nolock_push); shf->count_xalloc --; }
     if (shf->q.qids_nolock_pull) { free(shf->q.qids_nolock_pull); shf->count_xalloc --; }
 
@@ -287,6 +304,7 @@ shf_attach_existing(
         shf->path        = strdup(path); shf->count_xalloc ++;
         shf->name        = strdup(name); shf->count_xalloc ++;
         shf->is_lockable = 1;
+        shf->log         = NULL;
     }
 
     SHF_DEBUG("- return %p // shf\n", shf);
@@ -890,6 +908,7 @@ char *
 shf_del( /* shf_detach() & then delete the folder structure on /dev/shm or disk */
     SHF      * shf)
 {
+    SHF_DEBUG("%s(shf=?)\n", __FUNCTION__);
     SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
 
     char du_rm_folder[256]; SHF_SNPRINTF(1, du_rm_folder, "du -h -d 0 %s/%s.shf ; rm -rf %s/%s.shf/", shf->path, shf->name, shf->path, shf->name);
@@ -1661,10 +1680,47 @@ shf_race_start(
 #endif
 } /* shf_race_start() */
 
-#define SHF_LOG_BUFFER_SIZE 4096
+double (* shf_log_get_time_in_seconds)(void) = shf_get_time_in_seconds; /* indirect call for easier unit testing */
+
+#define SHF_LOG_BUFFER_SIZE      4096
+#define SHF_LOG_WRITE_THRESHOLD (64 * 1024)
+#define SHF_LOG_DEFAULT_SIZE    (64 * 1024 * 10)
+#define SHF_LOG_WRITE_INTERVAL   10000      /* usleep interval in shf_log_thread(); usleep(10,000) microseconds means wait 10ms */
+
+static          double   shf_log_time_init                = 0;
+static __thread uint32_t shf_log_tid                      = 0;
+static __thread uint32_t shf_log_tid_id                   = 0;
+static __thread char     shf_log_prefix[128]                 ; /* "000000.000000 12345 "; elapsed seconds & tid */
+static __thread uint32_t shf_log_prefix_len                  ;
+static __thread uint32_t shf_log_output_indirect_failsafe = 0;
+
+//example static void
+//example shf_log_output_stderr(char * log_line, uint32_t log_line_len)
+//example {
+//example     log_line[0] = '?' == log_line[0] ? '=' : log_line[0]; /* mark as logged output by stderr */
+//example     fprintf(stderr, "%.*s", log_line_len, log_line);
+//example } /* shf_log_output_stderr() */
+
+static void
+shf_log_output_stdout(char * log_line, uint32_t log_line_len)
+{
+    log_line[0] = '?' == log_line[0] ? '=' : log_line[0]; /* mark as logged output by stdout */
+    fprintf(stdout, "%.*s", log_line_len, log_line);
+    fflush(stdout);
+} /* shf_log_output_stdout() */
+
+static void
+shf_log_output_shf_log(char * log_line, uint32_t log_line_len)
+{
+    SHF_SYSLOG_ASSERT_INTERNAL(shf_log_thread_instance, "ERROR: shf_log_thread_instance must never be NULL; called shf_log_thread_new()?\n");
+    log_line[0] = '?' == log_line[0] ? '#' : log_line[0]; /* mark as logged output by shf_log */
+    shf_log_append(shf_log_thread_instance, log_line, log_line_len);
+} /* shf_log_output_shf_log() */
+
+void (*shf_log_output_indirect)(char * log_line, uint32_t log_line_len) = shf_log_output_stdout;
 
 static int /* bool */
-shf_log_safe_append(char * log_buffer, unsigned * index_ptr, int appended)
+shf_log_safe_append(char * log_buffer, uint32_t * index_ptr, int appended)
 {
     if ((appended < 0) || ((unsigned)appended >= SHF_LOG_BUFFER_SIZE - *index_ptr)) {
         log_buffer[SHF_LOG_BUFFER_SIZE - 4] = '.';
@@ -1678,39 +1734,372 @@ shf_log_safe_append(char * log_buffer, unsigned * index_ptr, int appended)
     return 1 /* true */;
 } /* shf_log_safe_append() */
 
-static void
-shf_log_output_stderr(const char * log_line)
+char *
+shf_log_prefix_get(void)
 {
-    fprintf(stderr, "%s", log_line);
-} /* shf_log_stderr() */
+    const char * tbd = "?";
+
+    shf_log_prefix_len = 0;
+
+    if (0 == shf_log_time_init) {
+        shf_log_time_init = shf_get_time_in_seconds();
+    }
+
+    double time_elapsed_now = shf_get_time_in_seconds() - shf_log_time_init;
+
+    if (0 == shf_log_tid) {
+#ifdef SYS_gettid
+        shf_log_tid = syscall(SYS_gettid);
+#else
+#error "ERROR: SYS_gettid unavailable on this system"
+#endif
+    }
+
+    if (0 == shf_log_tid_id) {
+        if (NULL != shf_log_thread_instance) {
+            SHF * shf = shf_log_thread_instance;
+            SHF_ASSERT_INTERNAL(shf_log_tid < sizeof(shf->log->tids), "ERROR: internal: tid=%u >= sizeof(shf->log->tids)=%u", shf_log_tid, sizeof(shf->log->tids));
+            if (0 == shf->log->tids[shf_log_tid]) {
+                /* come here if no tid id assigned yet */
+                shf_debug_verbosity_less();
+                SHF_LOCK_WRITER(&shf->log->lock);   /* vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv */
+                if (0 == shf->log->tids[shf_log_tid]) {
+                    shf->log->tid_id ++;
+                    shf->log->tids[shf_log_tid] = shf->log->tid_id;
+                }
+                SHF_UNLOCK_WRITER(&shf->log->lock); /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
+                shf_debug_verbosity_more();
+
+                tbd = "#";
+                shf_log_safe_append(shf_log_prefix, &shf_log_prefix_len, snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "?%13.6f %5u --> auto mapped to thread id %u\n", time_elapsed_now, shf->log->tid_id ? shf->log->tid_id : shf_log_tid, shf_log_tid));
+            }
+            shf_log_tid_id = shf->log->tids[shf_log_tid];
+        }
+    }
+
+    shf_log_safe_append(shf_log_prefix, &shf_log_prefix_len,  snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "%s%13.6f %5u ", tbd, time_elapsed_now, shf_log_tid_id ? shf_log_tid_id : shf_log_tid));
+
+    return &shf_log_prefix[0];
+} /* shf_log_prefix_get() */
 
 void
-(*shf_log_output_indirect)(const char * log_line) = shf_log_output_stderr;
-
-void
-shf_log(const char * format_type, int line, const char * file, const char * str_error, const char * eol, const char * format_user, ...) /* see shf.defines.h for example usage */
+shf_log(char * prefix, const char * format_type, int line, const char * file, const char * str_error, const char * eol, int priority, const char * format_user, ...) /* see shf.defines.h for example usage */
 {
     va_list      ap;
     char         log_buffer[SHF_LOG_BUFFER_SIZE];
     const char * file_only = strchr(file, '/') ? 1 + strrchr(file, '/') : file; /* if path, remove it */
-    unsigned     i         = 0;
+    uint32_t     i         = 0;
+
+    SHF_UNUSE(format_type); /* todo: decide if we really want to show the source line and *variable* length file */
+    SHF_UNUSE(line       ); /* todo: decide if we really want to show the source line and *variable* length file */
+    SHF_UNUSE(file_only  ); /* todo: decide if we really want to show the source line and *variable* length file */
 
     va_start(ap, format_user);
 
-    if (shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only           ))    /* append log type, e.g. debug or error */
-    &&  shf_log_safe_append(log_buffer, &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                        ))    /* append              user log message */
-    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , str_error ? str_error : ""))    /* append optional system error message */
-    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol       ? eol       : ""))) { /* append optional          eol message */
+    if (shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , prefix                    ))    /* append log prefix, e.g. seconds & tid  */
+/*  &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_type, line, file_only           )) */ /* append log type  , e.g. debug or error */
+    &&  shf_log_safe_append(log_buffer, &i, vsnprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, format_user, ap                        ))    /* append                user log message */
+    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , str_error ? str_error : ""))    /* append optional   system error message */
+    &&  shf_log_safe_append(log_buffer, &i,  snprintf(&log_buffer[i], SHF_LOG_BUFFER_SIZE - i, "%s"       , eol       ? eol       : ""))) { /* append optional            eol message */
         /* if we made it to here then SHF_LOG_BUFFER_SIZE is big enough! */
     }
 
-    (*shf_log_output_indirect)(log_buffer);
+    if (LOG_INFO == priority) {
+        shf_log_output_indirect_failsafe ++;
+        SHF_SYSLOG_ASSERT_INTERNAL(1 == shf_log_output_indirect_failsafe, "ERROR: %s() recursive call detected! shf_log*() functions should never use themselves to log! tried to log line '%.*s'", __FUNCTION__, i, log_buffer);
+        (*shf_log_output_indirect)(log_buffer, i);
+        shf_log_output_indirect_failsafe --;
+    }
+    else {
+        setlogmask(LOG_UPTO(LOG_DEBUG));
+        openlog(NULL /* use program name */, LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_USER);
+        syslog(priority, "%.*s", i, log_buffer);
+        closelog();
+    }
 
     va_end(ap);
 } /* shf_log() */
 
 void
-shf_log_output_set(void (*shf_log_output_new)(const char * log_line)) /* todo: write a test for this! */
+shf_log_output_set(void (*shf_log_output_new)(char * log_line, uint32_t log_line_len)) /* todo: write a test for this! */
 {
-    shf_log_output_indirect = shf_log_output_new;
+    shf_log_output_indirect          = shf_log_output_new;
+    shf_log_output_indirect_failsafe = 0                 ;
 } /* shf_log_output_set() */
+
+#define SHF_LOG_THREAD_WRITE(SHARED_MEMORY_ADDR) \
+    SHF_SYSLOG_DEBUG("%s() // attempting to write() %u bytes", __FUNCTION__, log_left); \
+    char * log_work = SHARED_MEMORY_ADDR; \
+    while (log_left > 0) { \
+        shf->log->writing = 1; \
+        ssize_t bytes_written = write(shf->log->fd, log_work, log_left); \
+        if ((-1 == bytes_written && EAGAIN      == errno) \
+        ||  (-1 == bytes_written && EWOULDBLOCK == errno) \
+        ||  ( 0 == bytes_written                        )) { \
+            last_loop_did_not_block = 0; \
+            break; \
+        } \
+        else if (-1 == bytes_written && EINTR == errno) { \
+            SHF_SYSLOG_WARNING("%s() // WARN: write() returned EINTR", __FUNCTION__); \
+            break; \
+        } \
+        else if (bytes_written < 0) { \
+            SHF_SYSLOG_WARNING("%s() // WARN: write() returned %ld: errno=%d=%s ", __FUNCTION__, bytes_written, errno, strerror(errno)); \
+            shf->log->write_fail = second; /* throttle write errors during this second */ \
+            break; \
+        } \
+        log_left -= bytes_written; \
+        log_work += bytes_written; \
+        SHF_SYSLOG_DEBUG("%s() // wrote %lu bytes", __FUNCTION__, bytes_written); \
+    }
+
+static void *
+shf_log_thread(void *arg)
+{
+    SHF * shf = shf_log_thread_instance;
+
+    SHF_UNUSE(arg);
+
+    SHF_DEBUG("%s(shf=?){}\n", __FUNCTION__);
+
+    SHF_ASSERT_INTERNAL(shf_log_thread_instance, "ERROR: INTERNAL: shf_log_thread_instance is NULL\n");
+
+#ifdef SHF_DEBUG_VERSION
+    SHF_ASSERT_INTERNAL(1234567 == shf->log->magic, "ERROR: INTERNAL: shf->log->magic has unexpected value %u\n", shf->log->magic);
+#endif
+
+    if (0 == shf->log->time_init) {
+        shf->log->time_init = shf_log_time_init ? shf_log_time_init : shf_log_get_time_in_seconds(); /* use static shf_log_time_init if already used */
+    }
+
+    uint32_t last_loop_did_not_block = 1;
+    while (shf->log->running) {
+        if (last_loop_did_not_block)
+            usleep(SHF_LOG_WRITE_INTERVAL);
+
+        last_loop_did_not_block = 1;
+
+        uint32_t second = floor(shf_log_get_time_in_seconds() - shf->log->time_init);
+
+        shf_debug_verbosity_less();
+        SHF_LOCK_WRITER(&shf->log->lock);   /* vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv */
+        uint32_t log_used = shf->log->used;
+        uint32_t log_left = shf->log->used;
+        SHF_UNLOCK_WRITER(&shf->log->lock); /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
+        shf_debug_verbosity_more();
+
+        /* NOTE: threads & processes can still log while this thread is writing! */
+        if (log_used > 0 && shf->log->write_fail != second) {
+            if (log_used > shf->log->used_hi) {
+                shf->log->used_hi     = log_used;
+                shf->log->used_hi_new = 1;
+            }
+
+            if      (shf->log->second != second                 ) {           } /* reached next second so fall thru & write the buffer                  */
+            else if (log_used          < SHF_LOG_WRITE_THRESHOLD) { continue; } /* still this   second so only        write the buffer if threshold met */
+
+            SHF_LOG_THREAD_WRITE(&shf->log->bytes[0]);
+
+            if (log_used != log_left) { /* if something written then re-position any log not written */
+                shf_debug_verbosity_less();
+                SHF_LOCK_WRITER(&shf->log->lock);   /* vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv */
+                uint32_t log_left_during_write = shf->log->used - log_used; /* might have increased during write() */
+                shf->log->used = log_left + log_left_during_write;
+                memmove(&shf->log->bytes[0], log_work, shf->log->used);
+                SHF_UNLOCK_WRITER(&shf->log->lock); /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
+                shf_debug_verbosity_more();
+            }
+            shf->log->writing = 0;
+
+            if (shf->log->second != second) { /* update log statistics once per second */
+                if (shf->log->used_hi_new) {
+                    shf->log->used_hi_new = 0;
+                    double used_hi_percent = shf->log->used_hi * 100.0 / shf->log->size;
+                    if (used_hi_percent > 75.0) { // todo: make this high water mark configurable somehow
+                        SHF_SYSLOG_WARNING("%s() // log reached new hi: %u of %u bytes or %f%%; increase log shared memory?\n", __FUNCTION__, shf->log->used_hi, shf->log->size, used_hi_percent);
+                    }
+                }
+                shf->log->second = second;
+            }
+        }
+    } /* while(shf->log->running) */
+
+    uint32_t second   = 0;
+    uint32_t log_left = shf->log->used;
+    SHF_SYSLOG_DEBUG("%s() // thread closing down; %u bytes log remain unwritten", __FUNCTION__, log_left);
+    if (log_left > 0) {
+        SHF_LOG_THREAD_WRITE(&shf->log->bytes[0]);
+        if (log_left > 0) {
+            SHF_SYSLOG_WARNING("%s() // WARN: failed to write %u bytes of remaining log lines when log thread shutting down", __FUNCTION__, log_left);
+        }
+    }
+
+    shf_log_output_set(shf_log_output_stdout); /* output future log lines to stdout */
+
+    shf->log->stopped ++;
+
+    return NULL;
+} /* shf_log_thread() */
+
+void
+shf_log_attach_existing(SHF * shf)
+{
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+    SHF_DEBUG("%s(shf=?)\n", __FUNCTION__);
+
+               shf_debug_verbosity_less();
+               shf_make_hash       (SHF_CONST_STR_AND_SIZE("__log"));
+    shf->log = shf_get_key_val_addr(shf                            );
+               SHF_ASSERT_INTERNAL(NULL != shf->log, "ERROR: shf->log must be not NULL; only call %s() after you have called shf_log_thread_new() in the other thread/process!", __FUNCTION__);
+               shf_debug_verbosity_more();
+
+    shf_log_thread_instance = shf;
+    shf_log_output_set(shf_log_output_shf_log); /* output future log lines to shared memory */
+
+    shf_log_time_init = shf->log->time_init;
+} /* shf_log_attach_existing */
+
+void
+shf_log_thread_new(SHF * shf, uint32_t log_size, int log_fd)
+{
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+    SHF_DEBUG("%s(shf=?, log_size=%u, fd=%u) // SHF_LOG_DEFAULT_SIZE=%u\n", __FUNCTION__, log_size, log_fd, SHF_LOG_DEFAULT_SIZE);
+
+                        shf_debug_verbosity_less();
+                        shf_make_hash       (SHF_CONST_STR_AND_SIZE("__log")           );
+             shf->log = shf_get_key_val_addr(shf                                       ); SHF_ASSERT_INTERNAL(NULL         == shf->log, "ERROR: shf->log must be NULL; only call %s() once!", __FUNCTION__);
+    uint32_t  uid_log = shf_put_key_val     (shf, NULL, sizeof(SHF_LOG_MMAP) + log_size); SHF_ASSERT_INTERNAL(SHF_UID_NONE !=  uid_log, "ERROR: could not put key: __log");
+             shf->log = shf_get_uid_val_addr(shf, uid_log                              );
+                        shf_debug_verbosity_more();
+
+    // todo: convert __log to being own mmap() where the addr never changes
+
+    shf->log_thread_acive = 1       ;
+    shf->log->stopped     = 0       ;
+    shf->log->running     = 1       ;
+    shf->log->fd          = log_fd  ;
+    shf->log->size        = log_size ? log_size : SHF_LOG_DEFAULT_SIZE;
+#ifdef SHF_DEBUG_VERSION
+    shf->log->magic       = 1234567 ;
+#endif
+
+    shf_log_thread_instance = shf;
+    shf_log_output_set(shf_log_output_shf_log); /* output future log lines to shared memory */
+
+    pthread_t log_thread;
+    errno = pthread_create(&log_thread, NULL, shf_log_thread, NULL); SHF_ASSERT(0 == errno, "pthread_create(): %d: ", errno);
+
+    // todo: atexit for shf_log_thread_del()
+} /* shf_log_thread_new() */
+
+void
+shf_log_thread_del(SHF * shf)
+{
+    SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+    SHF_DEBUG("%s(shf=?) // %s\n", __FUNCTION__, shf->log && shf->log->running ? "waiting for log thread to end" : "log thread never run");
+
+    SHF_ASSERT_INTERNAL(shf == shf_log_thread_instance, "ERROR: shf %p != shf_log_thread_instance %p");
+
+    if (shf->log && shf->log->running) {
+        shf->log->running = 0;            /* signal log thread to stop */
+        while (0 == shf->log->stopped) {} /* wait for log thread to stop using shf */
+    }
+
+    shf_log_thread_instance = NULL;
+} /* shf_log_thread_del() */
+
+void
+shf_log_append(SHF * shf, const char * log_line, uint32_t log_line_len)
+{
+    SHF_SYSLOG_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
+
+    SHF_SYSLOG_DEBUG("%s(shf=?, log_line=?, log_line_len=%u)\n", __FUNCTION__, log_line, log_line_len);
+
+    if (log_line_len >= shf->log->size) {
+        SHF_SYSLOG_WARNING("%s() // WARN: ignoring log line with size %u >= log size %u\n", __FUNCTION__, log_line_len, shf->log->size);
+        return;
+    }
+
+#ifdef SHF_DEBUG_VERSION
+    SHF_ASSERT(1234567 == shf->log->magic, "ERROR: INTERNAL: shf->log->magic has unexpected value %u\n", shf->log->magic);
+#endif
+
+    shf_debug_verbosity_less();
+
+    uint64_t waiting_for_writer_loop    = 1;
+    uint64_t waiting_for_writer_loop_hi = 0;
+    while   (waiting_for_writer_loop) {
+        if  (waiting_for_writer_loop > 1) {
+            SHF_SYSLOG_DEBUG("%s() // waiting for writer to finish; increase log shared memory?", __FUNCTION__);
+            usleep(SHF_LOG_WRITE_INTERVAL); /* wait for shf_log_thread() to write() more log */
+        }
+
+        SHF_SYSLOG_DEBUG("%s() // waiting for lock", __FUNCTION__);
+        SHF_LOCK_WRITER(&shf->log->lock);   /* vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv */
+
+        if (shf->log->size - shf->log->used < shf_log_prefix_len + log_line_len) {
+            waiting_for_writer_loop   ++; /* do nothing; loop & wait */
+        }
+        else {
+            SHF_SYSLOG_DEBUG("%s() // memcpy %u bytes of log", __FUNCTION__, log_line_len);
+            memcpy(&shf->log->bytes[shf->log->used], &log_line[0], log_line_len);
+            shf->log->used += log_line_len;
+            waiting_for_writer_loop_hi = waiting_for_writer_loop;
+            waiting_for_writer_loop    = 0;
+        }
+
+        SHF_UNLOCK_WRITER(&shf->log->lock); /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
+    } /* while (not_appended) */
+    if (waiting_for_writer_loop_hi > 1)
+        SHF_SYSLOG_WARNING("%s() // waited %lu iterations for writer to finish; increase log shared memory?", __FUNCTION__, waiting_for_writer_loop_hi);
+
+    shf_debug_verbosity_more();
+} /* shf_log_append() */
+
+static __thread char     shf_log_fprintf_buffer[SHF_LOG_BUFFER_SIZE];
+static __thread uint32_t shf_log_fprintf_buffer_i = 0;
+
+int
+shf_log_vfprintf(FILE * stream, const char * format, va_list ap)
+{
+    int len = shf_log_fprintf_buffer_i;
+
+    SHF_UNUSE(stream);
+
+    shf_log_safe_append(shf_log_fprintf_buffer, &shf_log_fprintf_buffer_i, vsnprintf(&shf_log_fprintf_buffer[shf_log_fprintf_buffer_i], SHF_LOG_BUFFER_SIZE - shf_log_fprintf_buffer_i, format, ap));
+    len = shf_log_fprintf_buffer_i - len;
+
+    if ('\n' == shf_log_fprintf_buffer[shf_log_fprintf_buffer_i - 1]) {
+        SHF_PLAIN("%.*s", shf_log_fprintf_buffer_i, &shf_log_fprintf_buffer[0]);
+        shf_log_fprintf_buffer_i = 0;
+    }
+
+    return len;
+} /* shf_log_fprintf() */
+
+void
+shf_log_fprintf(FILE * stream, const char * format, ...)
+{
+    va_list ap;
+
+    SHF_UNUSE(stream);
+
+    va_start(ap, format);
+    shf_log_vfprintf(stream, format, ap);
+    va_end(ap);
+} /* shf_log_fprintf() */
+
+void
+shf_log_fputs(const char * string, FILE * stream)
+{
+    shf_log_fprintf(stream, "%s", string);
+} /* shf_log_fputs() */
+
+void
+shf_log_fputc(int character, FILE * stream)
+{
+    shf_log_fprintf(stream, "%c", character);
+} /* shf_log_fputc() */

@@ -34,7 +34,7 @@ extern "C" {
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(44);
+    plan_tests(45);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -226,6 +226,7 @@ main(/* int argc,char **argv */)
     }
 
     ok(1, "c++: ->Del() // size before deletion: %s", shf->Del());
+    ok(1, "c++: test still alive");
 
     delete  shf;
 

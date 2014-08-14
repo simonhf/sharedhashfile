@@ -128,6 +128,27 @@ typedef struct SHF_Q {
     uint32_t          q_is_ready      ; /* successfully called shf_q_(new|get)()? */
 } __attribute__((packed)) SHF_Q;
 
+typedef struct SHF_LOG_MMAP {
+#ifdef SHF_DEBUG_VERSION
+             uint32_t magic      ;
+#endif
+             int      fd         ;
+             SHF_LOCK lock       ;
+             double   time_init  ;
+             uint32_t second     ; /* remember this unique second */
+             uint32_t write_fail ; /* throttles write() failures */
+    volatile uint32_t writing    ; /* write() loop in progress? */
+             uint32_t used_hi    ; /* used high water mark */
+             uint32_t used_hi_new;
+    volatile uint32_t used       ;
+    volatile uint32_t size       ;
+    volatile uint32_t running    ;
+    volatile uint32_t stopped    ;
+    volatile uint8_t  tids[65536];
+    volatile uint8_t  tid_id     ;
+             char     bytes[0]   ;
+} __attribute__((packed)) SHF_LOG_MMAP;
+
 typedef struct SHF {
     uint32_t       version                                 ; /* todo: implement version */
     SHF_OFF        tabs[SHF_WINS_PER_SHF][SHF_TABS_PER_WIN]; /* 524,288 private tab pointers */
@@ -137,7 +158,9 @@ typedef struct SHF {
     uint32_t       is_lockable                             ; /* 0 means single threaded use only, 1 means lockable */
     uint32_t       count_mmap                              ; /* number of mmap()s */
     uint32_t       count_xalloc                            ; /* number of (c|m)alloc()s */
-    SHF_Q          q                                       ; /* for IPC q */
+    SHF_Q          q                                       ; /* for IPC q   */
+    SHF_LOG_MMAP * log                                     ; /* for IPC log; value for key '__log' */
+    uint32_t       log_thread_acive                        ; /* for IPC log; we have the log thread? */
 } __attribute__((packed)) SHF;
 
 typedef union SHF_UID {

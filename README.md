@@ -1,6 +1,6 @@
 # SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
 
-SharedHashFile is a lightweight NoSQL key value store / hash table, & a zero-copy IPC queue library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
+SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy IPC queue, & an IPC multiplexed logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
 
 ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
 
@@ -66,6 +66,79 @@ Example: Imagine two processes ```Process A``` & ```Process B```. ```Process A``
 So how many queue elements per second can be moved back and forth by ```Processes A``` & ```Process B```? On a Lenovo W530 laptop then about 90 million per second if both ```Process A``` & ```Process B``` are written in C. Or about 7 million per second if  ```Process A``` is written in C and ```Process B``` is written in javascript for nodejs.
 
 Note: When a queue element is moved from one queue to another then it is not copied, only a reference is updated.
+
+### IPC Multiplexed Logging
+
+How does it work? ```Process A``` calls shf_log_thread_new() which creates a shared memory log buffer and a log output thread which periodically monitors for new log lines. ```Process B``` calls shf_log_attach_existing() to start logging to the same shared log. Log using C macros SHF_PLAIN() and SHF_DEBUG(). If shf_log_thread_new() has not been called then output goes automatically to stdout, else the logging is multiplexed by the log output thread.
+
+Example output:
+
+```
+sharedhashfile$ cat debug/test.q.shf.t.tout
+1..10
+=     0.000000 29912 pid 29912 started; mode is 'c2c'
+=     0.000015 29912 - SHF_SNPRINTF() // 'test-29912-ipc-queue'
+ok 1 -    c2*: shf_attach()          works for non-existing file as expected
+=     0.000001 29916 shf.monitor: monitoring pid 29912 to delete /dev/shm/test-29912-ipc-queue.shf
+1..7
+=     0.000001 29920 pid 29920 started; mode is '4c'
+=     0.000013 29920 - SHF_SNPRINTF() // 'test-29920-ipc-queue'
+ok 1 -     4c: shf_attach_existing() works for existing file as expected
+#     0.004443     1 --> auto mapped to thread id 29917
+#     0.004443     1 shf_log_thread(shf=?){}
+ok 2 -    c2*: put lock in value as expected
+ok 3 -    c2*: shf_q_new() returned as expected
+ok 4 -    c2*: moved   expected number of new queue items // estimate 51,704,931 q items per second without contention
+#     0.122391     2 --> auto mapped to thread id 29920
+#     0.122391     2 '4c' mode; behaving as client
+ok 2 -     4c: shf_q_get_name('qid-free') returned qid as expected
+ok 3 -     4c: shf_q_get_name('qid-a2b' ) returned qid as expected
+ok 4 -     4c: shf_q_get_name('qid-b2a' ) returned qid as expected
+#     0.148769     2 shf_race_start() // 2 horses started after 0.000000 seconds
+#     0.148778     2 testing process b IPC queue a2b --> b2a speed
+#     0.148770     3 --> auto mapped to thread id 29912
+#     0.148770     3 shf_race_start() // 2 horses started after 0.027631 seconds
+#     0.148783     3 testing process a IPC queue b2a --> a2b speed
+ok 5 -     4c: moved   expected number of new queue items // estimate 50,380,380 q items per second with contention
+#     0.170637     2 testing process b IPC lock speed
+ok 6 -     4c: got lock value address as expected
+ok 5 -    c2*: moved   expected number of new queue items // estimate 49,907,237 q items per second with contention
+#     0.171899     3 testing process a IPC lock speed
+ok 6 -    c2*: got lock value address as expected
+#     0.171906     3 shf_race_start() // 2 horses started after 0.000000 seconds
+#     0.171906     2 shf_race_start() // 2 horses started after 0.001139 seconds
+ok 7 -    c2*: rw lock expected number of times           // estimate 4,685,444 locks per second; with contention
+ok 7 -     4c: rw lock expected number of times           // estimate 4,665,799 locks per second; with contention
+#     0.600578     2 ending child
+ok 8 -    c2*: rw lock expected number of times           // estimate 50,873,656 locks per second; without contention
+ok 9 -    c2*: rw lock expected number of times           // estimate 373,059,148 locks per second; without lock, just loop
+ok 10 -    c2*: test still alive
+#     0.643522     3 ending parent
+#     0.643527     3 shf_del(shf=?)
+#     0.643529     3 - SHF_SNPRINTF() // 'du -h -d 0 /dev/shm/test-29912-ipc-queue.shf ; rm -rf /dev/shm/test-29912-ipc-queue.shf/'
+#     0.643530     3 shf_detach(shf=?)
+#     0.643531     3 shf_log_thread_del(shf=?) // waiting for log thread to end
+=     0.655107     3 shf_backticks('du -h -d 0 /dev/shm/test-29912-ipc-queue.shf ; rm -rf /dev/shm/test-29912-ipc-queue.shf/')
+=     0.691994     3 - read 39 bytes from the pipe
+test: shf size before deletion: 394M /dev/shm/test-29912-ipc-queue.shf
+```
+
+Notes:
+
+* The above example shows the output from 4 different thread ids:
+  * 29912 is the thread id of the test program main thread; aka '3'.
+  * 29916 is the thread id of the shf.monitor program main thread; never participates in multiplexed logging.
+  * 29917 is the thread id of the test program log output thread; aka '1'.
+  * 29920 is the thread id of the test program main thread; recursively spawned from 29912; aka '2'.
+* Lines beginning with '=':
+  * Were output to stdout; i.e. lines logged before or after the log output thread exists.
+  * Show the time stamp relative to the start of the process logging.
+  * Show the 5 digit thread id.
+* Lines beginning with '#':
+  * Were output to stdout using the log output thread.
+  * Show the time stamp relative to the start of the log output thread.
+  * Show the thread id mapped to a unique short integer; 1 usually means the log output thread itself.
+* Other lines -- e.g. test 'ok' lines -- will automatically become multiplexed log lines if the log output thread exists.
 
 ## Building
 
@@ -373,9 +446,13 @@ Reasons to use SharedHashFile in nodejs instead of native javascript associative
 
 ## TODO
 
+* Add high performance IPC queue notification mechanism based upon eventfd.
+* Allow values bigger than 4KB to be their own mmap(); so IPC queue & log addrs never change.
+* Auto dump remaining shared memory log atexit.
+* Port shf_log() to nodejs.
+* Convert shf.log to work with shared memory instead of slower fopen().
 * Add API documentation via doxygen.
 * Add API documentation via literate programming.
-* Convert shf.log to work with shared memory instead of slower fopen().
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.

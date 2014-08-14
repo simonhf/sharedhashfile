@@ -39,7 +39,7 @@ function exit_status() {
     else                               { console.log("# Looks like you planned "+ok_tests_expected+" tests but ran "+ok_tests); process.exit(1); }
 }
 
-plan_tests(12);
+plan_tests(13);
 
 console.log('----:nodejs: debug: about to require  SharedHashFile');
 var SharedHashFile = require('./SharedHashFile.node');
@@ -197,5 +197,7 @@ var testKeys = 100000;
     ok(1, "nodejs: did expected number of .dummy9()  calls  // estimate "+Math.round(testKeys / testElapsedTime).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+" calls per second: object: unwrapped, input: 3 ints, output: 4KB byte buffer external");
     shf.debugVerbosityMore();
 }
+
+ok(1, "nodejs: test still alive");
 
 exit_status();

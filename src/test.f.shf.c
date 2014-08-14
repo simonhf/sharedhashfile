@@ -27,6 +27,7 @@
 
 #include "shf.private.h"
 #include "shf.h"
+#include "tap.h"
 
 #ifdef TEST_LMDB
 
@@ -203,6 +204,8 @@ test_get_cpu_count(void)
 
 int main(void)
 {
+    plan_tests(1);
+
     if (getenv("SHF_PERFORMANCE_TEST_ENABLE") && atoi(getenv("SHF_PERFORMANCE_TEST_ENABLE"))) {
     }
     else {
@@ -372,5 +375,6 @@ int main(void)
 
 EARLY_EXIT:;
 
-    return 0;
+    ok(1, "test still alive");
+    return exit_status();
 } /* main() */

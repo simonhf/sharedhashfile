@@ -33,7 +33,7 @@
 int main(void)
 {
     // Tell tap (test anything protocol) how many tests we expect to run.
-    plan_tests(40);
+    plan_tests(41);
 
     // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
@@ -50,7 +50,7 @@ int main(void)
     SHF    * shf =  shf_attach_existing (test_shf_folder, test_shf_name                                  ); ok(NULL == shf, "c: shf_attach_existing() fails for non-existing file as expected");
              shf =  shf_attach          (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "c: shf_attach()          works for non-existing file as expected");
                     shf_set_is_lockable (shf, 0); /* single threaded test; no need to lock */
-                    
+
     // Functional tests to exercise the API.
                     SHF_MAKE_HASH       (         "key"    );
     ok(0         == shf_get_key_val_copy(shf               ), "c: shf_get_key_val_copy() could not find unput key as expected");
@@ -230,6 +230,7 @@ int main(void)
     }
 
     ok(1, "c: shf_del() // size before deletion: %s", shf_del(shf));
+    ok(1, "c: test still alive");
 
     return exit_status();
 } /* main() */

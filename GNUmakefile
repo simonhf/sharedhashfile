@@ -87,7 +87,7 @@ $(info make: variable: NODE_SRCS=$(NODE_SRCS))
 endif
 endif
 
-all: tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
+all: eolws tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
 	@echo "make: note: prefix make with SHF_SKIP_TESTS=1 to build but do not run tests"
@@ -109,7 +109,7 @@ $(BUILD_TYPE)/%.a: $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 
 $(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
-	@g++ -o $@ $^
+	@g++ -o $@ $^ -pthread -lm
 ifndef SHF_SKIP_TESTS
 	@echo "make: running: $@"
 	@PATH=$$PATH:$(BUILD_TYPE) ./$@ 2>&1 | perl src/verbose-if-fail.pl $@.tout
@@ -117,7 +117,7 @@ endif
 
 $(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
-	@g++ -o $@ $^
+	@g++ -o $@ $^ -pthread -lm
 
 $(BUILD_TYPE)/SharedHashFile.node: $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(NODE_SRCS)
 	@echo "make: building: $@"
@@ -135,7 +135,7 @@ endif
 	@echo "make: building test: IPC: Unix Domain Socket"
 	@cd $(BUILD_TYPE) && cp ../wrappers/nodejs/TestIpcSocket.* .
 	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket.o $(CFLAGS) $(CXXFLAGS) -I ../src TestIpcSocket.c
-	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket TestIpcSocket.o shf.o murmurhash3.o
+	@cd $(BUILD_TYPE) && gcc -o TestIpcSocket TestIpcSocket.o tap.o shf.o murmurhash3.o -pthread -lm
 ifndef SHF_SKIP_TESTS
 	@echo "make: running test: IPC: Unix Domain Socket"
 	@cd $(BUILD_TYPE) && ./TestIpcSocket 2>&1 | perl ../src/verbose-if-fail.pl TestIpcSocket.tout
@@ -156,12 +156,15 @@ release: all
 debug: all
 
 fixme:
-	 find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep -i fixme | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with fixme\n],length $$any; exit(length $$any>0)}'
+	 find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep --line-number -i fixme | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with fixme\n],$$any; exit($$any>0)}'
 
 tab:
-	@find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep -P "\\t" | perl -lane 'print $$_; $$any+=length $$_>0; sub END{printf qq[make: %u line(s) with tab\n],length $$any; exit(length $$any>0)}'
+	@find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\t" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with tab\n],$$any; exit($$any>0)}'
 
-.PHONY: all clean release debug fixme tab
+eolws:
+	@find -type f | egrep -v "/(release|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\s+$$" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with eol whitespace\n],$$any; exit($$any>0)}'
+
+.PHONY: all clean release debug fixme tab eolws
 
 clean:
 	rm -rf release debug wrappers/nodejs/build

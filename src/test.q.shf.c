@@ -58,11 +58,11 @@ main(int argc, char **argv) {
         ||         (0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))), "ERROR: please supply an argument; c2js, c2py, c2c, or 4c; got: '%s'", argv[1]);
     }
 
-         if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests(5); mode = strdup(argv[1]); }
-    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2py"))) { plan_tests(5); mode = strdup(argv[1]); }
-    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests(9); mode = strdup(argv[1]); }
-    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests(7); mode = strdup(argv[1]); }
-    else                                                                       { plan_tests(9); mode = "c2c"          ; } /* default if no arguments */
+         if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests( 6); mode = strdup(argv[1]); }
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2py"))) { plan_tests( 5); mode = strdup(argv[1]); }
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests( 9); mode = strdup(argv[1]); }
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests( 7); mode = strdup(argv[1]); }
+    else                                                                       { plan_tests(10); mode = "c2c"          ; } /* default if no arguments */
 
     pid_t pid = getpid();
     SHF_DEBUG("pid %u started; mode is '%s'\n", pid, mode);
@@ -86,12 +86,14 @@ main(int argc, char **argv) {
     uint32_t   test_keys = 100000;
 
     if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("4c"))) {
-        SHF_DEBUG("'4c' mode; behaving as client\n");
         SHF_ASSERT(argc == 3, "ERROR: please supply arguments; 4c <name of shf>");
 
               shf_debug_verbosity_less();
               shf_init                ();
         shf = shf_attach_existing     (test_shf_folder, argv[2]); ok(NULL != shf, "    4c: shf_attach_existing() works for existing file as expected");
+              shf_log_attach_existing (shf                     );
+
+        shf_debug_verbosity_more(); SHF_DEBUG("'4c' mode; behaving as client\n"); shf_debug_verbosity_less();
 
         char     * test_q_items_addr  = shf_q_get(shf); SHF_UNUSE(test_q_items_addr); /* todo: this test doesn't actually manipulate the item itself */
         uint32_t   test_qid_free      = shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-free"));
@@ -137,6 +139,8 @@ FINISH_LINE_4C:;
             ok(1, "    4c: rw lock expected number of times           // estimate %'.0f locks per second; with contention", test_lock_iterations / test_elapsed_time);
         }
 
+        shf_debug_verbosity_more(); SHF_DEBUG("ending child\n"); shf_debug_verbosity_less();
+
         shf_detach(shf);
 
         goto EARLY_OUT;
@@ -146,6 +150,7 @@ FINISH_LINE_4C:;
           shf_init                ();
           shf_set_data_need_factor(1);
     shf = shf_attach              (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
+          shf_log_thread_new      (shf, 0 /* use default log buffer size */, STDOUT_FILENO);
 
     {
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"   ));
@@ -181,7 +186,7 @@ FINISH_LINE_4C:;
     if      (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which node || which nodejs"), shf_backticks("which node || which nodejs"), "TestIpcQueue.js", test_shf_name); }
     else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2py"))) { child_pid = shf_exec_child(shf_backticks("which python"              ), "python"                                   , "TestIpcQueue.py", test_shf_name); }
     else if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c" ))) { child_pid = shf_exec_child(shf_backticks("which test.q.shf.t"        ), "test.q.shf.t"                             , "4c"             , test_shf_name); }
-    else                                                           { SHF_ASSERT(0, "ERROR: should never get here!"); }
+    else                                                        { SHF_ASSERT(0, "ERROR: should never get here!"); }
 
     shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);
     shf_debug_verbosity_more(); SHF_DEBUG("testing process a IPC queue b2a --> a2b speed\n"); shf_debug_verbosity_less();
@@ -241,7 +246,7 @@ FINISH_LINE_C2:;
             test_lock_iterations ++;
         } while (test_lock_iterations < 2000000);
         test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
-        ok(1, "   c2*: rw lock expected number of times           // estimate %'.0f locks per second; without lock", test_lock_iterations / test_elapsed_time);
+        ok(1, "   c2*: rw lock expected number of times           // estimate %'.0f locks per second; without lock, just loop", test_lock_iterations / test_elapsed_time);
     }
 
     shf_debug_verbosity_more();
@@ -249,10 +254,13 @@ FINISH_LINE_C2:;
     int status;
     waitpid(child_pid, &status, 0);
 
-    fprintf(stderr, "test: shf size before deletion: %s\n", shf_del(shf));
+    ok(1, "   c2*: test still alive");
+
+    SHF_DEBUG("ending parent\n");
+
+    SHF_PLAIN("test: shf size before deletion: %s\n", shf_del(shf));
 
 EARLY_OUT:;
 
-    SHF_DEBUG("ending\n");
     return exit_status();
 } /* main() */

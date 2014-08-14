@@ -27,25 +27,54 @@ $| ++;
 
 my $all;
 my $squirrel;
-my $success = 1;
+my $ok = 0;
+my $not_ok = 0;
+my $success = 0;
 while (my $line = <STDIN>) {
     $line =~ s~[\n\r]+$~\n~;
     #debug printf qq[debug: %s], $line;
     $all .= $line;
 
-    if ($line =~ m~^ok ~) { # e.g. "ok 12 ..."
+    if ($line =~ m~^ok \d+ - .*test still alive~) { # e.g. "ok 12 - test complete" <-- must have "test compelete" message to be a success!
+        $success = $not_ok ? 0 : 1;
+        printf qq[%s], $line;
+        undef $squirrel;
+    }
+    elsif ($line =~ m~^ok ~) { # e.g. "ok 12 ..."
+        $ok ++;
         printf qq[%s], $line;
         undef $squirrel;
     }
     elsif ($line =~ m~^not ok ~) { # e.g. "not ok 12 ..."
-        $success = 0;
+        $not_ok ++;
         printf qq[%s], $squirrel;
         printf qq[%s], $line;
         undef $squirrel;
     }
+    elsif ($line =~ m~^# Expected ~) { # e.g. "# Expected ..." tap test
+        $not_ok ++;
+        printf qq[%s], $squirrel;
+        printf qq[%s], $line;
+        $squirrel .= $line;
+    }
+    elsif ($line =~ m~^# Looks like you planned \d+ tests but ran~) { # e.g. "# Looks like ..."
+        $success = 0;
+        $not_ok ++;
+        printf qq[%s], $squirrel;
+        printf qq[%s], $line;
+        $squirrel .= $line;
+    }
     else { # e.g. "----:TestIpcSocketjs: debug: client disconnected"
         $squirrel .= $line;
     }
+}
+
+if (0 == $not_ok && 0 == $success) {
+    my $line = sprintf qq[ERROR: did not find final 'test still alive' ok message; check if test crashed!\n];
+    $all .= $line;
+    printf qq[%s], $squirrel;
+    printf qq[%s], $line;
+    $squirrel .= $line;
 }
 
 if ($ARGV[0] =~ m~\.tout$~) {

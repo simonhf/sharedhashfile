@@ -78,6 +78,7 @@ typedef enum SHF_SPIN_LOCK_STATUS {
 typedef struct SHF_SPIN_LOCK {
     volatile long     lock;
     volatile pid_t    pid; /* todo: make long lock hold tid & pid to save memory */
+    volatile uint64_t spin;
 #ifdef SHF_DEBUG_VERSION
     volatile uint32_t line;
     volatile uint64_t macro;
@@ -94,30 +95,29 @@ shf_spin_unlock_force(SHF_SPIN_LOCK * lock, long old_tid)
 static inline SHF_LOCK_STATUS
 shf_spin_lock(SHF_SPIN_LOCK * lock)
 {
-    unsigned spin;
-    long     our_tid = SHF_GETTID();
-    long     old_tid;
+    long our_tid = SHF_GETTID();
+    long old_tid;
 
 RETRY_LOCK_AFTER_FORCE:;
 
-    spin = 0;
+    lock->spin = 0;
 
-    while ((spin < SHF_SPIN_LOCK_SPIN_MAX) && ((old_tid = InterlockedCompareExchange(&lock->lock, our_tid, 0)) != 0)) {
+    while ((lock->spin < SHF_SPIN_LOCK_SPIN_MAX) && ((old_tid = InterlockedCompareExchange(&lock->lock, our_tid, 0)) != 0)) {
         if (old_tid == our_tid) {
             fprintf(stderr, "lock %p already held by our tid %ld\n", &lock->lock, our_tid);
             return SHF_SPIN_LOCK_STATUS_LOCKED_ALREADY;
         }
-        spin ++;
+        lock->spin ++;
         SHF_YIELD();
     }
 
 #ifdef SHF_DEBUG_VERSION
-    if (spin) {
+    if (lock->spin) {
         lock->conflicts ++;
     }
 #endif
 
-    if (spin == SHF_SPIN_LOCK_SPIN_MAX) {
+    if (lock->spin == SHF_SPIN_LOCK_SPIN_MAX) {
         char proc_pid_task_tid[256];
         SHF_SNPRINTF(1, proc_pid_task_tid, "/proc/%u/task/%lu", lock->pid, old_tid);
         struct stat sb;
@@ -197,6 +197,7 @@ union SHF_RW_LOCK_UNION
 typedef struct SHF_RW_LOCK {
     volatile union SHF_RW_LOCK_UNION lock;
     volatile pid_t                   pid;
+    volatile uint64_t                spin;
 #ifdef SHF_DEBUG_VERSION
     volatile uint32_t                line;
     volatile uint64_t                macro;
@@ -212,17 +213,17 @@ typedef struct SHF_RW_LOCK {
 static inline void
 shf_rw_lock_writer(SHF_RW_LOCK * lock)
 {
-    uint32_t spin                  = 0;
     uint64_t tmp                   = __sync_fetch_and_add_8(&lock->lock.as_u64, SHF_RW_LOCK_INC_TICKET_NEXT); /* atomic increment ticket_next */
              tmp                 >>= 32;
     uint8_t  ticket_next_pre_inc   = tmp & 0xff;
 
+    lock->spin                        = 0;
     lock->lock.as_u08.pad_ticket_next = 0; /* ensure overflow never gets too big */
 
-    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_writer) { SHF_CPU_PAUSE(); spin ++; }
+    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_writer) { SHF_CPU_PAUSE(); lock->spin ++; }
 
 #ifdef SHF_DEBUG_VERSION
-    if (spin) {
+    if (lock->spin) {
         lock->conflicts ++;
     }
 #endif
@@ -252,14 +253,14 @@ shf_rw_unlock_writer(SHF_RW_LOCK * lock)
 static inline void
 shf_rw_lock_reader(SHF_RW_LOCK * lock)
 {
-    uint32_t spin                  = 0;
     uint64_t tmp                   = __sync_fetch_and_add_8(&lock->lock.as_u64, SHF_RW_LOCK_INC_TICKET_NEXT); /* atomic increment ticket_next */
              tmp                 >>= 32;
     uint8_t  ticket_next_pre_inc   = tmp & 0xff;
 
+    lock->spin                        = 0;
     lock->lock.as_u08.pad_ticket_next = 0; /* ensure overflow never gets too big */
 
-    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_reader)  { SHF_CPU_PAUSE(); spin ++; } /* todo: add pid to identify trouble-maker when spinned for too long */
+    while (ticket_next_pre_inc != lock->lock.as_u08.ticket_active_reader)  { SHF_CPU_PAUSE(); lock->spin ++; } /* todo: add pid to identify trouble-maker when spinned for too long */
     if (0) {
         lock->lock.as_u08.ticket_active_reader ++; /* so that other readers can read concurrently (if no writer) */
     }
@@ -269,7 +270,7 @@ shf_rw_lock_reader(SHF_RW_LOCK * lock)
     }
 
 #ifdef SHF_DEBUG_VERSION
-    if (spin) {
+    if (lock->spin) {
         lock->conflicts ++;
         /* todo: record bucket stats for number of spins; consider using SHF_YIELD() instead of SHF_SHF_CPU_PAUSE() if too many spins */
     }
@@ -300,6 +301,8 @@ shf_rw_unlock_reader(SHF_RW_LOCK * lock)
 #define SHF_UNLOCK_WRITER(LOCK)                                                            shf_rw_unlock_writer(LOCK); SHF_DEBUG("- rw unlocked for writer %s()\n", __FUNCTION__);
 
 #endif
+
+#define SHF_LOCK_SPINS(LOCK)    (lock->spin)
 
 #endif /* __SHF_LOCK_H__ */
 

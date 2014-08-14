@@ -28,6 +28,13 @@
 #define _GNU_SOURCE 1
 #endif
 
+#include "shf.private.h"
+#include "shf.h"
+#define vfprintf(FILE, FMT, AP) shf_log_vfprintf(FILE, FMT, AP); /* minimal change to redirect tap output into shf logging :-) */
+#define  fprintf(FILE, ARGS...) shf_log_fprintf(FILE, ARGS);
+#define  fputs(STRING, FILE)    shf_log_fputs(STRING, FILE);
+#define  fputc(CHAR, FILE)      shf_log_fputc(CHAR, FILE);
+
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>

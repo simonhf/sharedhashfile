@@ -26,18 +26,26 @@
 
 #include <stdint.h>
 #include <string.h> /* for strerror() */
+#include <syslog.h> /* for LOG_INFO etc */
 
-extern int32_t shf_debug_disabled;
+__attribute__((weak)) __thread int32_t   shf_debug_disabled = 0;
+__attribute__((weak)) __thread int32_t   shf_snprintf_value = 0;
+#ifdef SHF_DEBUG_VERSION
+__attribute__((weak)) __thread FILE    * shf_debug_file     = 0;
+#endif
 
-extern void shf_log(const char * format_type, int line, const char * file, const char * strerror, const char * eol, const char * format_user, ...);
+extern void   shf_log(char * prefix, const char * format_type, int line, const char * file, const char * strerror, const char * eol, int priority, const char * format_user, ...);
+extern char * shf_log_prefix_get(void);
 
-#define SHF_CAST(TYPE, PTR) ((TYPE)(uintptr_t)(PTR))
-#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log("%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", ARGS); exit(EXIT_FAILURE); }
-#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log("%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", ARGS); exit(EXIT_FAILURE); }
-#define SHF_UNUSE(ARGUMENT) (void)(ARGUMENT)
+#define SHF_CAST(TYPE, PTR)                    ((TYPE)(uintptr_t)(PTR))
+#define SHF_UNUSE(ARGUMENT)                    (void)(ARGUMENT)
+#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", LOG_INFO, ARGS); exit(EXIT_FAILURE); }
+#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", LOG_INFO, ARGS); exit(EXIT_FAILURE); }
+#define SHF_WARNING(ARGS...)                                     { shf_log(shf_log_prefix_get(), "%05u:%s: WARNING: "         , __LINE__, __FILE__, NULL           , NULL, LOG_INFO, ARGS); }
+#define SHF_PLAIN(ARGS...)                                       { shf_log(SHF_CAST(char *, ""), ""                           , __LINE__, __FILE__, NULL           , NULL, LOG_INFO, ARGS); }
 
 #ifdef SHF_DEBUG_VERSION
-#define SHF_DEBUG(ARGS...)      if (shf_debug_disabled > 0) { } else { shf_log("%04u:%s: debug: ", __LINE__, __FILE__, NULL, NULL, ARGS); }
+#define SHF_DEBUG(ARGS...)                     if (shf_debug_disabled > 0) { } else { shf_log(shf_log_prefix_get(), "%05u:%s: debug: ", __LINE__, __FILE__, NULL, NULL, LOG_INFO, ARGS); }
 #define SHF_DEBUG_FILE(ARGS...) \
     shf_debug_file = fopen("/tmp/debug.shf", "a"); SHF_ASSERT(NULL != shf_debug_file, "fopen(): %u: ", errno); \
     fprintf(shf_debug_file, ARGS); \
@@ -48,8 +56,17 @@ extern void shf_log(const char * format_type, int line, const char * file, const
 #define SHF_DEBUG_FILE(ARGS...)
 #endif
 
+#define SHF_SYSLOG_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", LOG_CRIT   , ARGS); exit(EXIT_FAILURE); }
+#define SHF_SYSLOG_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", LOG_CRIT   , ARGS); exit(EXIT_FAILURE); }
+#define SHF_SYSLOG_WARNING(ARGS...)                                     { shf_log(shf_log_prefix_get(), "%05u:%s: WARNING: "         , __LINE__, __FILE__, NULL           , NULL, LOG_WARNING, ARGS); }
+#if 0 /* enable this to debug e.g. shf_log mechanism which has to use a different logging mechanism to avoid recursion */
+#define SHF_SYSLOG_DEBUG(ARGS...)                                       { shf_log(shf_log_prefix_get(), "%05u:%s: debug: "           , __LINE__, __FILE__, NULL           , NULL, LOG_DEBUG  , ARGS); }
+#else
+#define SHF_SYSLOG_DEBUG(ARGS...)
+#endif
+
 #define SHF_SNPRINTF(DEBUG, BUFFER, FORMAT, ...) { \
-        int shf_snprintf_value = snprintf(BUFFER, sizeof(BUFFER), FORMAT, __VA_ARGS__); \
+        shf_snprintf_value = snprintf(BUFFER, sizeof(BUFFER), FORMAT, __VA_ARGS__); \
         SHF_ASSERT(shf_snprintf_value >= 0                            , "%d=snprintf() too small!", shf_snprintf_value); \
         SHF_ASSERT(shf_snprintf_value <= SHF_CAST(int, sizeof(BUFFER)), "%d=snprintf() too big!"  , shf_snprintf_value); \
         if (DEBUG) { SHF_DEBUG("- SHF_SNPRINTF() // '%s'\n", BUFFER); } \

@@ -198,21 +198,21 @@ int main(int argc, char *argv[])
 
     ok(0, "msg2");
     expect(p[0], "not ok 2 - msg2\n"
-           "#     Failed test (*test.1.tap.c:main() at line 199)\n");
+           "#     Failed test (src/test.1.tap.c:main() at line 199)\n");
 
     ok1(true);
     expect(p[0], "ok 3 - true\n");
 
     ok1(false);
     expect(p[0], "not ok 4 - false\n"
-           "#     Failed test (*test.1.tap.c:main() at line 206)\n");
+           "#     Failed test (src/test.1.tap.c:main() at line 206)\n");
 
     pass("passed");
     expect(p[0], "ok 5 - passed\n");
 
     fail("failed");
     expect(p[0], "not ok 6 - failed\n"
-           "#     Failed test (*test.1.tap.c:main() at line 213)\n");
+           "#     Failed test (src/test.1.tap.c:main() at line 213)\n");
 
     skip(2, "skipping %s", "test");
     expect(p[0], "ok 7 # skip skipping test\n"
@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
     todo_start("todo");
     ok1(false);
     expect(p[0], "not ok 9 - false # TODO todo\n"
-                 "#     Failed (TODO) test (*test.1.tap.c:main() at line 222)\n");
+                 "#     Failed (TODO) test (src/test.1.tap.c:main() at line 222)\n");
     ok1(true);
     expect(p[0], "ok 10 - true # TODO todo\n");
     todo_end();
@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
         expect(p[0], "ok 11 - one_int() returns 1\n");
         is(one_int(), 2, "one_int() returns 2");
         expect(p[0], "not ok 12 - one_int() returns 2\n"
-               "#     Failed test (*test.1.tap.c:main() at line 234)\n"
+               "#     Failed test (src/test.1.tap.c:main() at line 234)\n"
                "#          got: 1\n"
                "#     expected: 2\n");
 
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
         expect(p[0], "ok 13 - one_str() returns 'one'\n");
         is_eq(one_str(), "two", "one_str() returns 'two'");
         expect(p[0], "not ok 14 - one_str() returns 'two'\n"
-               "#     Failed test (*test.1.tap.c:main() at line 242)\n"
+               "#     Failed test (src/test.1.tap.c:main() at line 242)\n"
                "#          got: \"one\"\n"
                "#     expected: \"two\"\n");
 
@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
         exp.id = 2;
         is_cmp(one_obj(), &exp, obj_cmp, obj_to_str, "one_obj() has id 2");
         expect(p[0], "not ok 16 - one_obj() has id 2\n"
-               "#     Failed test (*test.1.tap.c:main() at line 252)\n"
+               "#     Failed test (src/test.1.tap.c:main() at line 252)\n"
                "#          got: {id=1}\n"
                "#     expected: {id=2}\n");
 
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
         expect(p[0], "ok 17 - one_str() contains 'n'\n");
         is_strstr(one_str(), "w", "one_str() contains 'w'");
         expect(p[0], "not ok 18 - one_str() contains 'w'\n"
-               "#     Failed test (*test.1.tap.c:main() at line 260)\n"
+               "#     Failed test (src/test.1.tap.c:main() at line 260)\n"
                "#                     got: \"one\"\n"
                "#     expected to contain: \"w\"\n");
 #if 0
@@ -268,7 +268,6 @@ int main(int argc, char *argv[])
     expect(p[0], "# Looks like you failed 2 tests of 9.\n");
 #endif
 
-    write_all(stdoutfd, "ok 1 - All passed\n",
-          strlen("ok 1 - All passed\n"));
+    write_all(stdoutfd, "ok 1 - test still alive\n", strlen("ok 1 - test still alive\n"));
     _exit(0);
 }

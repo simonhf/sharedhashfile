@@ -300,7 +300,15 @@ extern void       shf_q_size               (SHF * shf, uint32_t      qid);
 extern uint32_t   shf_q_is_ready           (SHF * shf);
 extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
 extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);
-extern void       shf_log_output_set       (void (*shf_log_output_new)(const char * log_line));
+extern void       shf_log_thread_new       (SHF * shf, uint32_t log_size, int log_fd);
+extern void       shf_log_thread_del       (SHF * shf);
+extern void       shf_log_attach_existing  (SHF * shf);
+extern void       shf_log_append           (SHF * shf, const char * log_line, uint32_t log_line_len);
+extern void       shf_log_output_set       (void (*shf_log_output_new)(char * log_line, uint32_t log_line_len));
+extern int        shf_log_vfprintf         (FILE * stream, const char * format, va_list ap);
+extern void       shf_log_fprintf          (FILE * stream, const char * format, ...);
+extern void       shf_log_fputs            (const char * string, FILE * stream);
+extern void       shf_log_fputc            (int character, FILE * stream);
 
 // Useful links regarding /dev/shm:
 // http://gerardnico.com/wiki/linux/shared_memory - Linux - Shared Memory (SHM) (/dev/shm)

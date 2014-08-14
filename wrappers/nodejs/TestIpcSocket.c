@@ -36,9 +36,12 @@
 
 #include <shf.private.h>
 #include <shf.h>
+#include <tap.h>
 
 int
 main(int argc, char **argv) {
+    plan_tests(1);
+
     pid_t pid = getpid();
     SHF_DEBUG("pid %u started\n", pid);
 
@@ -99,5 +102,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "sent %u hello messages in %f seconds or %.1f reads per second\n", reads, elapsed_time, reads / elapsed_time);
 
     SHF_DEBUG("ending\n");
-    return 0;
+
+    ok(1, "test still alive");
+
+    return exit_status();
 } /* main() */
