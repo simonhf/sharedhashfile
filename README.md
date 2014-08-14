@@ -1,6 +1,6 @@
 # SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
 
-SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy IPC queue, & an IPC multiplexed logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
+SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy IPC queue, & a multiplexed IPC logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
 
 ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
 
@@ -67,7 +67,7 @@ So how many queue elements per second can be moved back and forth by ```Processe
 
 Note: When a queue element is moved from one queue to another then it is not copied, only a reference is updated.
 
-### IPC Multiplexed Logging
+### Multiplexed IPC Logging
 
 How does it work? ```Process A``` calls shf_log_thread_new() which creates a shared memory log buffer and a log output thread which periodically monitors for new log lines. ```Process B``` calls shf_log_attach_existing() to start logging to the same shared log. Log using C macros SHF_PLAIN() and SHF_DEBUG(). If shf_log_thread_new() has not been called then output goes automatically to stdout, else the logging is multiplexed by the log output thread.
 
@@ -447,6 +447,7 @@ Reasons to use SharedHashFile in nodejs instead of native javascript associative
 ## TODO
 
 * Add high performance IPC queue notification mechanism based upon eventfd.
+* Add performance test for logging and compare to e.g. log4cxx.
 * Allow values bigger than 4KB to be their own mmap(); so IPC queue & log addrs never change.
 * Auto dump remaining shared memory log atexit.
 * Port shf_log() to nodejs.
