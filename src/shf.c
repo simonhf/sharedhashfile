@@ -1771,13 +1771,14 @@ shf_log_prefix_get(void)
                 shf_debug_verbosity_more();
 
                 tbd = "#";
-                shf_log_safe_append(shf_log_prefix, sizeof(shf_log_prefix), &shf_log_prefix_len, snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "?%13.6f %5u --> auto mapped to thread id %u\n", time_elapsed_now, shf->log->tid_id ? shf->log->tid_id : shf_log_tid, shf_log_tid));
+                shf_log_safe_append(shf_log_prefix, sizeof(shf_log_prefix), &shf_log_prefix_len, snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "?%.6f %u --> auto mapped to thread id %u\n", time_elapsed_now, shf->log->tid_id ? shf->log->tid_id : shf_log_tid, shf_log_tid));
             }
             shf_log_tid_id = shf->log->tids[shf_log_tid];
         }
     }
 
-    shf_log_safe_append(shf_log_prefix, sizeof(shf_log_prefix), &shf_log_prefix_len,  snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "%s%13.6f %5u ", tbd, time_elapsed_now, shf_log_tid_id ? shf_log_tid_id : shf_log_tid));
+    /* todo: modify the %u for tid so that if more than 9 threads used then the field grows to at least 2 digits */
+    shf_log_safe_append(shf_log_prefix, sizeof(shf_log_prefix), &shf_log_prefix_len,  snprintf(&shf_log_prefix[shf_log_prefix_len], sizeof(shf_log_prefix) - shf_log_prefix_len, "%s%.6f %u ", tbd, time_elapsed_now, shf_log_tid_id ? shf_log_tid_id : shf_log_tid));
 
     return &shf_log_prefix[0];
 } /* shf_log_prefix_get() */

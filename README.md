@@ -76,51 +76,51 @@ Example output:
 ```
 sharedhashfile$ cat debug/test.q.shf.t.tout
 1..10
-=     0.000000 29912 pid 29912 started; mode is 'c2c'
-=     0.000015 29912 - SHF_SNPRINTF() // 'test-29912-ipc-queue'
+=0.000000 23056 pid 23056 started; mode is 'c2c'
+=0.000013 23056 - SHF_SNPRINTF() // 'test-23056-ipc-queue'
 ok 1 -    c2*: shf_attach()          works for non-existing file as expected
-=     0.000001 29916 shf.monitor: monitoring pid 29912 to delete /dev/shm/test-29912-ipc-queue.shf
+=0.000002 23060 shf.monitor: monitoring pid 23056 to delete /dev/shm/test-23056-ipc-queue.shf
 1..7
-=     0.000001 29920 pid 29920 started; mode is '4c'
-=     0.000013 29920 - SHF_SNPRINTF() // 'test-29920-ipc-queue'
+=0.000001 23064 pid 23064 started; mode is '4c'
+=0.000010 23064 - SHF_SNPRINTF() // 'test-23064-ipc-queue'
 ok 1 -     4c: shf_attach_existing() works for existing file as expected
-#     0.004443     1 --> auto mapped to thread id 29917
-#     0.004443     1 shf_log_thread(shf=?){}
+#0.003948 1 --> auto mapped to thread id 23061
+#0.003948 1 shf_log_thread(shf=?){}
 ok 2 -    c2*: put lock in value as expected
 ok 3 -    c2*: shf_q_new() returned as expected
-ok 4 -    c2*: moved   expected number of new queue items // estimate 51,704,931 q items per second without contention
-#     0.122391     2 --> auto mapped to thread id 29920
-#     0.122391     2 '4c' mode; behaving as client
+ok 4 -    c2*: moved   expected number of new queue items // estimate 51,044,225 q items per second without contention
+#0.131327 2 --> auto mapped to thread id 23064
+#0.131327 2 '4c' mode; behaving as client
 ok 2 -     4c: shf_q_get_name('qid-free') returned qid as expected
 ok 3 -     4c: shf_q_get_name('qid-a2b' ) returned qid as expected
 ok 4 -     4c: shf_q_get_name('qid-b2a' ) returned qid as expected
-#     0.148769     2 shf_race_start() // 2 horses started after 0.000000 seconds
-#     0.148778     2 testing process b IPC queue a2b --> b2a speed
-#     0.148770     3 --> auto mapped to thread id 29912
-#     0.148770     3 shf_race_start() // 2 horses started after 0.027631 seconds
-#     0.148783     3 testing process a IPC queue b2a --> a2b speed
-ok 5 -     4c: moved   expected number of new queue items // estimate 50,380,380 q items per second with contention
-#     0.170637     2 testing process b IPC lock speed
+#0.158467 2 shf_race_start() // 2 horses started after 0.000001 seconds
+#0.158474 2 testing process b IPC queue a2b --> b2a speed
+#0.158467 3 --> auto mapped to thread id 23056
+#0.158467 3 shf_race_start() // 2 horses started after 0.027820 seconds
+#0.158484 3 testing process a IPC queue b2a --> a2b speed
+ok 5 -     4c: moved   expected number of new queue items // estimate 53,106,512 q items per second with contention
+#0.179207 2 testing process b IPC lock speed
 ok 6 -     4c: got lock value address as expected
-ok 5 -    c2*: moved   expected number of new queue items // estimate 49,907,237 q items per second with contention
-#     0.171899     3 testing process a IPC lock speed
+ok 5 -    c2*: moved   expected number of new queue items // estimate 52,951,698 q items per second with contention
+#0.180467 3 testing process a IPC lock speed
 ok 6 -    c2*: got lock value address as expected
-#     0.171906     3 shf_race_start() // 2 horses started after 0.000000 seconds
-#     0.171906     2 shf_race_start() // 2 horses started after 0.001139 seconds
-ok 7 -    c2*: rw lock expected number of times           // estimate 4,685,444 locks per second; with contention
-ok 7 -     4c: rw lock expected number of times           // estimate 4,665,799 locks per second; with contention
-#     0.600578     2 ending child
-ok 8 -    c2*: rw lock expected number of times           // estimate 50,873,656 locks per second; without contention
-ok 9 -    c2*: rw lock expected number of times           // estimate 373,059,148 locks per second; without lock, just loop
+#0.180475 3 shf_race_start() // 2 horses started after 0.000000 seconds
+#0.180475 2 shf_race_start() // 2 horses started after 0.001165 seconds
+ok 7 -    c2*: rw lock expected number of times           // estimate 4,422,109 locks per second; with contention
+ok 7 -     4c: rw lock expected number of times           // estimate 4,411,319 locks per second; with contention
+#0.633875 2 ending child
+ok 8 -    c2*: rw lock expected number of times           // estimate 51,144,435 locks per second; without contention
+ok 9 -    c2*: rw lock expected number of times           // estimate 381,821,029 locks per second; without lock, just loop
 ok 10 -    c2*: test still alive
-#     0.643522     3 ending parent
-#     0.643527     3 shf_del(shf=?)
-#     0.643529     3 - SHF_SNPRINTF() // 'du -h -d 0 /dev/shm/test-29912-ipc-queue.shf ; rm -rf /dev/shm/test-29912-ipc-queue.shf/'
-#     0.643530     3 shf_detach(shf=?)
-#     0.643531     3 shf_log_thread_del(shf=?) // waiting for log thread to end
-=     0.655107     3 shf_backticks('du -h -d 0 /dev/shm/test-29912-ipc-queue.shf ; rm -rf /dev/shm/test-29912-ipc-queue.shf/')
-=     0.691994     3 - read 39 bytes from the pipe
-test: shf size before deletion: 394M /dev/shm/test-29912-ipc-queue.shf
+#0.677166 3 ending parent
+#0.677177 3 shf_del(shf=?)
+#0.677180 3 - SHF_SNPRINTF() // 'du -h -d 0 /dev/shm/test-23056-ipc-queue.shf ; rm -rf /dev/shm/test-23056-ipc-queue.shf/'
+#0.677181 3 shf_detach(shf=?)
+#0.677183 3 shf_log_thread_del(shf=?) // waiting for log thread to end
+=0.686385 3 shf_backticks('du -h -d 0 /dev/shm/test-23056-ipc-queue.shf ; rm -rf /dev/shm/test-23056-ipc-queue.shf/')
+=0.724220 3 - read 39 bytes from the pipe
+test: shf size before deletion: 394M /dev/shm/test-23056-ipc-queue.shf
 ```
 
 Notes:
@@ -247,7 +247,8 @@ Notes:
 Here's an example on an 8 core Lenovo W530 laptop showing a hash table with 100 million keys, and then doing 2% delete/insert and 98% read at a rate of over 10 million operations per second:
 
 ```
-$ make clean ; SHF_ENABLE_PERFORMANCE_TEST=1 make
+$ make clean ; make release
+$ PATH=release:$PATH SHF_PERFORMANCE_TEST_ENABLE=1 test.f.shf.t
 ...
 perf testing: SharedHashFile
 running tests on: via command: 'cat /proc/cpuinfo | egrep 'model name' | head -n 1'
@@ -314,6 +315,7 @@ Here's the same test as above but using LMDB instead of SharedHashFile:
 
 Notes:
 
+* Figure out why performance has halved even though the code hasn't changed :-(
 * To make the test a more apples to apples hash table comparison:
 * mdb_get() & mdb_put() are used (instead of faster cursor functions) to test LMDB as a hash table.
 * The LMDB DB file is stored in /dev/shm so that disk performance does not effect the results.
@@ -446,21 +448,24 @@ Reasons to use SharedHashFile in nodejs instead of native javascript associative
 
 ## TODO
 
-* Add high performance IPC queue notification mechanism based upon eventfd.
-* Add performance test for logging and compare to e.g. log4cxx.
+* Figure out why test.f.shf.t performance recently halved even though hash code not changed!
+* Add high performance IPC queue notification mechanism and tests based upon eventfd.
+* If using private queue batching for performance, add element crash recovery mechanism.
+* Add performance test for multiplexed logging and compare to e.g. log4cxx.
 * Allow values bigger than 4KB to be their own mmap(); so IPC queue & log addrs never change.
 * Auto dump remaining shared memory log atexit.
-* Port shf_log() to nodejs.
-* Convert shf.log to work with shared memory instead of slower fopen().
-* Add API documentation via doxygen.
+* Port shf_log() to nodejs and convert c2js test.
+* Extend shf_log() to seemlessly log to a file instead of stdout.
+* Convert shf.log to work with shf_log() instead of slower fopen().
+* Add API documentation via doxygen for log operations.
+* Add API documentation via doxygen for key value operations.
 * Add API documentation via literate programming.
+* Add more tests & enforce 100% code coverage.
 * Support key,value data types other than binary strings with 32bit length.
 * Support in-memory persistence past reboot.
 * Support walking of all key,value pairs in the hash table.
 * Support stack key types, e.g. push, pop, shift, unshift.
-* Add logging.
 * Add networking layer for distributed hash table.
-* Add more tests & enforce 100% code coverage.
 * Add command line utility tools.
 * Ensure client can crash at any time without corrupting hash table.
 * Port to Linux-like OSs which do not support mremap().

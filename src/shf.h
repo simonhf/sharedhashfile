@@ -38,7 +38,94 @@
  *
  * @section kv_sec Key Value Store / Hash Table
  *
- * - todo: describe the big picture of how the key value store works.
+ * What makes SHF different from other key value stores?
+ * - Exists in shared memory and avoids C pointers.
+ * - Expands gracefully without having to rehash all keys.
+ * - Hash table is 64 bit but only uses 32 bit offsets to save space.
+ * - Uses lock sharding to minimize lock contention.
+ * - Uses high performance, fair, read write spin locks.
+ * - Every key stored can be accessed by the key or a 32 bit UID.
+ * - Can be incrementally updated without suffering from memory holes.
+ *
+ * What does the SHF folder structure look like?
+ * - In the example below the SHF instance is named `myname`.
+ * - There is a folder called `myname.shf`.
+ *   - This folder can be on `/dev/shm` or on an SSD.
+ *   - Deleting this folder deletes the SHF instance.
+ * - A file called `myname.shf` holding global data, e.g. locks.
+ * - There are 256 'window' folders.
+ * - Each window folder contains up to 2,048 'tables'.
+ * - Each table contains up to 8192 keys.
+ * - The maximum files in the folder are 256 * 2,048 = 524,288 files.
+ * - The maximum keys storable are 256 * 2,048 * 8,192 = 2^32 keys.
+ * - In each window, tables 1 to 2047 get added as expansion occurs.
+ *
+ * @code
+ * - /dev/shm/myname.shf/
+ * - /dev/shm/myname.shf/myname.shf    <-- global data, e.g. locks
+ * - /dev/shm/myname.shf/000/
+ * - ...
+ * - /dev/shm/myname.shf/255/          <-- 256 windows
+ * - /dev/shm/myname.shf/000/0000.tab
+ * - ...
+ * - /dev/shm/myname.shf/000/2047.tab  <-- 2,048 tables
+ * @endcode
+ *
+ * What does a table file look like?
+ * - A fixed part part holds key reference data in 512 rows.
+ * - Each new key value is appended to the growable data part.
+ * - If new key meta data does not fit in a row, expansion occurs:
+ *   - The table is split into two tables.
+ *   - About half the keys remain in one table, the rest in the other.
+ *   - Rehashing keys never happens to save CPU.
+ *   - Keys are copied during the split; deleted keys not copied.
+ *   - Due to the 8,192 key limit then splitting uses little CPU.
+ *
+ * @code
+ * +---+---+---+---+---+
+ * |   |   |   |   |   |  Fixed sized meta data for 8,192 keys
+ * |  0|  1| ..|511|512|  512 rows of 16 key references
+ * +---+---+---+---+---+
+ * |                   |  Growable data for keys & value data
+ * :                   :
+ * |                   |
+ * +---+---+---+---+---+
+ * @endcode
+ *
+ * Walk me through what happens when adding a key and value:
+ * - The key is hashed producing indexes for window, table, and row.
+ * - Because the table count grows, table index is looked up indirectly.
+ * - The necessary window is locked aka lock sharding.
+ * - The necessary table is memory mapped if not already mapped.
+ * - Find a free slot in the row for the key reference data.
+ * - If no free slot found then split table and find again.
+ * - Add key reference to row; append key value data to growable data.
+ * - The key UID (window|table|row|slot) is returned.
+ * - The 32 bit key UID can be used for key access without hashing.
+ *
+ * How does the indirect table index work?
+ * - A per-window array holds the maximum 2,048 table indexes.
+ * - If there is only 1 table then all values are initially 0.
+ * - If table 0 splits, half of the 0 values become 1.
+ * - If table 1 splits, half of the 1 values become 2.
+ * - If table 0 splits again, half of the 0 values become 3.
+ * - And so on...
+ *
+ * How does the fair read write locking work?
+ * - Any number of threads or processes can read at the same time.
+ * - Only one thread or process can write at one time.
+ * - Read or write starvation cannot occur due to a ticketing system.
+ * - Threads should be pinned to CPU cores to avoid context switching.
+ *
+ * How can I access value bytes if the memory address changes?
+ * - The shared memory address of a key or value can change any time.
+ *   - E.g. another process might trigger a table split simultaneously.
+ * - Therefore most API functions return a copy of the key value data.
+ * - It is possible to get the direct memory address of key value data:
+ *   - But do not add or delete any more keys to ensure no table splits.
+ *   - Only table splits cause addresses to change.
+ *   - todo: Allow large key value data to exist outside of tables.
+ *   - E.g. IPC queues and logging use shared memory directly.
  *
  * @section ipc_sec Zero-Copy IPC Queues
  *
@@ -48,7 +135,7 @@
  * - Create y queues (think: queue item states).
  * - A queue is called a qid.
  * - All qiids are initially pushed onto qid #0.
- * - A qid can be given a name to identify it:
+ * - A qid can be given a name (key) to identify it:
  *   - e.g. qid #0: "qid-free".
  *   - e.g. qid #1: "qid-a2b".
  *   - e.g. qid #2: "qid-b2a".
@@ -173,6 +260,10 @@
  * - Once shf_q_new() or shf_q_get() has been called then the key value
  *   store should no longer be used, or a seg fault might result. This
  *   limitation will be fixed in a future update.
+ *
+ * @section log_sec Multiplexed IPC Logging
+ *
+ * - todo: describe the big picture of how the logging works.
  *
  * @author
  *
