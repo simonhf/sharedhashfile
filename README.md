@@ -448,7 +448,6 @@ Reasons to use SharedHashFile in nodejs instead of native javascript associative
 
 ## TODO
 
-* Figure out why test.f.shf.t performance recently halved even though hash code not changed!
 * Add high performance IPC queue notification mechanism and tests based upon eventfd.
 * If using private queue batching for performance, add element crash recovery mechanism.
 * Add performance test for multiplexed logging and compare to e.g. log4cxx.
