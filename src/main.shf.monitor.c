@@ -35,8 +35,8 @@ static void
 shf_monitor_delete_shf(void)
 {
     char du_rm_folder[256];
-    SHF_SNPRINTF(1, du_rm_folder, "du -h -d 0 %s ; rm -rf %s/", shf_monitor_path_name, shf_monitor_path_name);
-    fprintf(stderr, "shf.monitor: detected pid %u gone; deleted shf; shf size before deletion: %s\n", shf_monitor_parent_pid, shf_backticks(du_rm_folder));
+    SHF_SNPRINTF(1, du_rm_folder, "(du -h %s | tail -n 1) ; rm -rf %s/", shf_monitor_path_name, shf_monitor_path_name);
+    fprintf(stderr, "shf.monitor: detected pid %u gone; deleted shf; shf size before deletion: '%s'\n", shf_monitor_parent_pid, shf_backticks(du_rm_folder));
 } /* shf_monitor_delete_shf() */
 
 int

@@ -128,25 +128,27 @@ typedef struct SHF_Q {
     uint32_t          q_is_ready      ; /* successfully called shf_q_(new|get)()? */
 } __attribute__((packed)) SHF_Q;
 
+#define SHF_TID_MAX (131072) /* e.g. from cat /proc/sys/kernel/pid_max */
+
 typedef struct SHF_LOG_MMAP {
 #ifdef SHF_DEBUG_VERSION
-             uint32_t magic      ;
+             uint32_t magic            ;
 #endif
-             int      fd         ;
-             SHF_LOCK lock       ;
-             double   time_init  ;
-             uint32_t second     ; /* remember this unique second */
-             uint32_t write_fail ; /* throttles write() failures */
-    volatile uint32_t writing    ; /* write() loop in progress? */
-             uint32_t used_hi    ; /* used high water mark */
-             uint32_t used_hi_new;
-    volatile uint32_t used       ;
-    volatile uint32_t size       ;
-    volatile uint32_t running    ;
-    volatile uint32_t stopped    ;
-    volatile uint8_t  tids[65536];
-    volatile uint8_t  tid_id     ;
-             char     bytes[0]   ;
+             int      fd               ;
+             SHF_LOCK lock             ;
+             double   time_init        ;
+             uint32_t second           ; /* remember this unique second */
+             uint32_t write_fail       ; /* throttles write() failures */
+    volatile uint32_t writing          ; /* write() loop in progress? */
+             uint32_t used_hi          ; /* used high water mark */
+             uint32_t used_hi_new      ;
+    volatile uint32_t used             ;
+    volatile uint32_t size             ;
+    volatile uint32_t running          ;
+    volatile uint32_t stopped          ;
+    volatile uint8_t  tids[SHF_TID_MAX];
+    volatile uint8_t  tid_id           ;
+             char     bytes[0]         ;
 } __attribute__((packed)) SHF_LOG_MMAP;
 
 typedef struct SHF {

@@ -27,6 +27,7 @@ CXXFLAGS       += -Wcomment -Wformat -Wmissing-declarations -Wparentheses -Wpoin
 CXXFLAGS       +=  -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wwrite-strings -O
 CXXFLAGS       += -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
 CFLAGS          = -Wimplicit -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes -std=gnu99
+LIBTOOL         = libtool
 ifneq ($(filter debug,$(MAKECMDGOALS)),)
 BUILD_TYPE      = debug
 BUILD_TYPE_NODE = Debug
@@ -39,6 +40,7 @@ endif
 DEPS_H          = $(wildcard ./src/*.h)
 DEPS_HPP        = $(wildcard ./src/*.hpp)
 NODE_SRCS       =                                    $(filter-out %build,$(wildcard ./wrappers/nodejs/*))
+PHP_SRCS        =                                    $(filter-out %build,$(wildcard ./wrappers/php/*))
 PROD_SRCS_C     =                                    $(filter-out ./src/test%,$(wildcard ./src/*.c))
 PROD_SRCS_C     =                                    $(filter-out ./src/main%,$(wildcard ./src/*.c))
 PROD_OBJS_C     = $(patsubst ./src/%,$(BUILD_TYPE)/%,$(filter-out ./src/test%,$(patsubst %.c,%.o,$(PROD_SRCS_C))))
@@ -84,14 +86,25 @@ $(info make: variable: BUILD_TYPE_NODE=$(BUILD_TYPE_NODE))
 $(info make: variable: NODEJS=$(NODEJS))
 $(info make: variable: NODE_GYP=$(NODE_GYP))
 $(info make: variable: NODE_SRCS=$(NODE_SRCS))
+$(info make: variable: PHP_SRCS=$(PHP_SRCS))
 endif
 endif
 
-all: eolws tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(BUILD_TYPE)/SharedHashFile.node
+ifndef SHF_FORCE_SKIP_NODE
+OPTIONAL_TARGET_NODE = $(BUILD_TYPE)/SharedHashFile.node
+endif
+
+ifndef SHF_FORCE_SKIP_PHP
+OPTIONAL_TARGET_PHP = $(BUILD_TYPE)/sharedhashfile.php.so
+endif
+
+all: eolws tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(OPTIONAL_TARGET_NODE) $(OPTIONAL_TARGET_PHP)
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
 	@echo "make: note: prefix make with SHF_SKIP_TESTS=1 to build but do not run tests"
 	@echo "make: note: prefix make with SHF_FORCE_MAKE_NODE=1 to force building SharedHashFile.node"
+	@echo "make: note: prefix make with SHF_FORCE_SKIP_NODE=1 to force skipping SharedHashFile.node"
+	@echo "make: note: prefix make with SHF_FORCE_SKIP_PHP=1 to force building sharedhashfile.php.so"
 	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|CPUS|KEYS)=(1|4|10000000) to run perf test"
 	@echo "make: built $(TEST_EXE_SKIP) $(BUILD_TYPE) version"
 
@@ -118,6 +131,27 @@ endif
 $(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
 	@g++ -o $@ $^ -pthread -lm
+
+$(BUILD_TYPE)/sharedhashfile.php.so: $(PHP_SRCS)
+	@echo "make: building: $@"
+	@echo "make: php: rsync PHP wrapper to build folder"
+ifdef SHF_DEBUG_MAKE
+	@rsync --archive --verbose ./wrappers/php/ ./$(BUILD_TYPE)/php/
+else
+	@rsync --archive --quiet   ./wrappers/php/ ./$(BUILD_TYPE)/php/
+endif
+	@cp src/shf.c ./$(BUILD_TYPE)/php/.
+	@cp src/murmurhash3.c ./$(BUILD_TYPE)/php/.
+	@cp ./$(BUILD_TYPE)/shf.monitor ./$(BUILD_TYPE)/php/.
+	@echo "make: php: running phpize and ./configure"
+ifneq ($(filter debug,$(MAKECMDGOALS)),)
+	@cd ./$(BUILD_TYPE)/php/ && phpize && CFLAGS=-DSHF_DEBUG_VERSION ./configure && make
+else
+	@cd ./$(BUILD_TYPE)/php/ && phpize &&                            ./configure && make
+endif
+	@echo "make: php: running test"
+	# Add " --tap" but how to remove failure upon test fail: "Fatal error:  Class 'Symfony\Component\Yaml\Dumper' not found"
+	cd $(BUILD_TYPE)/php/ && PATH=$$PATH:. php -dextension=modules/sharedhashfile.so `which phpunit` --verbose ./SharedHashFileTest.php SharedHashFileTest
 
 $(BUILD_TYPE)/SharedHashFile.node: $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a $(NODE_SRCS)
 	@echo "make: building: $@"

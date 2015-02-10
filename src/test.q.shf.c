@@ -88,12 +88,25 @@ main(int argc, char **argv) {
     if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("4c"))) {
         SHF_ASSERT(argc == 3, "ERROR: please supply arguments; 4c <name of shf>");
 
+SHF_DEBUG_FILE("fixme: child started!\n");
+
               shf_debug_verbosity_less();
               shf_init                ();
         shf = shf_attach_existing     (test_shf_folder, argv[2]); ok(NULL != shf, "    4c: shf_attach_existing() works for existing file as expected");
               shf_log_attach_existing (shf                     );
 
+SHF_DEBUG_FILE("fixme: pid %u 4c: after log attach existing!\n", getpid());
+
+SHF_DEBUG_FILE("fixme: pid %u 4c: blah blah!\n", getpid());
+        shf_debug_verbosity_more();
+SHF_DEBUG_FILE("fixme: pid %u 4c: blah blah2\n", getpid());
+        SHF_DEBUG("'4c' mode; behaving as client\n");
+SHF_DEBUG_FILE("fixme: pid %u 4c: blah blah3\n", getpid());
+        shf_debug_verbosity_less();
+
         shf_debug_verbosity_more(); SHF_DEBUG("'4c' mode; behaving as client\n"); shf_debug_verbosity_less();
+
+SHF_DEBUG_FILE("fixme: pid %u 4c: after log after attach!\n", getpid());
 
         char     * test_q_items_addr  = shf_q_get(shf); SHF_UNUSE(test_q_items_addr); /* todo: this test doesn't actually manipulate the item itself */
         uint32_t   test_qid_free      = shf_q_get_name(shf, SHF_CONST_STR_AND_SIZE("qid-free"));
@@ -102,6 +115,8 @@ main(int argc, char **argv) {
         ok(        test_qid_free     != SHF_QID_NONE, "    4c: shf_q_get_name('qid-free') returned qid as expected");
         ok(        test_qid_a2b      != SHF_QID_NONE, "    4c: shf_q_get_name('qid-a2b' ) returned qid as expected");
         ok(        test_qid_b2a      != SHF_QID_NONE, "    4c: shf_q_get_name('qid-b2a' ) returned qid as expected");
+
+        SHF_DEBUG_FILE("fixme: 4c: before race start!\n");
 
         shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"), 2);
         shf_debug_verbosity_more(); SHF_DEBUG("testing process b IPC queue a2b --> b2a speed\n"); shf_debug_verbosity_less();
@@ -152,6 +167,8 @@ FINISH_LINE_4C:;
     shf = shf_attach              (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
           shf_log_thread_new      (shf, 0 /* use default log buffer size */, STDOUT_FILENO);
 
+SHF_DEBUG_FILE("fixme: after shf_log_thread_new!\n");
+
     {
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"   ));
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"));
@@ -171,6 +188,9 @@ FINISH_LINE_4C:;
     uint32_t test_qid_a2b     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-a2b" )           );
     uint32_t test_qid_b2a     = shf_q_new_name(shf, SHF_CONST_STR_AND_SIZE("qid-b2a" )           );
 
+SHF_DEBUG_FILE("fixme: after queues!\n");
+
+
     {
         double   test_start_time = shf_get_time_in_seconds();
         uint32_t test_pull_items = 0;
@@ -180,7 +200,10 @@ FINISH_LINE_4C:;
         }
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         ok(test_q_items == test_pull_items, "   c2*: moved   expected number of new queue items // estimate %'.0f q items per second without contention", test_keys / test_elapsed_time);
+SHF_DEBUG_FILE("fixme: moved expected number!\n");
     }
+
+SHF_DEBUG_FILE("fixme: creating child\n");
 
     pid_t child_pid = 0;
     if      (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { child_pid = shf_exec_child(shf_backticks("which node || which nodejs"), shf_backticks("which node || which nodejs"), "TestIpcQueue.js", test_shf_name); }

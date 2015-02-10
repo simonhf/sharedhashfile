@@ -365,10 +365,13 @@ extern SHF      * shf_attach_existing      (const char * path, const char * name
 extern SHF      * shf_attach               (const char * path, const char * name, uint32_t delete_upon_process_exit);
 extern void       shf_make_hash            (const char * key, uint32_t key_len);
 extern uint32_t   shf_put_key_val          (SHF * shf, const char * val, uint32_t val_len);
+extern int        shf_put_key_val_over     (SHF * shf, const char * val, uint32_t val_len);
 extern int        shf_get_key_val_copy     (SHF * shf);
 extern int        shf_get_uid_val_copy     (SHF * shf, uint32_t uid);
 extern void     * shf_get_key_val_addr     (SHF * shf);
 extern void     * shf_get_uid_val_addr     (SHF * shf, uint32_t uid);
+extern int        shf_has_key              (SHF * shf);
+extern int        shf_has_uid              (SHF * shf, uint32_t uid);
 extern int        shf_del_key_val          (SHF * shf);
 extern int        shf_del_uid_val          (SHF * shf, uint32_t uid);
 extern char     * shf_del                  (SHF * shf);
@@ -400,6 +403,7 @@ extern int        shf_log_vfprintf         (FILE * stream, const char * format, 
 extern void       shf_log_fprintf          (FILE * stream, const char * format, ...);
 extern void       shf_log_fputs            (const char * string, FILE * stream);
 extern void       shf_log_fputc            (int character, FILE * stream);
+extern int        shf_dummy                (void);
 
 // Useful links regarding /dev/shm:
 // http://gerardnico.com/wiki/linux/shared_memory - Linux - Shared Memory (SHM) (/dev/shm)

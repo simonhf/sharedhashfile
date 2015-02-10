@@ -128,8 +128,8 @@
 #define TEST_FINI()
 
 #define TEST_FINI_MASTER() \
-    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "du -h -d 0 %s;  rm -rf %s", test_db_folder, test_db_folder); \
-    fprintf(stderr, "test: DB size before deletion: %s\n", shf_backticks(test_du_folder));
+    char test_du_folder[256]; SHF_SNPRINTF(1, test_du_folder, "(du -h %s | tail -n 1) ;  rm -rf %s", test_db_folder, test_db_folder); \
+    fprintf(stderr, "test: DB size before deletion: '%s'\n", shf_backticks(test_du_folder));
 
 #else
 
