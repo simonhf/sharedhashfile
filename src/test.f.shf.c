@@ -44,15 +44,15 @@
     MDB_env *env; \
     MDB_dbi dbi; \
     MDB_val lmdb_key, data; \
-    MDB_txn *txn; \
-    MDB_cursor *cursor; \
+    MDB_txn *txn, *rtxn; \
+    MDB_cursor *cursor, *rcursor; \
     char sval1[32]; \
     char sval2[32]; \
     rc = mdb_env_create(&env); \
          mdb_env_set_mapsize(env, 4096 * 1000000L); \
     rc = mdb_env_open(env, test_db_folder, 0, 0664); \
     rc = mdb_txn_begin(env, NULL, 0, &txn); \
-    rc = mdb_open(txn, NULL, 0, &dbi); \
+    rc = mdb_open(txn, NULL, MDB_INTEGERKEY, &dbi); \
     lmdb_key.mv_size = sizeof(uint32_t); \
     lmdb_key.mv_data = sval1           ; \
     data.mv_size     = sizeof(uint32_t); \
@@ -65,9 +65,13 @@
 #define TEST_INIT_CHILD() \
     rc = mdb_env_create     (&env                        ); if (rc) { fprintf(stderr, "mdb_env_create(): (%d) %s\n", rc, mdb_strerror(rc)); exit(1); } \
          mdb_env_set_mapsize(env, 4096 * 1000000L        ); \
-    rc = mdb_env_open       (env, test_db_folder, 0, 0664); if (rc) { fprintf(stderr, "mdb_env_open(): (%d) %s\n"  , rc, mdb_strerror(rc)); exit(1); } \
+    rc = mdb_env_open       (env, test_db_folder, MDB_WRITEMAP|MDB_NOSYNC, 0664); if (rc) { fprintf(stderr, "mdb_env_open(): (%d) %s\n"  , rc, mdb_strerror(rc)); exit(1); } \
     rc = mdb_txn_begin      (env, NULL, 0, &txn          ); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s\n" , rc, mdb_strerror(rc)); exit(1); } \
-    rc = mdb_open           (txn, NULL, 0, &dbi          ); if (rc) { fprintf(stderr, "mdb_open(): (%d) %s\n"      , rc, mdb_strerror(rc)); exit(1); }
+    rc = mdb_open           (txn, NULL, MDB_INTEGERKEY, &dbi          ); if (rc) { fprintf(stderr, "mdb_open(): (%d) %s\n"      , rc, mdb_strerror(rc)); exit(1); } \
+    rc = mdb_cursor_open    (txn, dbi, &cursor           ); if (rc) { fprintf(stderr, "mdb_cursor_open(): (%d) %s\n", rc, mdb_strerror(rc)); exit(1); } \
+    rc = mdb_txn_begin      (env, NULL, MDB_RDONLY, &rtxn); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s\n" , rc, mdb_strerror(rc)); exit(1); } \
+    rc = mdb_cursor_open    (rtxn, dbi, &rcursor         ); if (rc) { fprintf(stderr, "mdb_cursor_open(): (%d) %s\n", rc, mdb_strerror(rc)); exit(1); } \
+         mdb_txn_reset      (rtxn);
 
 #define TEST_PUT() \
     ((uint32_t *)sval1)[0] = key     ; \
@@ -75,8 +79,9 @@
     if (0 == i % 1000) { \
         rc = mdb_txn_commit(txn               ); if (rc) { fprintf(stderr, "mdb_txn_commit: (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
         rc = mdb_txn_begin (env, NULL, 0, &txn); if (rc) { fprintf(stderr, "mdb_txn_begin: (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_cursor_open(txn, dbi, &cursor); if (rc) { fprintf(stderr, "mdb_cursor_open(): (%d) %s at %d\n",rc, mdb_strerror(rc), i); exit(1); } \
     } \
-    rc = mdb_put(txn, dbi, &lmdb_key, &data, 0);  if (rc) { fprintf(stderr, "mdb_put: (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); }
+    rc = mdb_cursor_put(cursor, &lmdb_key, &data, 0);  if (rc) { fprintf(stderr, "mdb_cursor_put: (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); }
 
 #define TEST_PUT_POST() \
     rc = mdb_txn_commit(txn)
@@ -87,7 +92,9 @@
     if (0 == i % 50) { \
         ((uint32_t *)sval1)[0] = key; \
         rc = mdb_txn_begin(env, NULL, 0, &txn       ); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
-        rc = mdb_del      (txn, dbi, &lmdb_key, NULL); if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1a)\n", process, key); exit(1); } \
+        rc = mdb_cursor_open(txn, dbi, &cursor      ); if (rc) { fprintf(stderr, "mdb_cursor_open(): (%d) %s at %d\n",rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_cursor_get(cursor, &lmdb_key, NULL, MDB_SET); if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1a)\n", process, key); exit(1); } \
+        rc = mdb_cursor_del(cursor, 0               ); if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1a)\n", process, key); exit(1); } \
         ((uint32_t *)sval1)[0] = key     ; \
         ((uint32_t *)sval2)[0] = key + 10; \
         /* need to re-init these after del or corruption occurs */ \
@@ -95,14 +102,15 @@
         lmdb_key.mv_data = sval1           ; \
         data.mv_size     = sizeof(uint32_t); \
         data.mv_data     = sval2           ; \
-        rc = mdb_put       (txn, dbi, &lmdb_key, &data, 0); if (rc) { fprintf(stderr, "mdb_put(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_cursor_put(cursor, &lmdb_key, &data, 0  ); if (rc) { fprintf(stderr, "mdb_cursor_put(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
         rc = mdb_txn_commit(txn                          ); if (rc) { fprintf(stderr, "mdb_txn_commit(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
     } \
     else { \
         ((uint32_t *)sval1)[0] = key; \
-        rc = mdb_txn_begin (env, NULL, MDB_RDONLY, &txn); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
-        rc = mdb_get       (txn, dbi, &lmdb_key, &data ); if (rc) { fprintf(stderr, "mdb_get(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
-        rc = mdb_txn_commit(txn                        ); if (rc) { fprintf(stderr, "mdb_txn_commit(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_txn_renew (rtxn                       ); if (rc) { fprintf(stderr, "mdb_txn_renew(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_cursor_renew(rtxn, rcursor            ); if (rc) { fprintf(stderr, "mdb_cursor_renew(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+        rc = mdb_cursor_get(rcursor, &lmdb_key, &data, MDB_SET); if (rc) { fprintf(stderr, "mdb_cursor_get(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
+             mdb_txn_reset (rtxn                       ); \
         if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1b)\n", process, key); exit(1); } \
         if (((uint32_t *)lmdb_key.mv_data)[0] != key) { printf("ERROR: process #%u: key i=%u not returned; got %u instead (1)\n", process, key, ((uint32_t *)lmdb_key.mv_data)[0]); exit(1); } \
         if (((uint32_t *)data.mv_data)[0] != key + 10) { printf("ERROR: process #%u: data i=%u not returned; got %u instead (1)\n", process, key + 10, ((uint32_t *)data.mv_data)[0]); exit(1); } \
@@ -115,9 +123,10 @@
 
 #define TEST_GET() \
     ((uint32_t *)sval1)[0] = key; \
-    rc = mdb_txn_begin (env, NULL, MDB_RDONLY, &txn); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
-    rc = mdb_get       (txn, dbi, &lmdb_key, &data ); if (rc) { fprintf(stderr, "mdb_get(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
-    rc = mdb_txn_commit(txn                        ); if (rc) { fprintf(stderr, "mdb_txn_commit(): (%d) %s at %d\n", rc, mdb_strerror(rc), i); exit(1); } \
+    rc = mdb_txn_renew (rtxn                       ); if (rc) { fprintf(stderr, "mdb_txn_renew(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+    rc = mdb_cursor_renew(rtxn, rcursor            ); if (rc) { fprintf(stderr, "mdb_cursor_renew(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
+    rc = mdb_cursor_get(rcursor, &lmdb_key, &data, MDB_SET); if (rc) { fprintf(stderr, "mdb_cursor_get(): (%d) %s at %d\n"       , rc, mdb_strerror(rc), i); exit(1); } \
+         mdb_txn_reset (rtxn                       ); \
     if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (2)\n", process, key); exit(1); } \
     if (((uint32_t *)lmdb_key.mv_data)[0] != key     ) { printf("ERROR: process #%u: key i=%u not returned; got %u instead (2)\n" , process, key     , ((uint32_t *)lmdb_key.mv_data)[0]); exit(1); } \
     if (((uint32_t *)data.mv_data)[0]     != key + 10) { printf("ERROR: process #%u: data i=%u not returned; got %u instead (2)\n", process, key + 10, ((uint32_t *)data.mv_data)[0]    ); exit(1); } \
