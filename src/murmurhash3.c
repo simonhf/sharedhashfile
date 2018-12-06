@@ -111,7 +111,9 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
   uint64_t k1 = 0;
   uint64_t k2 = 0;
 
+#if __GNUC__ >= 7
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough" // see https://stackoverflow.com/questions/44511436/how-to-do-an-explicit-fall-through-in-c
+#endif
 
   switch(len & 15)
   {
@@ -135,7 +137,9 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
            k1 *= c1; k1  = ROTL64(k1,31); k1 *= c2; h1 ^= k1;
   };
 
+#if __GNUC__ >= 7
 #pragma GCC diagnostic error "-Wimplicit-fallthrough" // use pragma because __attribute__ ((fallthrough)); method does not appear to work with Travis
+#endif
 
   //----------
   // finalization
