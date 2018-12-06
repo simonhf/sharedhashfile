@@ -1,8 +1,0 @@
-{
-  "name": "SharedHashFile",
-  "version": "0.0.1",
-  "description": "Node.js Addon SharedHashFile",
-  "main": "SharedHashFile.js",
-  "private": true,
-  "gypfile": true
-}

@@ -1,6 +1,6 @@
 # SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
 
-SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy IPC queue, & a multiplexed IPC logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C, C++, & [nodejs](wrappers/nodejs/README.md).
+SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy IPC queue, & a multiplexed IPC logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C & C++.
 
 ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
 
@@ -63,7 +63,7 @@ How does it work? Create X fixed-sized queue elements, and Y queues to push & pu
 
 Example: Imagine two processes ```Process A``` & ```Process B```. ```Process A``` creates 100,000 queue elements and 3 queues; ```queue-free```, ```queue-a2b```, and ```queue-b2a```. Intitally, all queue elements are pushed onto ```queue-free```. ```Process A``` then spawns ```Process B``` which attaches to the SharedHashFile in order to pull from ```queue-a2b```. To perform zero-copy IPC then ```Process A``` can pull queue elements from ```queue-free```, manipulate the fixed size, shared memory queue elements, and push the queue elements into ```queue-a2b```. ```Process B``` does the opposite; pulls queue elements from ```queue-a2b```, manipulates the fixed size, shared memory queue queue elements, and pushes the queue elements into ```queue-b2a```. ```Process A``` can also pull queue items from ```queue-b2a``` in order to digest the results from ```Process B```.
 
-So how many queue elements per second can be moved back and forth by ```Processes A``` & ```Process B```? On a Lenovo W530 laptop then about 90 million per second if both ```Process A``` & ```Process B``` are written in C. Or about 7 million per second if  ```Process A``` is written in C and ```Process B``` is written in javascript for nodejs.
+So how many queue elements per second can be moved back and forth by ```Processes A``` & ```Process B```? On a Lenovo W530 laptop then about 90 million per second if both ```Process A``` & ```Process B``` are written in C.
 
 Note: When a queue element is moved from one queue to another then it is not copied, only a reference is updated.
 
@@ -393,59 +393,6 @@ GET  0.0   0.0    0    0 300.0  0  0  0  0  0  0  0100  0  0  0  0  0  0  0  0  
 DB size: 2.6G   /dev/shm/test-lmdb-20848
 ```
 
-## Performance comparison with native javascript associative array in nodejs
-
-Comparing stats for 100,000 short keys then the performance & size of RAM differences are not so big; first SharedHashFile, then javascript:
-
-```
-ok 25 - nodejs: put expected number of              keys // estimate 1,204,820 keys per second, 23,140KB RAM
-ok 26 - nodejs: got expected number of non-existing keys // estimate 1,886,793 keys per second
-ok 27 - nodejs: got expected number of     existing keys // estimate 1,724,135 keys per second
-ok 29 - nodejs: del expected number of     existing keys // estimate 1,960,780 keys per second
-
-ok 31 - nodejs: put expected number of              keys // estimate 1,136,366 keys per second via js hash table, 25,644KB RAM
-ok 32 - nodejs: got expected number of non-existing keys // estimate 1,333,332 keys per second via js hash table
-ok 33 - nodejs: got expected number of     existing keys // estimate 2,083,329 keys per second via js hash table
-ok 34 - nodejs: del expected number of     existing keys // estimate 1,369,864 keys per second via js hash table
-```
-
-Comparing stats for 5,000,000 short keys then the performance & size of RAM differences are clearer; first SharedHashFile, then javascript:
-
-```
-ok 25 - nodejs: put expected number of              keys // estimate 958,222 keys per second, 324,348KB RAM
-ok 26 - nodejs: got expected number of non-existing keys // estimate 1,925,298 keys per second
-ok 27 - nodejs: got expected number of     existing keys // estimate 1,438,435 keys per second
-ok 29 - nodejs: del expected number of     existing keys // estimate 1,662,787 keys per second
-
-ok 31 - nodejs: put expected number of              keys // estimate 875,350 keys per second via js hash table, 710,088KB RAM
-ok 32 - nodejs: got expected number of non-existing keys // estimate 1,766,784 keys per second via js hash table
-ok 33 - nodejs: got expected number of     existing keys // estimate 1,778,094 keys per second via js hash table
-ok 34 - nodejs: del expected number of     existing keys // estimate 1,549,907 keys per second via js hash table
-```
-
-However, comparing stats for 6,000,000 short keys then the performance & size of RAM differences are huge; first SharedHashFile, then javascript:
-
-```
-ok 25 - nodejs: put expected number of              keys // estimate 978,314 keys per second, 356,104KB RAM
-ok 26 - nodejs: got expected number of non-existing keys // estimate 1,881,467 keys per second
-ok 27 - nodejs: got expected number of     existing keys // estimate 1,460,209 keys per second
-ok 29 - nodejs: del expected number of     existing keys // estimate 1,545,197 keys per second
-
-ok 31 - nodejs: put expected number of              keys // estimate 332,650 keys per second via js hash table, 1,395,824KB RAM
-ok 32 - nodejs: got expected number of non-existing keys // estimate 249,211 keys per second via js hash table
-ok 33 - nodejs: got expected number of     existing keys // estimate 169,678 keys per second via js hash table
-ok 34 - nodejs: del expected number of     existing keys // estimate 885,217 keys per second via js hash table
-```
-
-Reasons to use SharedHashFile in nodejs instead of native javascript associative arrays:
-
-* The RAM to store key values via native javascript associative arrays is limited to the memory which holds about 5 million short key values.
-* The RAM to store key values via native javascript associative arrays is over 2x more than SharedHashFile; i.e. 710MB versus 324MB for 5 million key values. Or 4x more if you push javascript to the edges of its memory footprint; i.e. 456MB versus 1.4GB for 6 million key values.
-* The performance to access key values via native javascript associative arrays does not increase linearly with the number of keys; i.e. javascript can access its native associative array at a rate of 2 million keys per second when only 100,000 keys are stored, but this slows down to only 183,000 keys per second when 6 million keys are stored.
-* SharedHashFile key values can be accessed concurrently by other (C, C++, or nodejs) processes.
-* SharedHashFile key values can live beyond the particular nodejs process life time.
-* SharedHashFile key values can be deleted instantly by deleting the entire SharedHashFile (note: the above figures show the time for deleting all keys individually).
-
 ## TODO
 
 * Add high performance IPC queue notification mechanism and tests based upon eventfd.
@@ -453,7 +400,6 @@ Reasons to use SharedHashFile in nodejs instead of native javascript associative
 * Add performance test for multiplexed logging and compare to e.g. log4cxx.
 * Allow values bigger than 4KB to be their own mmap(); so IPC queue & log addrs never change.
 * Auto dump remaining shared memory log atexit.
-* Port shf_log() to nodejs and convert c2js test.
 * Extend shf_log() to seemlessly log to a file instead of stdout.
 * Convert shf.log to work with shf_log() instead of slower fopen().
 * Add API documentation via doxygen for log operations.

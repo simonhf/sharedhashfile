@@ -32,7 +32,7 @@
  * a zero-copy IPC queue library written in C for Linux. There is no
  * server process. Data is read and written directly from/to shared
  * memory or SSD; no sockets are used between SharedHashFile and the
- * application program. APIs for C, C++, & nodejs.
+ * application program. APIs for C & C++.
  *
  * ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
  *
@@ -198,7 +198,6 @@
  *
  * How many qiids per second can be pulled & pushed between 2 processes?
  * - On a Lenovo W530 then ~ 90 million per second; C(++) <-> C(++).
- * - On a Lenovo W530 then ~ 7 million per second; C(++) <-> nodejs.
  * - Note: Figures based upon minimal qid memory access.
  * - Note: Figures based upon the hybrid shf_q_push_head_pull_tail().
  *
