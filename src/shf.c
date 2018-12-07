@@ -495,7 +495,7 @@ shf_make_hash(
         SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 2); \
         uint64_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
         uint64_t vfs_available = shf_get_vfs_available(SHF); \
-        SHF_ASSERT_INTERNAL(new_tab_size - TAB_MMAP->tab_size < vfs_available, "ERROR: requesting to expand tab by %lu but only %lu bytes available on '%s'; need an extra %lu bytes", new_tab_size - TAB_MMAP->tab_size, vfs_available, SHF->path, new_tab_size - TAB_MMAP->tab_size - vfs_available); \
+        SHF_ASSERT_INTERNAL(new_tab_size - TAB_MMAP->tab_size <= vfs_available, "ERROR: requesting to expand tab by %lu but only %lu bytes available on '%s'; need an extra %lu bytes; if /dev/shm consider increasing RAM via e.g. sudo mount -o remount,size=4g /dev/shm", new_tab_size - TAB_MMAP->tab_size, vfs_available, SHF->path, new_tab_size - TAB_MMAP->tab_size - vfs_available); \
         char file_tab[256]; \
         SHF_SNPRINTF(0, file_tab, "%s/%s.shf/%03u/%04u.tab", SHF->path, SHF->name, win, TAB); \
         SHF_DEBUG("- grow tab from %u to %lu; need %lu bytes but %lu bytes available in '%s'\n", TAB_MMAP->tab_size, new_tab_size, data_needed, data_available, file_tab); \

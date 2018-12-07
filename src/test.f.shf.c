@@ -84,7 +84,7 @@
 #define TEST_MIX_PRE()
 
 #define TEST_MIX() \
-    if (0 == i % 50) { \
+    if ((i % 100) < mix_count) { \
         ((uint32_t *)sval1)[0] = key; \
         rc = mdb_txn_begin(env, NULL, 0, &txn       ); if (rc) { fprintf(stderr, "mdb_txn_begin(): (%d) %s at %d\n" , rc, mdb_strerror(rc), i); exit(1); } \
         rc = mdb_del      (txn, dbi, &lmdb_key, NULL); if (MDB_NOTFOUND == rc) { printf("ERROR: process #%u: key %u; MDB_NOTFOUND (1a)\n", process, key); exit(1); } \
@@ -160,7 +160,7 @@
 
 #define TEST_MIX() \
     shf_make_hash(SHF_CAST(const char *, &key), sizeof(key)); \
-    if (0 == i % 50) { \
+    if ((i % 100) < mix_count) { \
         shf_del_key_val(shf); \
         shf_put_key_val(shf, SHF_CAST(const char *, &key), sizeof(key)); \
         mix_counts[process] ++; \
@@ -214,6 +214,7 @@ int main(void)
     }
 
     uint32_t cpu_count_desired = getenv("SHF_PERFORMANCE_TEST_CPUS") ? atoi(getenv("SHF_PERFORMANCE_TEST_CPUS")) : 0;
+    uint32_t mix_count_desired = getenv("SHF_PERFORMANCE_TEST_MIX" ) ? atoi(getenv("SHF_PERFORMANCE_TEST_MIX" )) : 0;
     uint32_t test_keys_desired = getenv("SHF_PERFORMANCE_TEST_KEYS") ? atoi(getenv("SHF_PERFORMANCE_TEST_KEYS")) : 0;
 
     TEST_INIT();
@@ -224,10 +225,11 @@ int main(void)
              uint32_t   test_keys_default = 100 * 1000000; /* assume enough RAM is available for LMDB */
 #else
              uint64_t   vfs_available_md  = shf_get_vfs_available(shf) / 1024 / 1024;
-             uint32_t   test_keys_10m     = vfs_available_md / 436 * 10; /* 10M keys is about 436MB */
+             uint32_t   test_keys_10m     = vfs_available_md / 2 / 436 * 10; /* 10M keys is about 436MB */
              uint32_t   test_keys_default = test_keys_10m > 100 ? 100 * 1000000 : test_keys_10m * 1000000; SHF_ASSERT(test_keys_default > 0, "ERROR: only %luMB available on /dev/shm but 10M keys takes at least 436MB for SharedHashFile", vfs_available_md);
 #endif
              uint32_t   test_keys         = test_keys_desired ? test_keys_desired : test_keys_default;
+             uint32_t   mix_count         = mix_count_desired ? mix_count_desired : 2; /* means 2% put, 98% get operations during mix phase */
              uint32_t   cpu_count         = cpu_count_desired ? cpu_count_desired : test_get_cpu_count();
              uint32_t   process;
              uint32_t   processes = cpu_count > TEST_MAX_PROCESSES ? TEST_MAX_PROCESSES : cpu_count;
@@ -369,7 +371,7 @@ int main(void)
         }
         usleep(1000000); /* one second */
     } while (key_total < (3 * test_keys));
-    fprintf(stderr, "* MIX is 2%% (%u) del/put, 98%% (%u) get\n", test_keys * 2 / 100, test_keys * 98 / 100);
+    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100);
 
     TEST_FINI_MASTER();
 
