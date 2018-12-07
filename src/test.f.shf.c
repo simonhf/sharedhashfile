@@ -144,11 +144,13 @@
     SHF_SNPRINTF(1, test_db_name, "test-shf-%05u", pid); \
                 shf_init  (); \
     SHF * shf = shf_attach(test_db_folder, test_db_name, 1 /* delete upon process exit */); \
+                shf_set_is_lockable (shf, lock_flag); \
                 shf_set_data_need_factor(250)
 
 #define TEST_INIT_CHILD() \
     shf_debug_verbosity_less(); \
-    shf = shf_attach_existing(test_db_folder, test_db_name)
+    shf = shf_attach_existing(test_db_folder, test_db_name); \
+          shf_set_is_lockable (shf, lock_flag)
 
 #define TEST_PUT() \
     shf_make_hash       (SHF_CAST(const char *, &key), sizeof(key)); \
@@ -213,9 +215,10 @@ int main(void)
         goto EARLY_EXIT;
     }
 
-    uint32_t cpu_count_desired = getenv("SHF_PERFORMANCE_TEST_CPUS") ? atoi(getenv("SHF_PERFORMANCE_TEST_CPUS")) : 0;
-    uint32_t mix_count_desired = getenv("SHF_PERFORMANCE_TEST_MIX" ) ? atoi(getenv("SHF_PERFORMANCE_TEST_MIX" )) : 0;
-    uint32_t test_keys_desired = getenv("SHF_PERFORMANCE_TEST_KEYS") ? atoi(getenv("SHF_PERFORMANCE_TEST_KEYS")) : 0;
+    uint32_t cpu_count         = getenv("SHF_PERFORMANCE_TEST_CPUS") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_CPUS"))) : test_get_cpu_count();
+    uint32_t lock_flag         = getenv("SHF_PERFORMANCE_TEST_LOCK") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_LOCK"))) : 1; /* 1 means lock shared memory by default; 0 means unlocked e.g. for single threaded use */
+    uint32_t mix_count         = getenv("SHF_PERFORMANCE_TEST_MIX" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_MIX" ))) : 2; /* 2 means 2% put, 98% get operations during mix phase */
+    uint32_t test_keys_desired = getenv("SHF_PERFORMANCE_TEST_KEYS") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_KEYS"))) : 0;
 
     TEST_INIT();
 
@@ -229,10 +232,8 @@ int main(void)
              uint32_t   test_keys_default = test_keys_10m > 100 ? 100 * 1000000 : test_keys_10m * 1000000; SHF_ASSERT(test_keys_default > 0, "ERROR: only %luMB available on /dev/shm but 10M keys takes at least 436MB for SharedHashFile", vfs_available_md);
 #endif
              uint32_t   test_keys         = test_keys_desired ? test_keys_desired : test_keys_default;
-             uint32_t   mix_count         = mix_count_desired ? mix_count_desired : 2; /* means 2% put, 98% get operations during mix phase */
-             uint32_t   cpu_count         = cpu_count_desired ? cpu_count_desired : test_get_cpu_count();
+             uint32_t   processes         = cpu_count > TEST_MAX_PROCESSES ? TEST_MAX_PROCESSES : cpu_count;
              uint32_t   process;
-             uint32_t   processes = cpu_count > TEST_MAX_PROCESSES ? TEST_MAX_PROCESSES : cpu_count;
              uint32_t   counts_old[TEST_MAX_PROCESSES] = { 0 };
     volatile uint32_t * put_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != put_counts, "mmap(): %u: ", errno);
     volatile uint32_t * get_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != get_counts, "mmap(): %u: ", errno);
@@ -371,7 +372,7 @@ int main(void)
         }
         usleep(1000000); /* one second */
     } while (key_total < (3 * test_keys));
-    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100);
+    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag);
 
     TEST_FINI_MASTER();
 

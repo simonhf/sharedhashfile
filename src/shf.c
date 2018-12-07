@@ -952,7 +952,7 @@ shf_set_is_lockable(
     uint32_t   is_lockable)
 {
     SHF_ASSERT_INTERNAL(shf             , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
-    SHF_ASSERT_INTERNAL(is_lockable <= 1, "ERROR: is_locable must be 0 or 1");
+    SHF_ASSERT_INTERNAL(is_lockable <= 1, "ERROR: is_lockable must be 0 or 1");
     shf->is_lockable = is_lockable;
 } /* shf_set_is_lockable() */
 

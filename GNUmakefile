@@ -82,7 +82,7 @@ all: eolws tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
 	@echo "make: note: prefix make with SHF_SKIP_TESTS=1 to build but do not run tests"
-	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|MIX|CPUS|KEYS)=(1|2|4|10000000) to run perf test"
+	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|LOCK|MIX|CPUS|KEYS)=(1|1|2|4|10000000) to run perf test"
 	@echo "make: built $(TEST_EXE_SKIP) $(BUILD_TYPE) version"
 
 $(BUILD_TYPE)/%.o: ./src/%.c $(DEPS_H)
