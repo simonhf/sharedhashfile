@@ -167,12 +167,12 @@ shf_get_time_in_seconds(void)
 } /* shf_get_time_in_seconds() */
 
 uint64_t
-shf_get_vfs_available(SHF * shf)
+shf_get_vfs_available(const char * shf_path)
 {
     struct statvfs mystatvfs;
-    SHF_ASSERT(0 == statvfs(shf->path, &mystatvfs), "statvfs(): %u: ", errno);
+    SHF_ASSERT(0 == statvfs(shf_path, &mystatvfs), "statvfs(): %u: ", errno);
     uint64_t vfs_available = mystatvfs.f_bsize * mystatvfs.f_bfree;
-    SHF_DEBUG("%s(shf=?) // %lu\n", __FUNCTION__, vfs_available);
+    SHF_DEBUG("%s(shf_path=%s) // %lu\n", __FUNCTION__, shf_path, vfs_available);
     return vfs_available;
 } /* shf_get_vfs_available() */
 
@@ -187,7 +187,7 @@ shf_init(void)
     shf_init_called = 1;
 
 #ifdef SHF_DEBUG_VERSION
-    SHF_DEBUG("turning on core dump for debug");
+    SHF_DEBUG("turning on core dump for debug\n");
 
     struct rlimit core_limit;
     core_limit.rlim_cur = RLIM_INFINITY;
@@ -494,7 +494,7 @@ shf_make_hash(
     if (data_needed > data_available) { \
         SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 2); \
         uint64_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
-        uint64_t vfs_available = shf_get_vfs_available(SHF); \
+        uint64_t vfs_available = shf_get_vfs_available(SHF->path); \
         SHF_ASSERT_INTERNAL(new_tab_size - TAB_MMAP->tab_size <= vfs_available, "ERROR: requesting to expand tab by %lu but only %lu bytes available on '%s'; need an extra %lu bytes; if /dev/shm consider increasing RAM via e.g. sudo mount -o remount,size=4g /dev/shm", new_tab_size - TAB_MMAP->tab_size, vfs_available, SHF->path, new_tab_size - TAB_MMAP->tab_size - vfs_available); \
         char file_tab[256]; \
         SHF_SNPRINTF(0, file_tab, "%s/%s.shf/%03u/%04u.tab", SHF->path, SHF->name, win, TAB); \
@@ -941,7 +941,7 @@ void
 shf_set_data_need_factor(
     uint32_t data_needed_factor)
 {
-    SHF_DEBUG("%s(data_needed_factor=%u){}", __FUNCTION__, data_needed_factor);
+    SHF_DEBUG("%s(data_needed_factor=%u){}\n", __FUNCTION__, data_needed_factor);
     SHF_ASSERT(shf_data_needed_factor > 0, "ERROR: data_needed_factor must be > 0");
     shf_data_needed_factor = data_needed_factor;
 } /* shf_set_data_need_factor() */
@@ -1700,6 +1700,13 @@ static __thread uint32_t shf_log_output_indirect_failsafe = 0;
 //example     log_line[0] = '?' == log_line[0] ? '=' : log_line[0]; /* mark as logged output by stderr */
 //example     fprintf(stderr, "%.*s", log_line_len, log_line);
 //example } /* shf_log_output_stderr() */
+
+void
+shf_log_init(void)
+{
+    shf_log_tid    = 0;
+    shf_log_tid_id = 0;
+} /* shf_log_init() */
 
 static void
 shf_log_output_stdout(char * log_line, uint32_t log_line_len)

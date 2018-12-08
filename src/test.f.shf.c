@@ -138,17 +138,16 @@
 #define TEST_WHAT "SharedHashFile"
 
 #define TEST_INIT() \
-    char  test_db_name[256]; \
-    char  test_db_folder[] = "/dev/shm"; \
-    pid_t pid              = getpid(); \
+    pid = getpid(); \
     SHF_SNPRINTF(1, test_db_name, "test-shf-%05u", pid); \
-                shf_init  (); \
-    SHF * shf = shf_attach(test_db_folder, test_db_name, 1 /* delete upon process exit */); \
-                shf_set_is_lockable (shf, lock_flag); \
-                shf_set_data_need_factor(250)
+          shf_init  (); \
+    shf = shf_attach(test_db_folder, test_db_name, 1 /* delete upon process exit */); \
+          shf_set_is_lockable (shf, lock_flag); \
+          shf_set_data_need_factor(250); \
+    if (0 == debug_kid) { shf_debug_verbosity_less(); }
 
 #define TEST_INIT_CHILD() \
-    shf_debug_verbosity_less(); \
+          shf_debug_verbosity_less(); \
     shf = shf_attach_existing(test_db_folder, test_db_name); \
           shf_set_is_lockable (shf, lock_flag)
 
@@ -209,25 +208,33 @@ int main(void)
     plan_tests(1);
 
     if (getenv("SHF_PERFORMANCE_TEST_ENABLE") && atoi(getenv("SHF_PERFORMANCE_TEST_ENABLE"))) {
+        SHF_DEBUG("SHF performance test started\n");
     }
     else {
         fprintf(stderr, "NOTE: prefix make with SHF_PERFORMANCE_TEST_ENABLE=1 ?\n");
         goto EARLY_EXIT;
     }
 
-    uint32_t cpu_count         = getenv("SHF_PERFORMANCE_TEST_CPUS") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_CPUS"))) : test_get_cpu_count();
-    uint32_t lock_flag         = getenv("SHF_PERFORMANCE_TEST_LOCK") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_LOCK"))) : 1; /* 1 means lock shared memory by default; 0 means unlocked e.g. for single threaded use */
-    uint32_t mix_count         = getenv("SHF_PERFORMANCE_TEST_MIX" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_MIX" ))) : 2; /* 2 means 2% put, 98% get operations during mix phase */
-    uint32_t test_keys_desired = getenv("SHF_PERFORMANCE_TEST_KEYS") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_KEYS"))) : 0;
+    pid_t      pid;
+    char       test_db_name[256];
+    char       test_db_folder[]  = "/dev/shm";
+    SHF      * shf               = NULL;
+    uint32_t   debug_kid         = getenv("SHF_PERFORMANCE_TEST_DEBUG") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_DEBUG"))) : 0;
+    uint32_t   cpu_count         = getenv("SHF_PERFORMANCE_TEST_CPUS" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_CPUS" ))) : test_get_cpu_count();
+    uint32_t   lock_flag         = getenv("SHF_PERFORMANCE_TEST_LOCK" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_LOCK" ))) : 1; /* 1 means lock shared memory by default; 0 means unlocked e.g. for single threaded use */
+    uint32_t   mix_count         = getenv("SHF_PERFORMANCE_TEST_MIX"  ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_MIX"  ))) : 2; /* 2 means 2% put, 98% get operations during mix phase */
+    uint32_t   test_keys_desired = getenv("SHF_PERFORMANCE_TEST_KEYS" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_KEYS" ))) : 0;
 
-    TEST_INIT();
+    if (1 == lock_flag) { /* come here if one SHF instance shared between processes */
+        TEST_INIT();
+    }
 
-#define TEST_MAX_PROCESSES (16)
+#define TEST_MAX_PROCESSES (32)
 
 #ifdef TEST_LMDB
              uint32_t   test_keys_default = 100 * 1000000; /* assume enough RAM is available for LMDB */
 #else
-             uint64_t   vfs_available_md  = shf_get_vfs_available(shf) / 1024 / 1024;
+             uint64_t   vfs_available_md  = shf_get_vfs_available(test_db_folder) / 1024 / 1024;
              uint32_t   test_keys_10m     = vfs_available_md / 2 / 436 * 10; /* 10M keys is about 436MB */
              uint32_t   test_keys_default = test_keys_10m > 100 ? 100 * 1000000 : test_keys_10m * 1000000; SHF_ASSERT(test_keys_default > 0, "ERROR: only %luMB available on /dev/shm but 10M keys takes at least 436MB for SharedHashFile", vfs_available_md);
 #endif
@@ -238,46 +245,62 @@ int main(void)
     volatile uint32_t * put_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != put_counts, "mmap(): %u: ", errno);
     volatile uint32_t * get_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != get_counts, "mmap(): %u: ", errno);
     volatile uint32_t * mix_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
-    volatile uint64_t * start_line = mmap(NULL, SHF_MOD_PAGE(                 3*sizeof(uint64_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
+    volatile uint64_t * start_line = mmap(NULL, SHF_MOD_PAGE(                 4*sizeof(uint64_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
     SHF_ASSERT(sizeof(uint64_t) == sizeof(long), "INTERNAL: expected sizeof(uint64_t) == sizeof(long), but got %lu == %lu", sizeof(uint64_t), sizeof(long));
     start_line[0] = 0;
     start_line[1] = 0;
     start_line[2] = 0;
+    start_line[3] = 0;
+    long previous_long_value;
+    SHF_UNUSE(previous_long_value);
     for (process = 0; process < processes; process++) {
         pid_t fork_pid = fork();
-        if (fork_pid == 0) {     /*child*/
+        if (fork_pid == 0) { /*child*/
+            shf_log_init(); /* need to init log due to new process */
             SHF_DEBUG("test process #%u with pid %5u\n", process, getpid());
             {
-                long previous_long_value;
-                SHF_UNUSE(previous_long_value);
+                SHF_DEBUG("child attaching to (with locking) or creating (without locking) SHF\n");
+                if (0 == lock_flag) { TEST_INIT(); /* come here if one private SHF instance per process, i.e. no sharing */ }
+                else                { TEST_INIT_CHILD(); }
 
+                SHF_DEBUG("testing key put\n");
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1);
-                while (processes != start_line[0]) { SHF_YIELD(); }
-                TEST_INIT_CHILD();
+                while ((processes + 1 /* master */) != start_line[0]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
-                    uint32_t key = test_keys / processes * process + i;
+                    uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     put_counts[process] ++;
                     TEST_PUT();
                 }
                 TEST_PUT_POST();
+
+                SHF_DEBUG("testing key mix\n");
                 TEST_MIX_PRE();
-                usleep(2000000); /* 2 seconds */
+                usleep(1100000); /* 1.1 seconds */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
                 while (processes != start_line[1]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
-                    uint32_t key = test_keys / processes * process + i;
+                    uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     TEST_MIX();
                 }
                 TEST_MIX_POST();
+
+                SHF_DEBUG("testing key get\n");
                 TEST_GET_PRE();
-                usleep(2000000); /* 2 seconds */
+                usleep(1100000); /* 1.1 seconds */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
                 while (processes != start_line[2]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
-                    uint32_t key = test_keys / processes * process + i;
+                    uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     TEST_GET();
                 }
                 TEST_GET_POST();
+
+                SHF_DEBUG("shutting down\n");
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1);
+                while ((processes + 1 /* master */) != start_line[3]) { SHF_YIELD(); }
+                if (0 == lock_flag) {
+                    TEST_FINI_MASTER();
+                }
                 TEST_FINI();
                 exit(0);
             }
@@ -288,7 +311,7 @@ int main(void)
         }
     }
 
-    /* parent monitors & reports on forked children */
+    SHF_DEBUG("parent monitors & reports on forked children\n");
     uint32_t seconds            = 0;
     uint32_t key_total;
     uint32_t key_total_old      = 0;
@@ -305,6 +328,9 @@ int main(void)
     fprintf(stderr, "perf testing: " TEST_WHAT "\n");
     fprintf(stderr, "running tests on: via command: '%s'\n",               "cat /proc/cpuinfo | egrep 'model name' | head -n 1" );
     fprintf(stderr, "running tests on: `%s`\n"             , shf_backticks("cat /proc/cpuinfo | egrep 'model name' | head -n 1"));
+
+    previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1); /* synchronize with kids */
+    while ((processes + 1 /* master */) != start_line[0]) { SHF_YIELD(); }
     do {
         if (0 == seconds % 50) {
 #ifdef SHF_DEBUG_VERSION
@@ -314,12 +340,12 @@ int main(void)
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "------ ");
 #endif
-            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 -M/s\n");
+            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 -M/s\n");
         }
         seconds ++;
-        // todo: add % system CPU time to per second summary line; why does put require so much system?
+        // todo: add % system CPU time to per second summary line
 #ifdef SHF_DEBUG_VERSION
-        {
+        if (1 == lock_flag) {
             uint64_t lock_conflicts = 0;
             for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
                 lock_conflicts += shf->shf_mmap->wins[win].lock.conflicts;
@@ -335,11 +361,13 @@ int main(void)
             uint64_t tabs_shrunk  = 0;
             uint64_t tabs_parted  = 0;
 #ifdef TEST_SHF
-            for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
-                tabs_mmaps   += shf->shf_mmap->wins[win].tabs_mmaps  ;
-                tabs_mremaps += shf->shf_mmap->wins[win].tabs_mremaps;
-                tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk ;
-                tabs_parted  += shf->shf_mmap->wins[win].tabs_parted ;
+            if (1 == lock_flag) {
+                for (uint32_t win = 0; win < SHF_WINS_PER_SHF; win++) {
+                    tabs_mmaps   += shf->shf_mmap->wins[win].tabs_mmaps  ;
+                    tabs_mremaps += shf->shf_mmap->wins[win].tabs_mremaps;
+                    tabs_shrunk  += shf->shf_mmap->wins[win].tabs_shrunk ;
+                    tabs_parted  += shf->shf_mmap->wins[win].tabs_parted ;
+                }
             }
 #endif
             fprintf(stderr, "%5.1f %5.1f %4lu %4lu",
@@ -372,9 +400,12 @@ int main(void)
         }
         usleep(1000000); /* one second */
     } while (key_total < (3 * test_keys));
-    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag);
+    previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1); /* tell kids they can exit now */
+    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u, DEBUG is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag, debug_kid);
 
-    TEST_FINI_MASTER();
+    if (1 == lock_flag) {
+        TEST_FINI_MASTER();
+    }
 
 EARLY_EXIT:;
 
