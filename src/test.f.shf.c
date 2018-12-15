@@ -144,12 +144,14 @@
     shf = shf_attach(test_db_folder, test_db_name, 1 /* delete upon process exit */); \
           shf_set_is_lockable (shf, lock_flag); \
           shf_set_data_need_factor(250); \
+    if (1 == fixed_len) { shf_set_is_fixed_len(shf, sizeof(uint32_t), sizeof(uint32_t)); } \
     if (0 == debug_kid) { shf_debug_verbosity_less(); }
 
 #define TEST_INIT_CHILD() \
           shf_debug_verbosity_less(); \
     shf = shf_attach_existing(test_db_folder, test_db_name); \
-          shf_set_is_lockable (shf, lock_flag)
+          shf_set_is_lockable (shf, lock_flag); \
+    if (1 == fixed_len) { shf_set_is_fixed_len(shf, sizeof(uint32_t), sizeof(uint32_t)); }
 
 #define TEST_PUT() \
     shf_make_hash       (SHF_CAST(const char *, &key), sizeof(key)); \
@@ -220,6 +222,7 @@ int main(void)
     char       test_db_folder[]  = "/dev/shm";
     SHF      * shf               = NULL;
     uint32_t   debug_kid         = getenv("SHF_PERFORMANCE_TEST_DEBUG") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_DEBUG"))) : 0;
+    uint32_t   fixed_len         = getenv("SHF_PERFORMANCE_TEST_FIXED") ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_FIXED"))) : 0;
     uint32_t   cpu_count         = getenv("SHF_PERFORMANCE_TEST_CPUS" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_CPUS" ))) : test_get_cpu_count();
     uint32_t   lock_flag         = getenv("SHF_PERFORMANCE_TEST_LOCK" ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_LOCK" ))) : 1; /* 1 means lock shared memory by default; 0 means unlocked e.g. for single threaded use */
     uint32_t   mix_count         = getenv("SHF_PERFORMANCE_TEST_MIX"  ) ? SHF_CAST(uint32_t, atoi(getenv("SHF_PERFORMANCE_TEST_MIX"  ))) : 2; /* 2 means 2% put, 98% get operations during mix phase */
@@ -275,9 +278,8 @@ int main(void)
 
                 SHF_DEBUG("testing key mix\n");
                 TEST_MIX_PRE();
-                usleep(1100000); /* 1.1 seconds */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
-                while (processes != start_line[1]) { SHF_YIELD(); }
+                while ((processes + 1 /* master */) != start_line[1]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
                     uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     TEST_MIX();
@@ -286,9 +288,8 @@ int main(void)
 
                 SHF_DEBUG("testing key get\n");
                 TEST_GET_PRE();
-                usleep(1100000); /* 1.1 seconds */
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
-                while (processes != start_line[2]) { SHF_YIELD(); }
+                while ((processes + 1 /* master */) != start_line[2]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
                     uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     TEST_GET();
@@ -332,6 +333,8 @@ int main(void)
     previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1); /* synchronize with kids */
     while ((processes + 1 /* master */) != start_line[0]) { SHF_YIELD(); }
     do {
+        usleep(1000000); /* one second */
+
         if (0 == seconds % 50) {
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "-LOCKC ");
@@ -394,14 +397,13 @@ int main(void)
             }
             uint32_t key_total_per_second = key_total - key_total_old;
             fprintf(stderr, "%5.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 750000)]);
-            if      (0 == message && key_total >= (1 * test_keys)) { message ++; message_text = "MIX"; }
-            else if (1 == message && key_total >= (2 * test_keys)) { message ++; message_text = "GET"; }
+            if      (0 == message && key_total >= (1 * test_keys)) { message ++; message_text = "MIX"; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1); fprintf(stderr, "\n"); }
+            else if (1 == message && key_total >= (2 * test_keys)) { message ++; message_text = "GET"; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1); fprintf(stderr, "\n"); }
             key_total_old = key_total;
         }
-        usleep(1000000); /* one second */
     } while (key_total < (3 * test_keys));
     previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1); /* tell kids they can exit now */
-    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u, DEBUG is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag, debug_kid);
+    fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u, FIXED is %u, DEBUG is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag, fixed_len, debug_kid);
 
     if (1 == lock_flag) {
         TEST_FINI_MASTER();

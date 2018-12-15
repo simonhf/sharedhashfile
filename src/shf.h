@@ -376,6 +376,7 @@ extern void       shf_debug_verbosity_less (void);
 extern void       shf_debug_verbosity_more (void);
 extern void       shf_set_data_need_factor (uint32_t data_needed_factor);
 extern void       shf_set_is_lockable      (SHF * shf, uint32_t is_lockable);
+extern void       shf_set_is_fixed_len     (SHF * shf, uint32_t fixed_key_len, uint32_t fixed_val_len);
 extern void     * shf_q_new                (SHF * shf, uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size, uint32_t qids_nolock_max);
 extern void     * shf_q_get                (SHF * shf);
 extern void       shf_q_del                (SHF * shf);

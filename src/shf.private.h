@@ -156,6 +156,9 @@ typedef struct SHF {
     char         * path                                    ; /* e.g. '/dev/shm' */
     char         * name                                    ; /* e.g. 'myshf' */
     uint32_t       is_lockable                             ; /* 0 means single threaded use only, 1 means lockable */
+    uint32_t       is_fixed_key_val_len                    ; /* 0 means key values can be any length, 1 means key values all the same length */
+    uint32_t       fixed_key_len                           ; /* length of key   if is_fixed_key_val_len */
+    uint32_t       fixed_val_len                           ; /* length of value if is_fixed_key_val_len */
     uint32_t       count_mmap                              ; /* number of mmap()s */
     uint32_t       count_xalloc                            ; /* number of (c|m)alloc()s */
     SHF_Q          q                                       ; /* for IPC q   */

@@ -29,14 +29,14 @@ my $all;
 my $squirrel;
 my $ok = 0;
 my $not_ok = 0;
-my $success = 0;
+my $still_alive = 0;
 while (my $line = <STDIN>) {
     $line =~ s~[\n\r]+$~\n~;
     #debug printf qq[debug: %s], $line;
     $all .= $line;
 
-    if ($line =~ m~^ok \d+ - .*test still alive~) { # e.g. "ok 12 - test complete" <-- must have "test compelete" message to be a success!
-        $success = $not_ok ? 0 : 1;
+    if ($line =~ m~^ok \d+ - .*test still alive~) { # e.g. "ok 12 - test still alive" <-- must have "test still alive" message to be a success!
+        $still_alive = 1;
         printf qq[%s], $line;
         undef $squirrel;
     }
@@ -57,8 +57,8 @@ while (my $line = <STDIN>) {
         printf qq[%s], $line;
         $squirrel .= $line;
     }
-    elsif ($line =~ m~^# Looks like you planned \d+ tests but ran~) { # e.g. "# Looks like ..."
-        $success = 0;
+    elsif ($line =~ m~^# Looks like you planned \d+ tests but~) { # e.g. "# Looks like ..."
+        #debug printf qq[debug: found: Looks like you planned x tests but ...\n], $not_ok, $ok, $still_alive;
         $not_ok ++;
         printf qq[%s], $squirrel;
         printf qq[%s], $line;
@@ -69,7 +69,8 @@ while (my $line = <STDIN>) {
     }
 }
 
-if (0 == $not_ok && 0 == $success) {
+if (0 == $still_alive) {
+    $not_ok ++;
     my $line = sprintf qq[ERROR: did not find final 'test still alive' ok message; check if test crashed!\n];
     $all .= $line;
     printf qq[%s], $squirrel;
@@ -87,5 +88,6 @@ else {
     printf qq[%s], $squirrel;
 }
 
-if ($success) { exit(0); }
-else          { exit(1); }
+#debug printf qq[debug: %u=not_ok %u=ok %u=still_alive\n], $not_ok, $ok, $still_alive;
+if ($not_ok) { exit(1); }
+else         { exit(0); }

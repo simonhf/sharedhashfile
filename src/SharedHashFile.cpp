@@ -170,6 +170,13 @@ SharedHashFile::SetIsLockable(uint32_t is_lockable)
     shf_set_is_lockable(shf, is_lockable);
 }
 
+void
+SharedHashFile::SetIsFixedLen(uint32_t fixed_key_len, uint32_t fixed_val_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_set_is_fixed_len(shf, fixed_key_len, fixed_val_len);
+}
+
 void *
 SharedHashFile::QNew(uint32_t shf_qs, uint32_t shf_q_items, uint32_t shf_q_item_size, uint32_t qids_nolock_max)
 {
