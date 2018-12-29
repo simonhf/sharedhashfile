@@ -405,6 +405,8 @@ int main(void)
     previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1); /* tell kids they can exit now */
     fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u, FIXED is %u, DEBUG is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag, fixed_len, debug_kid);
 
+    // todo: test TAB_MMAP stats to ensure that used & deleted space is correct (especially for fixed key & value mode)
+
     if (1 == lock_flag) {
         TEST_FINI_MASTER();
     }

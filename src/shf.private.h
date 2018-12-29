@@ -57,10 +57,11 @@ typedef struct SHF_ROW_MMAP {
 
 typedef struct SHF_TAB_MMAP {
     volatile uint32_t     tab_size             ; /* size of memory (mod 4KB) */
-    volatile uint32_t     tab_used             ; /* size of memory           */
-    volatile uint32_t     tab_refs_used        ; /* refs allocated & used    */
-    volatile uint32_t     tab_data_free        ; /* data bytes marked free   */
-    volatile uint32_t     tab_data_used        ; /* data bytes        used   */
+    volatile uint32_t     tab_used             ; /* size of memory */
+    volatile uint32_t     tab_refs_used        ; /* refs allocated & used */
+    volatile uint32_t     tab_data_free_pos    ; /* next data bytes marked free if shf->fixed_key_len */
+    volatile uint32_t     tab_data_free        ; /*      data bytes marked free */
+    volatile uint32_t     tab_data_used        ; /*      data bytes        used */
     volatile SHF_ROW_MMAP row[SHF_ROWS_PER_TAB];
     // todo: base to linked list of deleted key,value pairs
     volatile uint8_t      data[0];
@@ -79,8 +80,6 @@ typedef struct SHF_WIN_MMAP {
              SHF_LOCK     lock                  ;
     volatile SHF_OFF_MMAP tabs[SHF_TABS_PER_WIN]; /* 4KB == 2048 tabs * uint16_t */
     volatile uint32_t     tabs_used             ; /* number of tabs in win */
-    volatile uint32_t     tabs_refs_size        ; /* refs allocated & used or not */
-    volatile uint32_t     tabs_refs_used        ; /* refs allocated & used        */
     volatile uint64_t     tabs_mmaps            ; /* times 1 tab mmapped */
     volatile uint64_t     tabs_mremaps          ; /* times 1 tab mremapped */
     volatile uint64_t     tabs_shrunk           ; /* times 1 tab shrunk */

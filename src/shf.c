@@ -449,7 +449,6 @@ shf_make_hash(
         SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: init to %u bytes\n", getpid(), win, TAB, SHF->tabs[win][TAB].tab_size); \
         tab_mmap->tab_size                      = SHF->tabs[win][TAB].tab_size; \
         tab_mmap->tab_used                      = offsetof(SHF_TAB_MMAP, data); \
-        SHF->shf_mmap->wins[win].tabs_refs_size += SHF_REFS_PER_TAB; \
         SHF_DEBUG("- hack but works: mmap set tab size to %u and used to %u for the first time!\n", tab_mmap->tab_size, tab_mmap->tab_used); \
     } \
     if (SHF->tabs[win][TAB].tab_size != tab_mmap->tab_size) { \
@@ -484,7 +483,7 @@ shf_make_hash(
 #define MYMADV_DONTDUMP 0
 #endif
 
-#define SHF_TAB_APPEND(SHF, TAB, TAB_MMAP, LEN_LEN, KEY, KEY_LEN) \
+#define SHF_TAB_APPEND(SHF, TAB, TAB_MMAP, LEN_LEN, KEY, KEY_LEN, POS) \
     /* todo: examine if file append & remap is faster than remap & direct memory access */ \
     /* todo: consider special mode with is write only, e.g. for initial startup? */ \
     /* todo: faster to use remap_file_pages() instead of multiple mmap()s? */ \
@@ -492,7 +491,23 @@ shf_make_hash(
     uint64_t data_available = TAB_MMAP->tab_size - TAB_MMAP->tab_used; \
     SHF_DEBUG("- appending %lu bytes for ref @ 0x%02x-xxx[%03x]-%03x-%x // key,value are %u,%u bytes @ pos %u // todo: use SHF_DATA_TYPE instead of hard coding\n", data_needed, win, TAB, row, ref, KEY_LEN, val_len, TAB_MMAP->tab_used); \
     SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 1); \
-    if (data_needed > data_available) { \
+    if ((0 == LEN_LEN                    )    /* if ->is_fixed_key_val_len */ \
+    &&  (0 != TAB_MMAP->tab_data_free_pos)) { /* and single linked list chain link exists */ \
+        /* come here to reuse deleted key,value pair on deleted link list */ \
+                      POS = TAB_MMAP->tab_data_free_pos; \
+        uint32_t next_pos = SHF_U32_AT(TAB_MMAP, POS+1+sizeof(KEY_LEN)); \
+        TAB_MMAP->tab_data_free_pos = next_pos; \
+        SHF_DATA_TYPE data_type; \
+                      data_type.as_type.key_type = SHF_KEY_TYPE_KEY_IS_STR32; \
+                      data_type.as_type.val_type = SHF_KEY_TYPE_VAL_IS_STR32; \
+        SHF_U08_AT(TAB_MMAP, POS                                                      )    =    data_type.as_u08; \
+        SHF_MEM_AT(TAB_MMAP, POS + sizeof(SHF_DATA_TYPE) + LEN_LEN                    , /* = */ KEY_LEN         , /* bytes at */ KEY); \
+        if (val) { \
+        SHF_MEM_AT(TAB_MMAP, POS + sizeof(SHF_DATA_TYPE) + LEN_LEN + KEY_LEN + LEN_LEN, /* = */ val_len         , /* bytes at */ val); \
+        } \
+        TAB_MMAP->tab_data_free -= 1 + KEY_LEN + val_len; \
+        goto SKIP_APPEND_COS_REUSE; \
+    } else if (data_needed > data_available) { \
         SHF_LOCK_DEBUG_MACRO(&SHF->shf_mmap->wins[win].lock, 2); \
         uint64_t new_tab_size = SHF_MOD_PAGE(TAB_MMAP->tab_size + (data_needed * shf_data_needed_factor)); \
         uint64_t vfs_available = shf_get_vfs_available(SHF->path); \
@@ -525,29 +540,37 @@ shf_make_hash(
     SHF_DATA_TYPE data_type; \
                   data_type.as_type.key_type = SHF_KEY_TYPE_KEY_IS_STR32; \
                   data_type.as_type.val_type = SHF_KEY_TYPE_VAL_IS_STR32; \
-    SHF_U08_AT(TAB_MMAP, TAB_MMAP->tab_used                                                               )    =     data_type.as_u08; \
+    SHF_U08_AT(TAB_MMAP, TAB_MMAP->tab_used                                                               )    =    data_type.as_u08; \
     if (0 == LEN_LEN) { \
         /* store key value *without* size data */ \
     } \
     else { \
         /* store key value *with* size data */ \
-    SHF_U32_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE)                                       )    =     KEY_LEN         ; \
-    SHF_U32_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE) + LEN_LEN + KEY_LEN                   )    =     val_len         ; \
+    SHF_U32_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE)                                       )    =    KEY_LEN         ; \
+    SHF_U32_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE) + LEN_LEN + KEY_LEN                   )    =    val_len         ; \
     } \
-    SHF_MEM_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE) + LEN_LEN                             , /* = */  KEY_LEN         , /* bytes at */ KEY); \
+    SHF_MEM_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE) + LEN_LEN                             , /* = */ KEY_LEN         , /* bytes at */ KEY); \
     if (val) { \
-    SHF_MEM_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE) + LEN_LEN + KEY_LEN + LEN_LEN         , /* = */  val_len         , /* bytes at */ val); \
+    SHF_MEM_AT(TAB_MMAP, TAB_MMAP->tab_used + sizeof(SHF_DATA_TYPE) + LEN_LEN + KEY_LEN + LEN_LEN         , /* = */ val_len         , /* bytes at */ val); \
     } \
     TAB_MMAP->tab_used += data_needed; \
+    SKIP_APPEND_COS_REUSE:; \
     TAB_MMAP->tab_refs_used ++; \
-    TAB_MMAP->tab_data_used += data_needed; \
-    SHF->shf_mmap->wins[win].tabs_refs_used ++;
+    TAB_MMAP->tab_data_used += data_needed;
 
 #define SHF_TAB_REF_MARK_AS_DELETED(TAB_MMAP, LEN_LEN) \
+    uint32_t old_pos = TAB_MMAP->tab_data_free_pos; \
     /* mark data in old tab as deleted */ \
-    SHF_U08_AT(TAB_MMAP, TAB_MMAP->row[row].ref[ref].pos  ) = SHF_DATA_TYPE_DELETED; \
+    SHF_U08_AT(TAB_MMAP, TAB_MMAP->row[row].ref[ref].pos) = SHF_DATA_TYPE_DELETED; \
     if (0 == LEN_LEN) {                                                                                        } /* if ->is_fixed_key_val_len */ \
     else              { SHF_U32_AT(TAB_MMAP, TAB_MMAP->row[row].ref[ref].pos+1) = key_len + LEN_LEN + val_len; } /* store total length of deleted key,value */ \
+    if ((                  0 == LEN_LEN        )    /* if ->is_fixed_key_val_len */ \
+    &&  ((key_len + val_len) >= sizeof(old_pos))) { /* and enough space to store single linked list chain link */ \
+        /* come here to add deleted key,value pair to deleted link list */ \
+        SHF_U32_AT(TAB_MMAP, TAB_MMAP->row[row].ref[ref].pos+1+sizeof(key_len)) = old_pos; \
+        TAB_MMAP->tab_data_free_pos = TAB_MMAP->row[row].ref[ref].pos; \
+        /* todo: consider having multiple linked lists for key,value powers of two sizes for use in non-fixed size key,vale mode */ \
+    } \
     TAB_MMAP->tab_data_used -= 1 + LEN_LEN + key_len + LEN_LEN + val_len; \
     TAB_MMAP->tab_data_free += 1 + LEN_LEN + key_len + LEN_LEN + val_len; \
     /* mark ref in old tab as unused */ \
@@ -563,7 +586,7 @@ shf_make_hash(
     const char * val     =                                     SHF_CAST(const char *, &SHF_U08_AT(tab_mmap_old, tab_mmap_old->row[row].ref[ref].pos+1+LEN_LEN+key_len+LEN_LEN)); \
     /* copy data from old tab to new tab */ \
     shf_debug_disabled ++; \
-    SHF_TAB_APPEND(shf, tab, tab_mmap_new, LEN_LEN, key, key_len); \
+    SHF_TAB_APPEND(shf, tab, tab_mmap_new, LEN_LEN, key, key_len, tab_used_new); \
     shf_debug_disabled --; \
     SHF_TAB_REF_MARK_AS_DELETED(tab_mmap_old, LEN_LEN); \
     /* copy ref from old tab to new tab */ \
@@ -753,7 +776,7 @@ SHF_NEED_NEW_TAB_AFTER_PARTING:;
             uid.as_part.ref = ref;
             uint32_t pos = tab_mmap->tab_used;
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-            SHF_TAB_APPEND(shf, tab, tab_mmap, len_len, shf_key, shf_key_len);
+            SHF_TAB_APPEND(shf, tab, tab_mmap, len_len, shf_key, shf_key_len, pos);
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
             tab_mmap->row[row].ref[ref].pos = pos;
             tab_mmap->row[row].ref[ref].tab = tab2;
