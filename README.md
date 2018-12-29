@@ -1,6 +1,6 @@
-# SharedHashFile: Share Hash Tables Stored In Memory Mapped Files Between Arbitrary Processes & Threads
+# SharedHashFile: Share Hash Tables With Stable Key Hints Stored In Memory Mapped Files Between Arbitrary Processes
 
-SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy IPC queue, & a multiplexed IPC logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C & C++.
+SharedHashFile is a lightweight, embeddable NoSQL key value store / hash table with stable key hints, a zero-copy IPC queue, & a multiplexed IPC logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C & C++.
 
 ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
 
@@ -17,7 +17,7 @@ SharedHashFile is a lightweight NoSQL key value store / hash table, a zero-copy 
 
 ### Data Storage
 
-Data is kept in shared memory by default, making all the data accessible to separate processes and/or threads. Up to 4 billion keys can be stored in a single SharedHashFile hash table which is limited in size only by available RAM.
+Data is kept in shared memory by default, making all the data accessible to any processes. Up to 4 billion keys can be stored in a single SharedHashFile hash table which is limited in size only by available RAM.
 
 For example, let's say you have a box with 128GB RAM of which 96GB is used by SharedHashFile hash tables. The box has 24 cores and there are 24 processes (e.g. nginx forked slave processes or whatever) concurrently accessing the 96GB of hash tables. Each process shares exactly the same 96GB of shared memory.
 
@@ -43,19 +43,27 @@ SharedHashFile is designed to expand gracefully as more key,value pairs are inse
 
 To reduce contention there is no single global hash table lock by design. Instead keys are sharded across 256 locks to reduce lock contention.
 
-Can multiple threads in multiple processes also access SharedHashFile hash tables concurrently? Yes.
+### Optional Fixed Length Keys and Values
+
+For use cases with high levels of writing then performance can suffer due to too many system mmap() calls due to recycling / shrinking memory mapped areas when removing memory holes due to deleted keys.
+
+To improve performance for write heavy use cases, keys and values can be fixed in size across the entire hash table, which means deleted keys can be easily re-used without creating memory holes, and no expensive system mmap() calls are necessary.
+
+Using fixed length keys and values also reduces the amount of RAM used because the key and value sizes are no longer stored, e.g. 100 million keys and values would save 100 million * 8 bytes = 800 million bytes.
 
 ### Persistent Storage
 
 Hash tables are stored in memory mapped files in `/dev/shm` which means the data persists even when no processes are using hash tables. However, the hash tables will not survive rebooting.
 
-### Unique Identifers
+### Unique Identifers AKA Stable Key Hints
 
 Unlike other hash tables, every key stored in SharedHashFile gets assigned its own UID, e.g. ```shf_make_hash("key", 3); uint32_t uid =  shf_put_key_val(shf, "val", 3)```. To get the same key in the future, choose between accessing the key via its key, or via its UID, e.g. ```shf_make_hash("key", 3); shf_get_key_val_copy(shf)``` or ```shf_get_uid_val_copy(shf, uid)```.
 
 What are UIDs useful for? UIDs don't take up any extra resources and can be thought of as resource 'free'. Accessing a key by its UID is faster than accessing the key via its key. Because a UID is only 32bits in size then it can be easily stored as a reference to a key in your program, or embedded in the values of of key,value pairs, or even embedded within other keys.
 
 Example usage: If uid1 points to key ```"user-id-<xyz>"```, and uid2 points to key ```"facebook.com"```, then another 'mash up' key might be ```"<uid1><uid2>"```. Want to find out if ```"user-id-<xyz>"``` has ```"facebook.com"``` in their personal URL whitelist? Just see if key ```"<uid1><uid2>"``` exists.
+
+What does the 'stable' in 'stable key hint' mean? It means that the UID stays the same even if the key and/or value bytes move around in memory.
 
 ### Zero-Copy IPC Queues
 
