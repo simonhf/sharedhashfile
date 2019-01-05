@@ -1819,7 +1819,10 @@ shf_log_prefix_get(void)
     if (0 == shf_log_tid_id) {
         if (NULL != shf_log_thread_instance) {
             SHF * shf = shf_log_thread_instance;
-            SHF_ASSERT_INTERNAL(shf_log_tid < sizeof(shf->log->tids), "ERROR: internal: tid=%u >= sizeof(shf->log->tids)=%u", shf_log_tid, sizeof(shf->log->tids));
+            if (shf_log_tid >= sizeof(shf->log->tids)) { /* note: cannot use SHF_ASSERT_INTERNAL() because it itself uses this function to log! */
+                printf("%05u:%s: ERROR: assertion: ERROR: internal: tid=%u >= sizeof(shf->log->tids)=%lu\n", __LINE__, __FILE__, shf_log_tid, sizeof(shf->log->tids));
+                exit(EXIT_FAILURE);
+            }
             if (0 == shf->log->tids[shf_log_tid]) {
                 /* come here if no tid id assigned yet */
                 shf_debug_verbosity_less();

@@ -23,6 +23,7 @@
 
 #define _GNU_SOURCE   /* See feature_test_macros(7) */
 #include <sys/mman.h> /* for mremap() */
+#include <locale.h>   /* for setlocale() */
 // #include <string.h>   /* for memcmp() */
 
 #include "shf.private.h"
@@ -209,6 +210,8 @@ int main(void)
 {
     plan_tests(1);
 
+    SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno); /* to enable ```%'.0f``` in sprintf() instead of boring ```%.0f``` */
+
     if (getenv("SHF_PERFORMANCE_TEST_ENABLE") && atoi(getenv("SHF_PERFORMANCE_TEST_ENABLE"))) {
         SHF_DEBUG("SHF performance test started\n");
     }
@@ -232,7 +235,7 @@ int main(void)
         TEST_INIT();
     }
 
-#define TEST_MAX_PROCESSES (32)
+#define TEST_MAX_PROCESSES (36)
 
 #ifdef TEST_LMDB
              uint32_t   test_keys_default = 100 * 1000000; /* assume enough RAM is available for LMDB */
@@ -316,6 +319,7 @@ int main(void)
     uint32_t seconds            = 0;
     uint32_t key_total;
     uint32_t key_total_old      = 0;
+    uint32_t key_total_next     = test_keys;
     uint64_t tabs_mmaps_old     = 0;
     uint64_t tabs_mremaps_old   = 0;
     uint64_t tabs_shrunk_old    = 0;
@@ -332,20 +336,39 @@ int main(void)
 
     previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1); /* synchronize with kids */
     while ((processes + 1 /* master */) != start_line[0]) { SHF_YIELD(); }
+    double seconds_at_start = shf_get_time_in_seconds();
+    double seconds_next     = 0;
     do {
-        usleep(1000000); /* one second */
+        usleep(1000); /* 1/1000th second */
 
-        if (0 == seconds % 50) {
+        key_total = 0;
+        uint32_t key_total_this_second = 0;
+        for (process = 0; process < TEST_MAX_PROCESSES; process++) {
+            key_total             += put_counts[process] + get_counts[process] + mix_counts[process];
+            key_total_this_second += put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process];
+        }
+
+        seconds_next = (0 == seconds_next) ? 1 + seconds_at_start : seconds_next;
+        double seconds_now = shf_get_time_in_seconds();
+        if (key_total < key_total_next) {
+            if (seconds_now <= seconds_next) {
+                goto SKIP_DISPLAY_STATS_FOR_LAST_SECOND;
+            }
+        }
+        seconds_next += 1;
+
+        if (0 == seconds % 50) { /* display header every n seconds */
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "-LOCKC ");
 #endif
-            fprintf(stderr, "-OP MMAP REMAP SHRK PART TOTAL ------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS\n");
+            fprintf(stderr, "-OP MMAP REMAP SHRK PART TOTAL ------------------------------------------------------------------PERCENT OPERATIONS PER PROCESS PER SECOND -OPS\n");
 #ifdef SHF_DEBUG_VERSION
             fprintf(stderr, "------ ");
 #endif
-            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 -M/s\n");
+            fprintf(stderr, "--- -k/s --k/s --/s --/s M-OPS 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 -M/s\n");
         }
         seconds ++;
+
         // todo: add % system CPU time to per second summary line
 #ifdef SHF_DEBUG_VERSION
         if (1 == lock_flag) {
@@ -384,12 +407,6 @@ int main(void)
             tabs_parted_old  = tabs_parted ;
         }
         {
-            key_total = 0;
-            uint32_t key_total_this_second = 0;
-            for (process = 0; process < TEST_MAX_PROCESSES; process++) {
-                key_total             += put_counts[process] + get_counts[process] + mix_counts[process];
-                key_total_this_second += put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process];
-            }
             fprintf(stderr, " %5.1f", key_total / 1000.0 / 1000.0);
             for (process = 0; process < TEST_MAX_PROCESSES; process++) {
                 fprintf(stderr, "%3.0f", (put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]) * 100.0 / (0 == key_total_this_second ? 1 : key_total_this_second));
@@ -397,12 +414,15 @@ int main(void)
             }
             uint32_t key_total_per_second = key_total - key_total_old;
             fprintf(stderr, "%5.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 750000)]);
-            if      (0 == message && key_total >= (1 * test_keys)) { message ++; message_text = "MIX"; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1); fprintf(stderr, "\n"); }
-            else if (1 == message && key_total >= (2 * test_keys)) { message ++; message_text = "GET"; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1); fprintf(stderr, "\n"); }
+            if      (0 == message && key_total >= (1 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1); while ((processes + 1 /* master */) != start_line[1]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "MIX"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
+            else if (1 == message && key_total >= (2 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1); while ((processes + 1 /* master */) != start_line[2]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "GET"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
+            else if (2 == message && key_total >= (3 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1); while ((processes + 1 /* master */) != start_line[3]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "GET"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
             key_total_old = key_total;
         }
+
+SKIP_DISPLAY_STATS_FOR_LAST_SECOND:;
+
     } while (key_total < (3 * test_keys));
-    previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1); /* tell kids they can exit now */
     fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u, FIXED is %u, DEBUG is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag, fixed_len, debug_kid);
 
     // todo: test TAB_MMAP stats to ensure that used & deleted space is correct (especially for fixed key & value mode)
