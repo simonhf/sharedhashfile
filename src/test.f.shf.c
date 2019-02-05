@@ -175,6 +175,16 @@
 
 #define TEST_MIX_POST()
 
+#define TEST_UPD_PRE() \
+    shf_upd_callback_copy(SHF_CAST(const char *, &key), sizeof(key))
+
+
+#define TEST_UPD() \
+    shf_make_hash(SHF_CAST(const char *, &key), sizeof(key)); \
+    upd_counts[process] += shf_upd_key_val(shf)
+
+#define TEST_UPD_POST()
+
 #define TEST_GET_PRE()
 
 #define TEST_GET() \
@@ -251,12 +261,14 @@ int main(void)
     volatile uint32_t * put_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != put_counts, "mmap(): %u: ", errno);
     volatile uint32_t * get_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != get_counts, "mmap(): %u: ", errno);
     volatile uint32_t * mix_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
+    volatile uint32_t * upd_counts = mmap(NULL, SHF_MOD_PAGE(TEST_MAX_PROCESSES*sizeof(uint32_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
     volatile uint64_t * start_line = mmap(NULL, SHF_MOD_PAGE(                 4*sizeof(uint64_t)), PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != mix_counts, "mmap(): %u: ", errno);
     SHF_ASSERT(sizeof(uint64_t) == sizeof(long), "INTERNAL: expected sizeof(uint64_t) == sizeof(long), but got %lu == %lu", sizeof(uint64_t), sizeof(long));
     start_line[0] = 0;
     start_line[1] = 0;
     start_line[2] = 0;
     start_line[3] = 0;
+    start_line[4] = 0;
     long previous_long_value;
     SHF_UNUSE(previous_long_value);
     for (process = 0; process < processes; process++) {
@@ -265,6 +277,8 @@ int main(void)
             shf_log_init(); /* need to init log due to new process */
             SHF_DEBUG("test process #%u with pid %5u\n", process, getpid());
             {
+                uint32_t key;
+
                 SHF_DEBUG("child attaching to (with locking) or creating (without locking) SHF\n");
                 if (0 == lock_flag) { TEST_INIT(); /* come here if one private SHF instance per process, i.e. no sharing */ }
                 else                { TEST_INIT_CHILD(); }
@@ -273,34 +287,44 @@ int main(void)
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[0], 1);
                 while ((processes + 1 /* master */) != start_line[0]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
-                    uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
+                    key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     put_counts[process] ++;
                     TEST_PUT();
                 }
                 TEST_PUT_POST();
 
-                SHF_DEBUG("testing key mix\n");
-                TEST_MIX_PRE();
+                SHF_DEBUG("testing key update\n");
+                TEST_UPD_PRE();
                 previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1);
                 while ((processes + 1 /* master */) != start_line[1]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
-                    uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
+                    key = test_keys / processes * process + i; /* each child always processes the same range of keys */
+                    TEST_UPD();
+                }
+                TEST_UPD_POST();
+
+                SHF_DEBUG("testing key mix\n");
+                TEST_MIX_PRE();
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
+                while ((processes + 1 /* master */) != start_line[1]) { SHF_YIELD(); }
+                for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
+                    key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     TEST_MIX();
                 }
                 TEST_MIX_POST();
 
                 SHF_DEBUG("testing key get\n");
                 TEST_GET_PRE();
-                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1);
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1);
                 while ((processes + 1 /* master */) != start_line[2]) { SHF_YIELD(); }
                 for (uint32_t i = 0; i < (1 + (test_keys / processes)); i++) {
-                    uint32_t key = test_keys / processes * process + i; /* each child always processes the same range of keys */
+                    key = test_keys / processes * process + i; /* each child always processes the same range of keys */
                     TEST_GET();
                 }
                 TEST_GET_POST();
 
                 SHF_DEBUG("shutting down\n");
-                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1);
+                previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[4], 1);
                 while ((processes + 1 /* master */) != start_line[3]) { SHF_YIELD(); }
                 if (0 == lock_flag) {
                     TEST_FINI_MASTER();
@@ -344,8 +368,8 @@ int main(void)
         key_total = 0;
         uint32_t key_total_this_second = 0;
         for (process = 0; process < TEST_MAX_PROCESSES; process++) {
-            key_total             += put_counts[process] + get_counts[process] + mix_counts[process];
-            key_total_this_second += put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process];
+            key_total             += put_counts[process] + get_counts[process] + mix_counts[process] + upd_counts[process];
+            key_total_this_second += put_counts[process] + get_counts[process] + mix_counts[process] + upd_counts[process] - counts_old[process];
         }
 
         seconds_next = (0 == seconds_next) ? 1 + seconds_at_start : seconds_next;
@@ -409,20 +433,21 @@ int main(void)
         {
             fprintf(stderr, " %5.1f", key_total / 1000.0 / 1000.0);
             for (process = 0; process < TEST_MAX_PROCESSES; process++) {
-                fprintf(stderr, "%3.0f", (put_counts[process] + get_counts[process] + mix_counts[process] - counts_old[process]) * 100.0 / (0 == key_total_this_second ? 1 : key_total_this_second));
-                counts_old[process] = put_counts[process] + get_counts[process] + mix_counts[process];
+                fprintf(stderr, "%3.0f", (put_counts[process] + get_counts[process] + mix_counts[process] + upd_counts[process] - counts_old[process]) * 100.0 / (0 == key_total_this_second ? 1 : key_total_this_second));
+                counts_old[process] = put_counts[process] + get_counts[process] + mix_counts[process] + upd_counts[process];
             }
             uint32_t key_total_per_second = key_total - key_total_old;
             fprintf(stderr, "%5.1f %s\n", key_total_per_second / 1000.0 / 1000.0, &graph_100[100 - (key_total_per_second / 750000)]);
-            if      (0 == message && key_total >= (1 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1); while ((processes + 1 /* master */) != start_line[1]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "MIX"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
-            else if (1 == message && key_total >= (2 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1); while ((processes + 1 /* master */) != start_line[2]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "GET"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
+            if      (0 == message && key_total >= (1 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[1], 1); while ((processes + 1 /* master */) != start_line[1]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "UPD"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
+            else if (1 == message && key_total >= (2 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[2], 1); while ((processes + 1 /* master */) != start_line[2]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "MIX"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
             else if (2 == message && key_total >= (3 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[3], 1); while ((processes + 1 /* master */) != start_line[3]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "GET"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
+            else if (3 == message && key_total >= (4 * test_keys)) { message ++; previous_long_value = InterlockedExchangeAdd((long volatile *) &start_line[4], 1); while ((processes + 1 /* master */) != start_line[4]) { SHF_YIELD(); } double elapsed = seconds_now - seconds_at_start; fprintf(stderr, "%s %'u operations in %.3f elapsed seconds or %'.0f operations per second\n", message_text, test_keys, elapsed, test_keys / elapsed); message_text = "FIN"; seconds_at_start = shf_get_time_in_seconds(); seconds_next = 0; key_total_next += test_keys; }
             key_total_old = key_total;
         }
 
 SKIP_DISPLAY_STATS_FOR_LAST_SECOND:;
 
-    } while (key_total < (3 * test_keys));
+    } while (key_total < (4 * test_keys));
     fprintf(stderr, "* MIX is %u%% (%u) del/put, %u%% (%u) get, LOCK is %u, FIXED is %u, DEBUG is %u\n", mix_count, test_keys * mix_count / 100, 100 - mix_count, test_keys * (100 - mix_count) / 100, lock_flag, fixed_len, debug_kid);
 
     // todo: test TAB_MMAP stats to ensure that used & deleted space is correct (especially for fixed key & value mode)

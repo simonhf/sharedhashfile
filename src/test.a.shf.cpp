@@ -31,10 +31,21 @@ extern "C" {
 
 #include <SharedHashFile.hpp>
 
+static int
+upd_callback_test(const char * val, uint32_t val_len) /* callback for ->Upd*Val() */
+{
+    int result = 0;
+    SHF_DEBUG("%s(val=%.*s, val_len=%u){} // return %u; testing custom SHF update callback\n", __FUNCTION__, 3, val, val_len, result);
+    char temp = val[0];
+    SHF_CAST(char *, val)[          0] = val[val_len - 1];
+    SHF_CAST(char *, val)[val_len - 1] = temp;
+    return result;
+} /* upd_callback_test() */
+
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(61);
+    plan_tests(83);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -45,31 +56,56 @@ main(/* int argc,char **argv */)
         pid_t pid             = getpid();
         SHF_SNPRINTF(1, testShfName, "test-%05u", pid);
 
+        uint32_t bit  =  1; /* delete shf when calling process exits */
         SharedHashFile * shf = new SharedHashFile;
-        ok(              shf                                                    , "c++: new SharedHashFile returned object as expected"            );
-        ok(0          == shf->IsAttached    (                                  ), "c++: ->IsAttached()               not attached      as expected");
-        ok(0          == shf->AttachExisting(testShfFolder, testShfName        ), "c++: ->AttachExisting() fails for non-existing file as expected");
-        ok(0          == shf->IsAttached    (                                  ), "c++: ->IsAttached()               not attached      as expected");
-        ok(0          != shf->Attach        (testShfFolder, testShfName, 1     ), "c++: ->Attach()         works for non-existing file as expected");
-        ok(1          == shf->IsAttached    (                                  ), "c++: ->IsAttached()                   attached      as expected");
-                         shf->SetIsLockable (0                                 ); /* single threaded test; no need to lock */
-                         shf->MakeHash      (         "key" , sizeof("key") - 1)                                                                    ;
-        ok(0          == shf->GetKeyValCopy (                                  ), "c++: ->GetKeyValCopy() could not find unput key as expected"    );
-        ok(0          == shf->DelKeyVal     (                                  ), "c++: ->DelKeyVal()     could not find unput key as expected"    );
-        uint32_t  uid =  shf->PutKeyVal     (         "val" , 3                )                                                                    ;
-        ok(       uid != SHF_UID_NONE                                           , "c++: ->PutKeyVal()                      put key as expected"    );
-        ok(1          == shf->GetKeyValCopy (                                  ), "c++: ->GetKeyValCopy() could     find   put key as expected"    );
-        ok(3          == shf_val_len                                            , "c++: shf_val_len                                as expected"    );
-        ok(0          == memcmp             (shf_val, "val" , 3                ), "c++: shf_val                                    as expected"    );
-        ok(1          == shf->DelUidVal     (uid                               ), "c++: ->DelUidVal()     could     find   put key as expected"    );
-        ok(0          == shf->GetKeyValCopy (                                  ), "c++: ->GetKeyValCopy() could not find   del key as expected"    );
-        ok(0          == shf->DelUidVal     (uid                               ), "c++: ->DelUidVal()     could not find   del key as expected"    );
-                  uid =  shf->PutKeyVal     (         "val2", 4                )                                                                    ;
-        ok(       uid != SHF_UID_NONE                                           , "c++: ->PutKeyVal()                    reput key as expected"    );
-        ok(1          == shf->GetUidValCopy (uid                               ), "c++: ->GetUidValCopy() could     find reput key as expected"    );
-        ok(4          == shf_val_len                                            , "c++: shf_val_len                                as expected"    );
-        ok(0          == memcmp             (shf_val, "val2", 4                ), "c++: shf_val                                    as expected"    );
-        ok(1          == shf->DelKeyVal     (                                  ), "c++: ->DelKeyVal()     could     find reput key as expected"    );
+        ok(              shf                                                     , "c++:                          new SharedHashFile            object         as expected");
+        ok(0          == shf->IsAttached     (                                  ), "c++: attach                 : ->IsAttached()      is    not attached       as expected");
+        ok(0          == shf->AttachExisting (testShfFolder, testShfName        ), "c++: attach                 : ->AttachExisting()  could not find file      as expected");
+        ok(0          == shf->IsAttached     (                                  ), "c++: attach                 : ->IsAttached()      is    not attached       as expected");
+        ok(0          != shf->Attach         (testShfFolder, testShfName, bit   ), "c++: attach                 : ->Attach()          could     make file      as expected");
+        ok(1          == shf->IsAttached     (                                  ), "c++: attach                 : ->IsAttached()      is        attached       as expected");
+                         shf->SetIsLockable  (0                                 )     /* single threaded test; no need to lock */                                           ;
+                         shf->MakeHash       (         "key" , sizeof("key") - 1)     /* non-existing    xxx key */                                                         ;
+        ok(0          == shf->GetKeyValCopy  (                                  ), "c++: non-existing    xxx key: ->GetKeyValCopy()   could not find unput key as expected");
+        ok(0          == shf->UpdKeyVal      (                                  ), "c++: non-existing    xxx key: ->UpdKeyVal()       could not find unput key as expected");
+        ok(0          == shf->DelKeyVal      (                                  ), "c++: non-existing    xxx key: ->DelKeyVal()       could not find unput key as expected");
+        uint32_t  uid =  shf->PutKeyVal      (         "val" , 3                )     /*     existing    get key */                                                         ;
+        ok(       uid != SHF_UID_NONE                                            , "c++:     existing    get key: ->PutKeyVal()                        put key as expected");
+        ok(1          == shf->GetKeyValCopy  (                                  ), "c++:     existing    get key: ->GetKeyValCopy()   could     find   put key as expected");
+        ok(3          == shf_val_len                                             , "c++:     existing    get key: shf_val_len                                  as expected");
+        ok(0          == memcmp              (shf_val, "val" , 3                ), "c++:     existing    get key: shf_val                                      as expected");
+        ok(0          == shf->UpdCallbackCopy(         "upvZ", 4                ), "c++: bad val size    upd key: ->UpdCallbackCopy() could         preset val as expected");
+        ok(3          == shf->UpdKeyVal      (                                  ), "c++: bad val size    upd key: ->UpdKeyVal()       callback error 4 upd key as expected");
+        ok(3          == shf->UpdUidVal      (uid                               ), "c++: bad val size    upd uid: ->UpdUidVal()       callback error 4 upd uid as expected");
+        ok(0          == shf->UpdCallbackCopy(         "up1" , 3                ), "c++: copy   callback upd key: ->UpdCallbackCopy() could         preset val as expected");
+        ok(1          == shf->UpdKeyVal      (                                  ), "c++: copy   callback upd key: ->UpdUidVal()       callback works 4 upd key as expected");
+        ok(1          == shf->GetKeyValCopy  (                                  ), "c++: copy   callback upd key: ->GetKeyValCopy()   could     find   upd key as expected");
+        ok(3          == shf_val_len                                             , "c++: copy   callback upd key: shf_val_len                                  as expected");
+        ok(0          == memcmp              (shf_val, "up1" , 3                ), "c++: copy   callback upd key: shf_val                                      as expected");
+        ok(0          == shf->UpdCallbackCopy(         "up2" , 3                ), "c++: copy   callback upd uid: ->UpdCallbackCopy() could         preset val as expected");
+        ok(1          == shf->UpdUidVal      (uid                               ), "c++: copy   callback upd uid: ->UpdUidVal()       callback works 4 upd uid as expected");
+        ok(1          == shf->GetKeyValCopy  (                                  ), "c++: copy   callback upd uid: ->GetKeyValCopy()   could     find   upd key as expected");
+        ok(3          == shf_val_len                                             , "c++: copy   callback upd uid: shf_val_len                                  as expected");
+        ok(0          == memcmp              (shf_val, "up2" , 3                ), "c++: copy   callback upd uid: shf_val                                      as expected");
+                         shf_upd_callback_set(upd_callback_test                 )     /* custom callback upd key */                                                         ;
+        ok(1          == shf->UpdKeyVal      (                                  ), "c++: custom callback upd key: ->UpdUidVal()       callback works 4 upd key as expected");
+        ok(1          == shf->GetKeyValCopy  (                                  ), "c++: custom callback upd key: ->GetKeyValCopy()   could     find   upd key as expected");
+        ok(3          == shf_val_len                                             , "c++: custom callback upd key: shf_val_len                                  as expected");
+        ok(0          == memcmp              (shf_val, "2pu" , 3                ), "c++: custom callback upd key: shf_val                                      as expected");
+                         shf_upd_callback_set(upd_callback_test                 )     /* custom callback upd uid */                                                         ;
+        ok(1          == shf->UpdUidVal      (uid                               ), "c++: custom callback upd uid: ->UpdUidVal()       callback works 4 upd uid as expected");
+        ok(1          == shf->GetKeyValCopy  (                                  ), "c++: custom callback upd uid: ->GetKeyValCopy()   could     find   upd key as expected");
+        ok(3          == shf_val_len                                             , "c++: custom callback upd uid: shf_val_len                                  as expected");
+        ok(0          == memcmp              (shf_val, "up2" , 3                ), "c++: custom callback upd uid: shf_val                                      as expected");
+        ok(1          == shf->DelUidVal      (uid                               ), "c++:     existing    del uid: ->DelUidVal()       could     find   put key as expected");
+        ok(0          == shf->GetKeyValCopy  (                                  ), "c++:     existing    del uid: ->GetKeyValCopy()   could not find   del key as expected");
+        ok(0          == shf->DelUidVal      (uid                               ), "c++: non-existing    del uid: ->DelUidVal()       could not find   del key as expected");
+                  uid =  shf->PutKeyVal      (         "val2", 4                )     /* reput / reuse key / uid */                                                         ;
+        ok(       uid != SHF_UID_NONE                                            , "c++: reput / reuse key / uid: ->PutKeyVal()                      reput key as expected");
+        ok(1          == shf->GetUidValCopy  (uid                               ), "c++: reput / reuse key / uid: ->GetUidValCopy()   could     find reput key as expected");
+        ok(4          == shf_val_len                                             , "c++: reput / reuse key / uid: shf_val_len                                  as expected");
+        ok(0          == memcmp              (shf_val, "val2", 4                ), "c++: reput / reuse key / uid: shf_val                                      as expected");
+        ok(1          == shf->DelKeyVal      (                                  ), "c++: reput / reuse key / uid: ->DelKeyVal()       could     find reput key as expected");
 
         uint32_t testPullItems  = 0;
         uint32_t testQs         = 3;

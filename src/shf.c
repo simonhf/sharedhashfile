@@ -72,6 +72,11 @@ static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
 static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
 static __thread       uint32_t   shf_backticks_buffer_used       ;
 
+static __thread       int     (* shf_upd_callback)(const char * val, uint32_t val_len) = shf_upd_callback_copy;
+static __thread       uint32_t   shf_upd_callback_failsafe                             = 0;
+static __thread const char     * shf_upd_callback_copy_val                             = NULL;
+static __thread       uint32_t   shf_upd_callback_copy_val_len                         = 0;
+
 /**
  * @brief Spawn a child process & return its pid.
  * - Uses fork() & execl() under the covers.
@@ -811,10 +816,11 @@ SHF_SKIP_ROW_FULL_CHECK:;
 typedef enum SHF_FIND_KEY_AND {
     SHF_FIND_KEY_OR_UID              = 0,
     SHF_FIND_KEY_OR_UID_AND_COPY_VAL    ,
-    SHF_FIND_KEY_OR_UID_AND_DELETE
+    SHF_FIND_KEY_OR_UID_AND_DELETE      ,
+    SHF_FIND_KEY_OR_UID_AND_UPDATE
 } SHF_FIND_KEY_AND;
 
-static int /* 0 means key does not exist, 1 means key found */
+static int /* bit0=0 means key does not exist, bit0=1 means key found, bit1=1 means callback error */
 shf_find_key_internal(
     SHF              * shf ,
     uint32_t           uid ,
@@ -850,9 +856,9 @@ shf_find_key_internal(
         row  = tmp_uid.as_part.row;
     }
 
-    if   ((SHF_FIND_KEY_OR_UID              == what)
-    ||    (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { if (shf->is_lockable) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }}
-    else                                              { if (shf->is_lockable) { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
+    if    ((SHF_FIND_KEY_OR_UID              == what)
+    ||     (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { if (shf->is_lockable) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }}
+    else /* SHF_FIND_KEY_OR_UID_AND_(DELETE|UPDATE) */ { if (shf->is_lockable) { SHF_LOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
     SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
 
     tab = shf->shf_mmap->wins[win].tabs[tab2].tab; /* important that this is looked up after the lock! */
@@ -869,7 +875,7 @@ shf_find_key_internal(
                 SHF_DEBUG("- todo: use SHF_DATA_TYPE instead of hard coding\n");
                 pos              =  tab_mmap->row[row].ref[ref].pos; SHF_ASSERT(pos < tab_mmap->tab_size, "INTERNAL: expected pos < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos, win, tab);
                 data_type.as_u08 =  SHF_U08_AT(tab_mmap, pos);
-                if (0 == len_len) { key_len = shf->fixed_key_len        ; val_len =  shf->fixed_val_len                        ; }
+                if (0 == len_len) { key_len = shf->fixed_key_len         ; val_len =  shf->fixed_val_len                         ; }
                 else              { key_len = SHF_U32_AT(tab_mmap, pos+1); val_len =  SHF_U32_AT(tab_mmap, pos+1+len_len+key_len); }
                 SHF_ASSERT(pos+1+len_len+key_len                 <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len                , win, tab, pos, len_len, key_len, val_len);
                 SHF_ASSERT(pos+1+len_len+key_len+len_len+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len+len_len+val_len, win, tab, pos, len_len, key_len, val_len);
@@ -889,7 +895,7 @@ shf_find_key_internal(
             SHF_DEBUG("- todo: use SHF_DATA_TYPE instead of hard coding\n");
             pos              =  tab_mmap->row[row].ref[ref].pos; SHF_ASSERT(pos < tab_mmap->tab_size, "INTERNAL: expected pos < %u but pos is %u at win %u, tab %u\n", tab_mmap->tab_size, pos, win, tab);
             data_type.as_u08 =  SHF_U08_AT(tab_mmap, pos);
-            if (0 == len_len) { key_len = shf->fixed_key_len        ; val_len =  shf->fixed_val_len                        ; }
+            if (0 == len_len) { key_len = shf->fixed_key_len         ; val_len =  shf->fixed_val_len                         ; }
             else              { key_len = SHF_U32_AT(tab_mmap, pos+1); val_len =  SHF_U32_AT(tab_mmap, pos+1+len_len+key_len); }
             SHF_ASSERT(pos+1+len_len+key_len                 <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len                , win, tab, pos, len_len, key_len, val_len);
             SHF_ASSERT(pos+1+len_len+key_len+len_len+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len+len_len+val_len, win, tab, pos, len_len, key_len, val_len);
@@ -926,22 +932,56 @@ shf_find_key_internal(
             SHF_TAB_REF_MARK_AS_DELETED(tab_mmap, len_len);
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
         }
+        else if (SHF_FIND_KEY_OR_UID_AND_UPDATE == what) {
+            shf_upd_callback_failsafe ++;
+            SHF_SYSLOG_ASSERT_INTERNAL(1 == shf_upd_callback_failsafe, "ERROR: %s() recursive call detected! shf_upd*() functions should never use themselves recursively!", __FUNCTION__);
+            result |= (*shf_upd_callback)(SHF_CAST(char *, shf_val_addr), val_len);
+            shf_upd_callback_failsafe --;
+        }
     }
-    if   ((SHF_FIND_KEY_OR_UID              == what)
-    ||    (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { if (shf->is_lockable) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }}
-    else                                              { if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
+    if    ((SHF_FIND_KEY_OR_UID              == what)
+    ||     (SHF_FIND_KEY_OR_UID_AND_COPY_VAL == what)) { if (shf->is_lockable) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }}
+    else /* SHF_FIND_KEY_OR_UID_AND_(DELETE|UPDATE) */ { if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
 
-    SHF_DEBUG("%s(shf=?){} // return 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, tmp_uid.as_u32, tmp_uid.as_part.win, tmp_uid.as_part.tab, tab, tmp_uid.as_part.row, tmp_uid.as_part.ref, result ? "exists" : "not exists");
+    SHF_DEBUG("%s(shf=?){} // return %u; 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, result, tmp_uid.as_u32, tmp_uid.as_part.win, tmp_uid.as_part.tab, tab, tmp_uid.as_part.row, tmp_uid.as_part.ref, result ? "exists" : "not exists");
 
     return result;
 } /* shf_find_key_internal() */
 
-void * shf_get_key_val_addr(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                     */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
-void * shf_get_uid_val_addr(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                     */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
-int    shf_get_key_val_copy(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* 0 means key does not exist, 1 means key found   */
-int    shf_get_uid_val_copy(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* 0 means key does not exist, 1 means key found   */
-int    shf_del_key_val     (SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* 0 means key does not exist, 1 means key deleted */
-int    shf_del_uid_val     (SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* 0 means key does not exist, 1 means key deleted */
+void * shf_get_key_val_addr(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                                                            */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+void * shf_get_uid_val_addr(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID             ) ? shf_val_addr : NULL; } /* 64bit address of val itself                                                            */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+int    shf_get_key_val_copy(SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* bit0=0 means key does not exist, bit0=1 means key found                                */
+int    shf_get_uid_val_copy(SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL)                      ; } /* bit0=0 means key does not exist, bit0=1 means key found                                */
+int    shf_del_key_val     (SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* bit0=0 means key does not exist, bit0=1 means key deleted                              */
+int    shf_del_uid_val     (SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_DELETE  )                      ; } /* bit0=0 means key does not exist, bit0=1 means key deleted                              */
+int    shf_upd_key_val     (SHF * shf              ) { return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_UPDATE  )                      ; } /* bit0=0 means key does not exist, bit0=1 means key updated, bit1=1 means callback error */
+int    shf_upd_uid_val     (SHF * shf, uint32_t uid) { return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_UPDATE  )                      ; } /* bit0=0 means key does not exist, bit0=1 means key updated, bit1=1 means callback error */
+
+void
+shf_upd_callback_set(int (*shf_upd_callback_new)(const char * val, uint32_t val_len))
+{
+    shf_upd_callback          = shf_upd_callback_new;
+    shf_upd_callback_failsafe = 0                 ;
+} /* shf_upd_callback_set() */
+
+int
+shf_upd_callback_copy(const char * val, uint32_t val_len)
+{
+    int result = 0;
+    if (0 == shf_upd_callback_failsafe) {
+        SHF_DEBUG("%s(val=?, val_len=%u){} // return %u; user land presetting val and val_len\n", __FUNCTION__, val_len, result);
+        shf_upd_callback_copy_val     = val    ;
+        shf_upd_callback_copy_val_len = val_len;
+    }
+    else {
+        result = (val_len == shf_upd_callback_copy_val_len) ? result : 2;
+        SHF_DEBUG("%s(val=?, val_len=%u){} // return %u; SHF callback copying preset val with preset val_len %u inplace\n", __FUNCTION__, val_len, result, shf_upd_callback_copy_val_len);
+        if (val_len == shf_upd_callback_copy_val_len) {
+            memcpy(SHF_CAST(char *, val), shf_upd_callback_copy_val, shf_upd_callback_copy_val_len);
+        }
+    }
+    return result;
+} /* shf_upd_callback_copy() */
 
 void   shf_debug_verbosity_less(void) { shf_debug_disabled ++; }
 void   shf_debug_verbosity_more(void) { shf_debug_disabled --; }

@@ -127,6 +127,27 @@ SharedHashFile::DelUidVal(uint32_t uid)
     return shf_del_uid_val(shf, uid);
 }
 
+int
+SharedHashFile::UpdKeyVal()
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_upd_key_val(shf);
+}
+
+int
+SharedHashFile::UpdUidVal(uint32_t uid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_upd_uid_val(shf, uid);
+}
+
+int
+SharedHashFile::UpdCallbackCopy(const char * val, uint32_t val_len)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_upd_callback_copy(val, val_len);
+}
+
 char *
 SharedHashFile::Del()
 {
