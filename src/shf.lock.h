@@ -178,7 +178,7 @@ shf_spin_unlock(SHF_SPIN_LOCK * lock)
 
 union SHF_RW_LOCK_UNION
 {
-    volatile uint32_t as_u64;
+    volatile uint64_t as_u64;
     volatile uint32_t as_u32;
     volatile uint16_t as_u16;
     struct
