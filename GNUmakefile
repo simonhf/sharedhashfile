@@ -21,12 +21,19 @@ MAKEFLAGS = --no-builtin-rules
 # Preserve intermediate files:
 .SECONDARY:
 
-CC              = gcc
+CC             ?= gcc
 CXXFLAGS        = -c -g -W -Waggregate-return -Wall -Werror -Wcast-align -Wcast-qual -Wchar-subscripts
 CXXFLAGS       += -Wcomment -Wformat -Wmissing-declarations -Wparentheses -Wpointer-arith -Wredundant-decls
 CXXFLAGS       +=  -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wwrite-strings -O
-CXXFLAGS       += -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
+CXXFLAGS       += -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
 CFLAGS          = -Wimplicit -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes -std=gnu99
+ifeq ($(CC),clang)
+CXXFLAGS       += -Wno-address-of-packed-member -Wno-cast-align -Wno-unused-function
+CXX             = clang++
+else
+CXXFLAGS       += -fno-inline-functions-called-once
+CXX             = g++
+endif
 ifneq ($(filter debug,$(MAKECMDGOALS)),)
 BUILD_TYPE      = debug
 CXXFLAGS       += -DSHF_DEBUG_VERSION
@@ -99,7 +106,7 @@ $(BUILD_TYPE)/%.a: $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 
 $(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
-	@g++ -o $@ $^ -pthread -lm
+	@$(CXX) -o $@ $^ -pthread -lm
 ifndef SHF_SKIP_TESTS
 	@echo "make: running: $@"
 	@PATH=$$PATH:$(BUILD_TYPE) ./$@ 2>&1 | perl src/verbose-if-fail.pl $@.tout
@@ -107,7 +114,7 @@ endif
 
 $(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
-	@g++ -o $@ $^ -pthread -lm
+	@$(CXX) -o $@ $^ -pthread -lm
 
 release: all
 
