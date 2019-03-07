@@ -61,11 +61,11 @@ main(int argc, char **argv) {
          if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2js"))) { plan_tests( 6); mode = strdup(argv[1]); }
     else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2py"))) { plan_tests( 5); mode = strdup(argv[1]); }
     else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests( 9); mode = strdup(argv[1]); }
-    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests( 7); mode = strdup(argv[1]); }
-    else                                                                       { plan_tests(10); mode = "c2c"          ; } /* default if no arguments */
+    else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests( 8); mode = strdup(argv[1]); }
+    else                                                                       { plan_tests(11); mode = "c2c"          ; } /* default if no arguments */
 
     pid_t pid = getpid();
-    SHF_DEBUG("pid %u started; mode is '%s'\n", pid, mode);
+    SHF_DEBUG("started; mode is '%s'\n", mode);
 
     if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { /* just for fun, test C to C call speed; useful for comparing to V8 to C call speed */
         double test_start_time = shf_get_time_in_seconds();
@@ -115,7 +115,7 @@ main(int argc, char **argv) {
                 }
                 if (test_pull_items >= 1000000) { goto FINISH_LINE_4C; }
             }
-FINISH_LINE_4C:;
+            FINISH_LINE_4C:;
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
             ok(1, "    4c: moved   expected number of new queue items // estimate %'.0f q items per second with contention", test_pull_items / test_elapsed_time);
         }
@@ -123,9 +123,11 @@ FINISH_LINE_4C:;
         {
             shf_debug_verbosity_more(); SHF_DEBUG("testing process b IPC lock speed\n"); shf_debug_verbosity_less();
 
-                                    SHF_MAKE_HASH       ("lock");
-            SHF_LOCK * lock  =      shf_get_key_val_addr(shf   );
-            ok(        lock != NULL                             , "    4c: got lock value address as expected");
+                                 SHF_MAKE_HASH       ("lock");
+            int        result =  shf_get_key_val_addr(shf   );
+            SHF_LOCK * lock    = shf_val_addr;
+            ok(        result == SHF_RET_KEY_FOUND           , "    4c: got lock key           as expected");
+            ok(        lock   != NULL                        , "    4c: got lock value address as expected");
 
             shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"), 2);
             double test_start_time = shf_get_time_in_seconds();
@@ -204,7 +206,7 @@ FINISH_LINE_4C:;
                 usleep(1000); /* 1/1000th of a second */
             }
         }
-FINISH_LINE_C2:;
+        FINISH_LINE_C2:;
         double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
         usleep(3000); /* hack: wait 3/1000th of a second so that the oks do not conflict */
         ok(1, "   c2*: moved   expected number of new queue items // estimate %'.0f q items per second with contention", test_pull_items / test_elapsed_time);
@@ -213,9 +215,11 @@ FINISH_LINE_C2:;
     if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2c"))) {
         shf_debug_verbosity_more(); SHF_DEBUG("testing process a IPC lock speed\n"); shf_debug_verbosity_less();
 
-                                SHF_MAKE_HASH       ("lock");
-        SHF_LOCK * lock  =      shf_get_key_val_addr(shf   );
-        ok(        lock != NULL                             , "   c2*: got lock value address as expected");
+                             SHF_MAKE_HASH       ("lock");
+        int        result  = shf_get_key_val_addr(shf   );
+        SHF_LOCK * lock    = shf_val_addr;
+        ok(        result == SHF_RET_KEY_FOUND           , "   c2*: got lock key           as expected");
+        ok(        lock   != NULL                        , "   c2*: got lock value address as expected");
 
         shf_race_start(shf, SHF_CONST_STR_AND_SIZE("test-lock-race-line"), 2);
         double test_start_time = shf_get_time_in_seconds();
@@ -260,7 +264,7 @@ FINISH_LINE_C2:;
 
     SHF_PLAIN("test: shf size before deletion: %s\n", shf_del(shf));
 
-EARLY_OUT:;
+    EARLY_OUT:;
 
     return exit_status();
 } /* main() */

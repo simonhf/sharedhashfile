@@ -164,7 +164,7 @@ typedef struct SHF {
     uint32_t       count_xalloc                            ; /* number of (c|m)alloc()s */
     SHF_Q          q                                       ; /* for IPC q   */
     SHF_LOG_MMAP * log                                     ; /* for IPC log; value for key '__log' */
-    uint32_t       log_thread_acive                        ; /* for IPC log; we have the log thread? */
+    uint32_t       log_thread_active                       ; /* for IPC log; we have the log thread? */
 } __attribute__((packed)) SHF;
 
 typedef union SHF_UID {

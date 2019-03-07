@@ -90,18 +90,25 @@ SharedHashFile::MakeHash( // todo: warn in docs that ::MakeHash works __thread g
     shf_make_hash(key, key_len);
 }
 
-bool
+int
 SharedHashFile::GetKeyValCopy()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_get_key_val_copy(shf);
 }
 
-bool
+int
 SharedHashFile::GetUidValCopy(uint32_t uid)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_get_uid_val_copy(shf, uid);
+}
+
+int
+SharedHashFile::AddKeyVal(long add)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_add_key_val(shf, add);
 }
 
 uint32_t
@@ -113,14 +120,14 @@ SharedHashFile::PutKeyVal(
     return shf_put_key_val(shf, val, val_len);
 }
 
-bool
+int
 SharedHashFile::DelKeyVal()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_del_key_val(shf);
 }
 
-bool
+int
 SharedHashFile::DelUidVal(uint32_t uid)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);

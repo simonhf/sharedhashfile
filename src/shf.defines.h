@@ -36,11 +36,12 @@ __attribute__((weak)) __thread FILE    * shf_debug_file     = 0;
 
 extern void   shf_log(char * prefix, const char * format_type, int line, const char * file, const char * strerror, const char * eol, int priority, const char * format_user, ...);
 extern char * shf_log_prefix_get(void);
+extern void   shf_log_await_flush(void);
 
 #define SHF_CAST(TYPE, PTR)                    ((TYPE)(uintptr_t)(PTR))
 #define SHF_UNUSE(ARGUMENT)                    (void)(ARGUMENT)
-#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", LOG_INFO, ARGS); exit(EXIT_FAILURE); }
-#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", LOG_INFO, ARGS); exit(EXIT_FAILURE); }
+#define SHF_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", LOG_INFO, ARGS); shf_log_await_flush(); exit(EXIT_FAILURE); }
+#define SHF_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", LOG_INFO, ARGS); shf_log_await_flush(); exit(EXIT_FAILURE); }
 #define SHF_WARNING(ARGS...)                                     { shf_log(shf_log_prefix_get(), "%05u:%s: WARNING: "         , __LINE__, __FILE__, NULL           , NULL, LOG_INFO, ARGS); }
 #define SHF_PLAIN(ARGS...)                                       { shf_log(SHF_CAST(char *, ""), ""                           , __LINE__, __FILE__, NULL           , NULL, LOG_INFO, ARGS); }
 
@@ -56,8 +57,8 @@ extern char * shf_log_prefix_get(void);
 #define SHF_DEBUG_FILE(ARGS...)
 #endif
 
-#define SHF_SYSLOG_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", LOG_CRIT   , ARGS); exit(EXIT_FAILURE); }
-#define SHF_SYSLOG_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", LOG_CRIT   , ARGS); exit(EXIT_FAILURE); }
+#define SHF_SYSLOG_ASSERT(CONDITION,ARGS...)          if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, strerror(errno), "\n", LOG_CRIT   , ARGS); shf_log_await_flush(); exit(EXIT_FAILURE); }
+#define SHF_SYSLOG_ASSERT_INTERNAL(CONDITION,ARGS...) if (!(CONDITION)) { shf_log(shf_log_prefix_get(), "%05u:%s: ERROR: assertion: ", __LINE__, __FILE__, NULL           , "\n", LOG_CRIT   , ARGS); shf_log_await_flush(); exit(EXIT_FAILURE); }
 #define SHF_SYSLOG_WARNING(ARGS...)                                     { shf_log(shf_log_prefix_get(), "%05u:%s: WARNING: "         , __LINE__, __FILE__, NULL           , NULL, LOG_WARNING, ARGS); }
 #if 0 /* enable this to debug e.g. shf_log mechanism which has to use a different logging mechanism to avoid recursion */
 #define SHF_SYSLOG_DEBUG(ARGS...)                                       { shf_log(shf_log_prefix_get(), "%05u:%s: debug: "           , __LINE__, __FILE__, NULL           , NULL, LOG_DEBUG  , ARGS); }
