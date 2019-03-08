@@ -90,21 +90,35 @@ SharedHashFile::MakeHash( // todo: warn in docs that ::MakeHash works __thread g
     shf_make_hash(key, key_len);
 }
 
-int
+uint32_t
+SharedHashFile::GetKeyKeyCopy()
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_get_key_key_copy(shf);
+}
+
+uint32_t
+SharedHashFile::GetUidKeyCopy(uint32_t uid)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_get_uid_key_copy(shf, uid);
+}
+
+uint32_t
 SharedHashFile::GetKeyValCopy()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_get_key_val_copy(shf);
 }
 
-int
+uint32_t
 SharedHashFile::GetUidValCopy(uint32_t uid)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_get_uid_val_copy(shf, uid);
 }
 
-int
+uint32_t
 SharedHashFile::AddKeyVal(long add)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
@@ -120,35 +134,35 @@ SharedHashFile::PutKeyVal(
     return shf_put_key_val(shf, val, val_len);
 }
 
-int
+uint32_t
 SharedHashFile::DelKeyVal()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_del_key_val(shf);
 }
 
-int
+uint32_t
 SharedHashFile::DelUidVal(uint32_t uid)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_del_uid_val(shf, uid);
 }
 
-int
+uint32_t
 SharedHashFile::UpdKeyVal()
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_upd_key_val(shf);
 }
 
-int
+uint32_t
 SharedHashFile::UpdUidVal(uint32_t uid)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_upd_uid_val(shf, uid);
 }
 
-int
+uint32_t
 SharedHashFile::UpdCallbackCopy(const char * val, uint32_t val_len)
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);

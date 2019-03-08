@@ -45,7 +45,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for ->Upd*Val(
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(124);
+    plan_tests(130);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -82,6 +82,12 @@ main(/* int argc,char **argv */)
         ok(3                                   == shf_val_len                                             , "c++:     existing    get key: op 3: shf_val_len                                  as expected");
         ok(0 /* matches */                     == memcmp              (shf_val, "val" , 3                ), "c++:     existing    get key: op 3: shf_val                                      as expected");
         ok(shf_uid                             == uid                                                     , "c++:     existing    get key: op 3: shf_uid                                  set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf->GetKeyKeyCopy  (                                  ), "c++:     existing    get key: op 4: ->GetKeyValCopy()   could     find   put key as expected");
+        ok(3                                   == shf_key_len                                             , "c++:     existing    get key: op 4: shf_key_len                                  as expected");
+        ok(0 /* matches */                     == memcmp              (shf_key, "key" , 3                ), "c++:     existing    get key: op 4: shf_key                                      as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf->GetUidKeyCopy  (uid                               ), "c++:     existing    get key: op 5: ->GetKeyValCopy()   could     find   put key as expected");
+        ok(3                                   == shf_key_len                                             , "c++:     existing    get key: op 5: shf_key_len                                  as expected");
+        ok(0 /* matches */                     == memcmp              (shf_key, "key" , 3                ), "c++:     existing    get key: op 5: shf_key                                      as expected");
         ok(SHF_RET_OK                          == shf->UpdCallbackCopy(         "upvZ", 4                ), "c++: bad val size    upd key: op 1: ->UpdCallbackCopy() could         preset val as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_CB  == shf->UpdKeyVal      (                                  ), "c++: bad val size    upd key: op 1: ->UpdKeyVal()       callback error 4 upd key as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_CB  == shf->UpdUidVal      (uid                               ), "c++: bad val size    upd uid: op 1: ->UpdUidVal()       callback error 4 upd uid as expected");

@@ -51,8 +51,6 @@
                       SHF      * shf_log_thread_instance   = NULL;
                       uint32_t   shf_init_called           = 0   ;
 
-       __thread       SHF_HASH   shf_hash                        ;
-
        __thread       uint32_t   shf_uid                         ;
        __thread       uint32_t   shf_qiid                        ; /*!< Set by                           shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
        __thread       char     * shf_qiid_addr                   ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
@@ -64,8 +62,14 @@ static __thread       uint32_t   shf_val_size                    ; /* mmap() siz
        __thread       char     * shf_val                   = NULL; /* mmap() */
        __thread       uint32_t   shf_val_len                     ;
 
-static __thread const char     * shf_key                         ; /* used by shf_make_hash() */
-static __thread       uint32_t   shf_key_len                     ; /* used by shf_make_hash() */
+       __thread       void     * shf_key_addr                    ; /* address of key in RAM */
+static __thread       uint32_t   shf_key_size                    ; /* mmap() size */
+       __thread       char     * shf_key                   = NULL; /* mmap() */
+       __thread       uint32_t   shf_key_len                     ;
+
+       __thread       SHF_HASH   shf_hash                        ; /* made by shf_make_hash() */
+static __thread const char     * shf_hash_key                    ; /* used by shf_make_hash() */
+static __thread       uint32_t   shf_hash_key_len                ; /* used by shf_make_hash() */
 
 static __thread       uint32_t   shf_data_needed_factor    = 1   ;
 
@@ -238,8 +242,8 @@ shf_init(void)
     SHF_ASSERT((1 << SHF_ROWS_PER_TAB_BITS) == SHF_ROWS_PER_TAB, "INTERNAL: SHF_ROWS_PER_TAB_BITS: 2^%u is not %lu", SHF_ROWS_PER_TAB_BITS, SHF_ROWS_PER_TAB);
     SHF_ASSERT(32 == (SHF_REFS_PER_ROW_BITS + SHF_ROWS_PER_TAB_BITS + SHF_TABS_PER_WIN_BITS + SHF_WINS_PER_SHF_BITS), "INTERNAL: SHF_*_PER_*_BITS should add up to 32, not %u", SHF_REFS_PER_ROW_BITS + SHF_ROWS_PER_TAB_BITS + SHF_TABS_PER_WIN_BITS + SHF_WINS_PER_SHF_BITS);
 
-    shf_val_size = 4096;
-    shf_val = mmap(NULL, shf_val_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_val, "mmap(): %u: ", errno);
+    shf_key_size = 4096; shf_key = mmap(NULL, shf_key_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_key, "mmap(): %u: ", errno);
+    shf_val_size = 4096; shf_val = mmap(NULL, shf_val_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_val, "mmap(): %u: ", errno);
 
 #ifdef SHF_DEBUG_VERSION
     shf_debug_file = fopen("/tmp/debug.shf", "wb"); SHF_ASSERT(NULL != shf_debug_file, "fopen(): %u: ", errno); /* shorten debug file */
@@ -443,11 +447,11 @@ shf_make_hash(
           uint32_t   key_len)
 {
     if (key) {
-        MurmurHash3_x64_128(key, key_len, 12345 /* todo: handle seed better :-) */, &shf_hash.u64[0]);
+        MurmurHash3_x64_128(key, key_len, 12345 /* todo: handle seed better :-) */, &shf_hash.u64[0]); // todo: option for newer / faster hash algorithms?
         // todo: just generate the uid directly?
     }
-    shf_key     = key    ;
-    shf_key_len = key_len;
+    shf_hash_key     = key    ;
+    shf_hash_key_len = key_len;
     SHF_DEBUG("%s(key=?, key_len=%u){} // %04x-%04x-%04x\n", __FUNCTION__, key_len, shf_hash.u16[0], shf_hash.u16[1], shf_hash.u16[2]);
 } /* shf_make_hash() */
 
@@ -798,7 +802,7 @@ shf_put_key_val(
             uid.as_part.ref = ref;
             uint32_t pos = tab_mmap->tab_used;
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-            SHF_TAB_APPEND(shf, tab, tab_mmap, len_len, shf_key, shf_key_len, pos);
+            SHF_TAB_APPEND(shf, tab, tab_mmap, len_len, shf_hash_key, shf_hash_key_len, pos);
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
             tab_mmap->row[row].ref[ref].pos = pos;
             tab_mmap->row[row].ref[ref].tab = tab2;
@@ -834,6 +838,7 @@ shf_put_key_val(
 
 typedef enum SHF_FIND_KEY_AND {
     SHF_FIND_KEY_OR_UID_ADDR         = 0,
+    SHF_FIND_KEY_OR_UID_AND_COPY_KEY    ,
     SHF_FIND_KEY_OR_UID_AND_COPY_VAL    ,
     SHF_FIND_KEY_OR_UID_AND_ATOM_ADD    ,
     SHF_FIND_KEY_OR_UID_AND_DELETE      ,
@@ -901,10 +906,11 @@ shf_find_key_internal(
                 else              { key_len = SHF_U32_AT(tab_mmap, pos+1); val_len =  SHF_U32_AT(tab_mmap, pos+1+len_len+key_len); }
                 SHF_ASSERT(pos+1+len_len+key_len                 <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len                , win, tab, pos, len_len, key_len, val_len);
                 SHF_ASSERT(pos+1+len_len+key_len+len_len+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len+len_len+val_len, win, tab, pos, len_len, key_len, val_len);
+                shf_key_addr = &SHF_U08_AT(tab_mmap, pos+1+len_len                );
                 shf_val_addr = &SHF_U08_AT(tab_mmap, pos+1+len_len+key_len+len_len);
                 SHF_UNUSE(data_type); // todo: remove hard coding of types
-                if (key_len != shf_key_len                                              ) { shf->shf_mmap->wins[win].keylen_misses ++; continue; }
-                if (0       != SHF_CMP_AT(tab_mmap, pos+1+len_len, shf_key_len, shf_key)) { shf->shf_mmap->wins[win].memcmp_misses ++; continue; }
+                if (key_len != shf_hash_key_len                                                   ) { shf->shf_mmap->wins[win].keylen_misses ++; continue; }
+                if (0       != SHF_CMP_AT(tab_mmap, pos+1+len_len, shf_hash_key_len, shf_hash_key)) { shf->shf_mmap->wins[win].memcmp_misses ++; continue; }
                 result = SHF_RET_KEY_FOUND;
                 tmp_uid.as_part.ref = ref;
                 shf_uid = tmp_uid.as_u32;
@@ -923,6 +929,7 @@ shf_find_key_internal(
             else              { key_len = SHF_U32_AT(tab_mmap, pos+1); val_len =  SHF_U32_AT(tab_mmap, pos+1+len_len+key_len); }
             SHF_ASSERT(pos+1+len_len+key_len                 <= tab_mmap->tab_size, "INTERNAL: expected key < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len                , win, tab, pos, len_len, key_len, val_len);
             SHF_ASSERT(pos+1+len_len+key_len+len_len+val_len <= tab_mmap->tab_size, "INTERNAL: expected val < %u but pos is %u at win %u, tab %u; pos %u, len_len %u, key_len %u, val_len %u\n", tab_mmap->tab_size, pos+1+len_len+key_len+len_len+val_len, win, tab, pos, len_len, key_len, val_len);
+            shf_key_addr = &SHF_U08_AT(tab_mmap, pos+1+len_len                );
             shf_val_addr = &SHF_U08_AT(tab_mmap, pos+1+len_len+key_len+len_len);
             SHF_UNUSE(data_type); // todo: remove hard coding of types
             result = SHF_RET_KEY_FOUND;
@@ -941,6 +948,16 @@ shf_find_key_internal(
         case SHF_FIND_KEY_OR_UID_ADDR:
             /* nothing to do here! */
             break;
+        case SHF_FIND_KEY_OR_UID_AND_COPY_KEY:
+            if (key_len > shf_key_size) {
+                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
+                shf_key = mremap(shf_key, shf_key_size, SHF_MOD_PAGE(key_len), MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_key, "mremap(): %u: ", errno);
+                shf_key_size = SHF_MOD_PAGE(key_len);
+                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
+            }
+            memcpy(shf_key, shf_key_addr, key_len);
+            shf_key_len = key_len;
+            goto SHF_CONSIDER_TAB_SHRINK;
         case SHF_FIND_KEY_OR_UID_AND_COPY_VAL:
             if (val_len > shf_val_size) {
                 SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
@@ -951,6 +968,7 @@ shf_find_key_internal(
             memcpy(shf_val, shf_val_addr, val_len);
             shf_val_len = val_len;
 
+            SHF_CONSIDER_TAB_SHRINK:;
             if (tab_mmap->tab_data_free > (tab_mmap->tab_data_used / 4)) { // todo: allow flexibility WRT how garbage collection gets triggered
                 SHF_DEBUG_FILE("pid %5u, win-tab %u-%u: shrink after get\n", getpid(), win, tab);
                 SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
@@ -993,6 +1011,8 @@ shf_find_key_internal(
 
 uint32_t shf_get_key_val_addr(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_ADDR        ); } /* shf_val_addr points to 64bit address of val itself */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
 uint32_t shf_get_uid_val_addr(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_ADDR        ); } /* shf_val_addr points to 64bit address of val itself */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+uint32_t shf_get_key_key_copy(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_KEY); }
+uint32_t shf_get_uid_key_copy(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_KEY); }
 uint32_t shf_get_key_val_copy(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL); }
 uint32_t shf_get_uid_val_copy(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL); }
 uint32_t shf_add_key_val_atom(SHF * shf              , long add) { shf_val_long = add; return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_ATOM_ADD); }

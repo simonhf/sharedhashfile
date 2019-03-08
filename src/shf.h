@@ -355,6 +355,9 @@ typedef union SHF_DATA_TYPE {
 #define SHF_QIID_NONE         (4294967295U) /*!< Value used to represent no qiid */
 
 extern __thread uint32_t   shf_uid          ;
+extern __thread char     * shf_key          ;
+extern __thread uint32_t   shf_key_len      ;
+extern __thread void     * shf_key_addr     ;
 extern __thread char     * shf_val          ;
 extern __thread uint32_t   shf_val_len      ;
 extern __thread void     * shf_val_addr     ;
@@ -375,6 +378,8 @@ extern void       shf_make_hash            (const char * key, uint32_t key_len);
 extern uint32_t   shf_put_key_val          (SHF * shf, const char * val, uint32_t val_len);
 extern uint32_t   shf_get_key_val_addr     (SHF * shf                        );
 extern uint32_t   shf_get_uid_val_addr     (SHF * shf, uint32_t uid          );
+extern uint32_t   shf_get_key_key_copy     (SHF * shf                        );
+extern uint32_t   shf_get_uid_key_copy     (SHF * shf, uint32_t uid          );
 extern uint32_t   shf_get_key_val_copy     (SHF * shf                        );
 extern uint32_t   shf_get_uid_val_copy     (SHF * shf, uint32_t uid          );
 extern uint32_t   shf_add_key_val_atom     (SHF * shf              , long add);

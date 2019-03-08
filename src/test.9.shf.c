@@ -44,7 +44,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for shf_upd_*_
 int main(void)
 {
     // Tell tap (test anything protocol) how many tests we expect to run.
-    plan_tests(116);
+    plan_tests(122);
 
     // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
@@ -82,6 +82,12 @@ int main(void)
         ok(3                                   == shf_val_len                              , "c:     existing    get key: op 3: shf_val_len                                      as expected");
         ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c:     existing    get key: op 3: shf_val                                          as expected");
         ok(shf_uid                             == uid                                      , "c:     existing    get key: op 3: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_key_copy (shf               ), "c:     existing    get key: op 4: shf_get_key_key_copy()  could     find   put key as expected");
+        ok(3                                   == shf_key_len                              , "c:     existing    get key: op 4: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, "key" , 3), "c:     existing    get key: op 4: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_key_copy (shf,uid           ), "c:     existing    get key: op 5: shf_get_uid_key_copy()  could     find   put key as expected");
+        ok(3                                   == shf_key_len                              , "c:     existing    get key: op 5: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, "key" , 3), "c:     existing    get key: op 5: shf_key                                          as expected");
         ok(SHF_RET_OK                          == shf_upd_callback_copy(         "upvZ", 4), "c: bad val size    upd key: op 1: shf_upd_callback_copy() could         preset val as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_CB  == shf_upd_key_val      (shf               ), "c: bad val size    upd key: op 1: shf_upd_key_val()       callback error 4 upd key as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_CB  == shf_upd_uid_val      (shf,uid           ), "c: bad val size    upd uid: op 1: shf_upd_uid_val()       callback error 4 upd uid as expected");
