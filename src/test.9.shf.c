@@ -30,7 +30,7 @@
 #include "shf.h"
 #include "tap.h"
 
-static int
+static uint32_t
 upd_callback_test(const char * val, uint32_t val_len) /* callback for shf_upd_*_val() */
 {
     int result = 0;

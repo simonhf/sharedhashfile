@@ -73,7 +73,7 @@ static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
 static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
 static __thread       uint32_t   shf_backticks_buffer_used       ;
 
-static __thread       int     (* shf_upd_callback)(const char * val, uint32_t val_len) = shf_upd_callback_copy;
+static __thread       uint32_t(* shf_upd_callback)(const char * val, uint32_t val_len) = shf_upd_callback_copy;
 static __thread       uint32_t   shf_upd_callback_failsafe                             = 0;
 static __thread const char     * shf_upd_callback_copy_val                             = NULL;
 static __thread       uint32_t   shf_upd_callback_copy_val_len                         = 0;
@@ -840,7 +840,7 @@ typedef enum SHF_FIND_KEY_AND {
     SHF_FIND_KEY_OR_UID_AND_UPDATE
 } SHF_FIND_KEY_AND;
 
-static int /* bit0=0 means key does not exist, bit0=1 means key found, bit1=1 means callback error, bit2=1 means value too small, shf_uid set if key given */
+static uint32_t /* see SHF_RET_* for result meaning */
 shf_find_key_internal(
     SHF              * shf ,
     uint32_t           uid ,
@@ -991,18 +991,18 @@ shf_find_key_internal(
     return result;
 } /* shf_find_key_internal() */
 
-int    shf_get_key_val_addr(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_ADDR        ); } /* shf_val_addr points to 64bit address of val itself */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
-int    shf_get_uid_val_addr(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_ADDR        ); } /* shf_val_addr points to 64bit address of val itself */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
-int    shf_get_key_val_copy(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL); }
-int    shf_get_uid_val_copy(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL); }
-int    shf_add_key_val_atom(SHF * shf              , long add) { shf_val_long = add; return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_ATOM_ADD); }
-int    shf_add_uid_val_atom(SHF * shf, uint32_t uid, long add) { shf_val_long = add; return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_ATOM_ADD); }
-int    shf_del_key_val     (SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_DELETE  ); }
-int    shf_del_uid_val     (SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_DELETE  ); }
-int    shf_upd_key_val     (SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_UPDATE  ); }
-int    shf_upd_uid_val     (SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_UPDATE  ); }
+uint32_t shf_get_key_val_addr(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_ADDR        ); } /* shf_val_addr points to 64bit address of val itself */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+uint32_t shf_get_uid_val_addr(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_ADDR        ); } /* shf_val_addr points to 64bit address of val itself */ // todo: add shf_freeze() to make addr safer to use; disables key,val locking!
+uint32_t shf_get_key_val_copy(SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_COPY_VAL); }
+uint32_t shf_get_uid_val_copy(SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_COPY_VAL); }
+uint32_t shf_add_key_val_atom(SHF * shf              , long add) { shf_val_long = add; return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_ATOM_ADD); }
+uint32_t shf_add_uid_val_atom(SHF * shf, uint32_t uid, long add) { shf_val_long = add; return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_ATOM_ADD); }
+uint32_t shf_del_key_val     (SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_DELETE  ); }
+uint32_t shf_del_uid_val     (SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_DELETE  ); }
+uint32_t shf_upd_key_val     (SHF * shf                        ) {                     return shf_find_key_internal(shf, SHF_UID_NONE, SHF_FIND_KEY_OR_UID_AND_UPDATE  ); }
+uint32_t shf_upd_uid_val     (SHF * shf, uint32_t uid          ) {                     return shf_find_key_internal(shf,     uid     , SHF_FIND_KEY_OR_UID_AND_UPDATE  ); }
 
-int
+uint32_t /* see SHF_RET_* for result meaning */
 shf_add_key_val(SHF * shf, long add)
 {
     int result = shf_add_key_val_atom(shf, add);
@@ -1030,13 +1030,13 @@ shf_add_key_val(SHF * shf, long add)
 } /* shf_add_key_val() */
 
 void
-shf_upd_callback_set(int (*shf_upd_callback_new)(const char * val, uint32_t val_len))
+shf_upd_callback_set(uint32_t (*shf_upd_callback_new)(const char * val, uint32_t val_len))
 {
     shf_upd_callback          = shf_upd_callback_new;
     shf_upd_callback_failsafe = 0                 ;
 } /* shf_upd_callback_set() */
 
-int
+uint32_t
 shf_upd_callback_copy(const char * val, uint32_t val_len)
 {
     int result = SHF_RET_OK;
@@ -1055,8 +1055,8 @@ shf_upd_callback_copy(const char * val, uint32_t val_len)
     return result;
 } /* shf_upd_callback_copy() */
 
-void   shf_debug_verbosity_less(void) { shf_debug_disabled ++; }
-void   shf_debug_verbosity_more(void) { shf_debug_disabled --; }
+void shf_debug_verbosity_less(void) { shf_debug_disabled ++; }
+void shf_debug_verbosity_more(void) { shf_debug_disabled --; }
 
 char *
 shf_del( /* shf_detach() & then delete the folder structure on /dev/shm or disk */

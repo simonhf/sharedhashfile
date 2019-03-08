@@ -31,7 +31,7 @@ extern "C" {
 
 #include <SharedHashFile.hpp>
 
-static int
+static uint32_t
 upd_callback_test(const char * val, uint32_t val_len) /* callback for ->Upd*Val() */
 {
     int result = 0;
