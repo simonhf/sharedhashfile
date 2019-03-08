@@ -759,13 +759,14 @@ shf_tab_part(SHF * shf, uint32_t win, uint16_t tab_old)
     shf_tab_shrink(shf, win, tab_old);
 } /* shf_tab_part() */
 
-uint32_t /* SHF_UID; SHF_UID_NONE means something went wrong and key not appended */
+uint32_t /* see SHF_RET_* for result meaning */
 shf_put_key_val(
     SHF        * shf    ,
     const char * val    , /* NULL means reserve val_len bytes */
     uint32_t     val_len)
 {
-    SHF_UID uid;
+    uint32_t result = 0;
+    SHF_UID  uid;
 
     uid.as_u32 = SHF_UID_NONE;
 
@@ -830,11 +831,12 @@ shf_put_key_val(
     if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }
 
     shf_uid = uid.as_u32;
+    result = SHF_RET_KEY_PUT;
 
-    SHF_DEBUG("%s(shf=?, val=?, val_len=%u){} // return 0x%08x=%02x-%03x-%03x-%01x=%s\n", __FUNCTION__, val_len, uid.as_u32, uid.as_part.win, uid.as_part.tab, uid.as_part.row, uid.as_part.ref, SHF_UID_NONE == uid.as_u32 ? "failure" : "success");
+    SHF_DEBUG("%s(shf=?, val=?, val_len=%u){} // return %u=%s;  0x%08x=%02x-%03x-%03x-%01x\n", __FUNCTION__, val_len, result, result & SHF_RET_KEY_PUT ? "SHF_RET_KEY_PUT" : "failure", uid.as_u32, uid.as_part.win, uid.as_part.tab, uid.as_part.row, uid.as_part.ref);
 
-    return uid.as_u32;
-} /* shf_put_val() */
+    return result;
+} /* shf_put_key_val() */
 
 typedef enum SHF_FIND_KEY_AND {
     SHF_FIND_KEY_OR_UID_ADDR         = 0,
@@ -851,7 +853,7 @@ shf_find_key_internal(
     uint32_t           uid ,
     SHF_FIND_KEY_AND   what)
 {
-    int           result = 0;
+    uint32_t      result = 0;
     SHF_UID       tmp_uid   ;
     uint32_t      win       ;
     uint32_t      tab2      ;
@@ -1004,7 +1006,7 @@ shf_find_key_internal(
     ||     (SHF_FIND_KEY_OR_UID_AND_ATOM_ADD == what)) { if (shf->is_lockable) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }}
     else /* SHF_FIND_KEY_OR_UID_AND_(DELETE|UPDATE) */ { if (shf->is_lockable) { SHF_UNLOCK_WRITER(&shf->shf_mmap->wins[win].lock); }}
 
-    SHF_DEBUG("%s(shf=?){} // return %u; 0x%08x=%02x-%03x[%03x]-%03x-%01x=%s\n", __FUNCTION__, result, tmp_uid.as_u32, tmp_uid.as_part.win, tmp_uid.as_part.tab, tab, tmp_uid.as_part.row, tmp_uid.as_part.ref, result ? "exists" : "not exists");
+    SHF_DEBUG("%s(shf=?){} // return %u=%s%s%s%s; 0x%08x=%02x-%03x[%03x]-%03x-%01x\n", __FUNCTION__, result, 0 == result ? "SHF_RET_KEY_NONE" : "", result & SHF_RET_KEY_FOUND ? "+SHF_RET_KEY_FOUND" : "", result & SHF_RET_BAD_VAL ? "+SHF_RET_BAD_VAL" : "", result & SHF_RET_BAD_CB ? "+SHF_RET_BAD_CB" : "", tmp_uid.as_u32, tmp_uid.as_part.win, tmp_uid.as_part.tab, tab, tmp_uid.as_part.row, tmp_uid.as_part.ref);
 
     return result;
 } /* shf_find_key_internal() */
@@ -1270,14 +1272,14 @@ shf_q_new(
     SHF_ASSERT_INTERNAL(qids_nolock_max   <  q_items, "ERROR: qids_nolock_max must be < q_items");
 
     shf_debug_verbosity_less();
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"             )); uint32_t uid_qs              = shf_put_key_val(shf, SHF_CAST(const char *, &qs             ),           sizeof(qs             ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"        )); uint32_t uid_q_items         = shf_put_key_val(shf, SHF_CAST(const char *, &q_items        ),           sizeof(q_items        ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size"    )); uint32_t uid_q_item_size     = shf_put_key_val(shf, SHF_CAST(const char *, &q_item_size    ),           sizeof(q_item_size    ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids_nolock_max")); uint32_t uid_qids_nolock_max = shf_put_key_val(shf, SHF_CAST(const char *, &qids_nolock_max),           sizeof(qids_nolock_max));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids"           )); uint32_t uid_qids            = shf_put_key_val(shf, NULL                                    , qs      * sizeof(SHF_QID_MMAP   ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"          )); uint32_t uid_qiids           = shf_put_key_val(shf, NULL                                    , q_items * sizeof(SHF_QIID_MMAP  ));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"         )); uint32_t uid_q_lock          = shf_put_key_val(shf, NULL                                    ,           sizeof(SHF_Q_LOCK_MMAP));
-    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr"   )); uint32_t uid_q_items_addr    = shf_put_key_val(shf, NULL                                    , q_items * q_item_size           ) ;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qs"             )); shf_put_key_val(shf, SHF_CAST(const char *, &qs             ),           sizeof(qs             )); uint32_t uid_qs              = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items"        )); shf_put_key_val(shf, SHF_CAST(const char *, &q_items        ),           sizeof(q_items        )); uint32_t uid_q_items         = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_item_size"    )); shf_put_key_val(shf, SHF_CAST(const char *, &q_item_size    ),           sizeof(q_item_size    )); uint32_t uid_q_item_size     = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids_nolock_max")); shf_put_key_val(shf, SHF_CAST(const char *, &qids_nolock_max),           sizeof(qids_nolock_max)); uint32_t uid_qids_nolock_max = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qids"           )); shf_put_key_val(shf, NULL                                    , qs      * sizeof(SHF_QID_MMAP   )); uint32_t uid_qids            = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__qiids"          )); shf_put_key_val(shf, NULL                                    , q_items * sizeof(SHF_QIID_MMAP  )); uint32_t uid_qiids           = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_lock"         )); shf_put_key_val(shf, NULL                                    ,           sizeof(SHF_Q_LOCK_MMAP)); uint32_t uid_q_lock          = shf_uid;
+    shf_make_hash(SHF_CONST_STR_AND_SIZE("__q_items_addr"   )); shf_put_key_val(shf, NULL                                    , q_items * q_item_size            ); uint32_t uid_q_items_addr    = shf_uid;
     shf_debug_verbosity_more();
 
     SHF_ASSERT(SHF_UID_NONE != uid_qs             , "ERROR: could not put key: __qs"             );
@@ -1367,7 +1369,8 @@ shf_q_new_name(
     shf_debug_verbosity_less();
     shf_make_hash(name, name_len);
     SHF_ASSERT_INTERNAL(0 == shf_get_key_val_copy(shf), "ERROR: %s(): unique queue name already exists!", __FUNCTION__);
-    uint32_t uid_qid = shf_put_key_val(shf, SHF_CAST(const char *, &qid), sizeof(qid));
+    shf_put_key_val(shf, SHF_CAST(const char *, &qid), sizeof(qid));
+    uint32_t uid_qid = shf_uid;
     SHF_ASSERT(SHF_UID_NONE != uid_qid, "ERROR: could not put key '%.*s'", name_len, name);
     // todo: somehow store name for use in debug messages
     shf_debug_verbosity_more();
@@ -1820,7 +1823,8 @@ shf_race_init(
     SHF_ASSERT_INTERNAL(shf, "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
 
                                    shf_make_hash       (name, name_len);
-    uint32_t           uid       = shf_put_key_val     (shf, NULL, 1  ); SHF_ASSERT_INTERNAL(SHF_UID_NONE      != uid       , "ERROR: %s() could not put key: '%.*s'"    , __FUNCTION__, name_len, name);
+                                   shf_put_key_val     (shf, NULL, 1  );
+    uint32_t           uid       = shf_uid                             ; SHF_ASSERT_INTERNAL(SHF_UID_NONE      != uid       , "ERROR: %s() could not put key: '%.*s'"    , __FUNCTION__, name_len, name);
 #ifdef SHF_DEBUG_VERSION
     int                result    = shf_get_key_val_addr(shf           ); SHF_ASSERT_INTERNAL(SHF_RET_KEY_FOUND == result    , "ERROR: %s() could not get key: '%.*s'"    , __FUNCTION__, name_len, name);
     volatile uint8_t * race_line = shf_val_addr                        ; SHF_ASSERT_INTERNAL(                0 == *race_line, "ERROR: %s() incorrectly initialized value", __FUNCTION__                );
@@ -2192,7 +2196,8 @@ shf_log_thread_new(SHF * shf, uint32_t log_size, int log_fd)
                         shf_make_hash       (SHF_CONST_STR_AND_SIZE("__log")           );
     int        result = shf_get_key_val_addr(shf                                       ); SHF_ASSERT_INTERNAL(SHF_RET_KEY_NONE  == result  , "ERROR: shf->log must be NULL; only call %s() once!", __FUNCTION__);
              shf->log = shf_val_addr                                                    ; SHF_ASSERT_INTERNAL(NULL              == shf->log, "ERROR: shf->log must be NULL; only call %s() once!", __FUNCTION__);
-    uint32_t  uid_log = shf_put_key_val     (shf, NULL, sizeof(SHF_LOG_MMAP) + log_size); SHF_ASSERT_INTERNAL(SHF_UID_NONE      != uid_log , "ERROR: could not put key: __log"                                 );
+                        shf_put_key_val     (shf, NULL, sizeof(SHF_LOG_MMAP) + log_size);
+    uint32_t  uid_log = shf_uid                                                         ; SHF_ASSERT_INTERNAL(SHF_UID_NONE      != uid_log , "ERROR: could not put key: __log"                                 );
                result = shf_get_uid_val_addr(shf, uid_log                              ); SHF_ASSERT_INTERNAL(SHF_RET_KEY_FOUND == result  , "ERROR: UID must be found; internal error?"         , __FUNCTION__);
              shf->log = shf_val_addr                                                    ; SHF_ASSERT_INTERNAL(NULL              != shf->log, "ERROR: shf->log must not be NULL; internal error?" , __FUNCTION__);
                         shf_debug_verbosity_more();

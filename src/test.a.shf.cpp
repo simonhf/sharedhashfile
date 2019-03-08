@@ -45,7 +45,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for ->Upd*Val(
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(130);
+    plan_tests(133);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -72,7 +72,7 @@ main(/* int argc,char **argv */)
         ok(shf_uid                             == SHF_UID_NONE                                            , "c++: non-existing    xxx key: op 1: shf_uid                                unset as expected");
         ok(SHF_RET_KEY_NONE                    == shf->UpdKeyVal      (                                  ), "c++: non-existing    xxx key: op 1: ->UpdKeyVal()       could not find unput key as expected");
         ok(SHF_RET_KEY_NONE                    == shf->DelKeyVal      (                                  ), "c++: non-existing    xxx key: op 1: ->DelKeyVal()       could not find unput key as expected");
-           uid                                  = shf->PutKeyVal      (         "val" , 3                )     /*     existing    xxx key: op 2 */                                                         ;
+        ok(SHF_RET_KEY_PUT                     == shf->PutKeyVal      (         "val" , 3                ), "c++:     existing    xxx key: op 2: ->PutKeyVal()                        put key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                                            , "c++:     existing    xxx key: op 2: ->PutKeyVal()                        put key as expected");
         ok(SHF_RET_KEY_FOUND                   == shf->GetUidValCopy  (uid                               ), "c++:     existing    uid key: op 2: ->GetUidValCopy()   could     find   put key as expected");
         ok(3                                   == shf_val_len                                             , "c++:     existing    uid key: op 2: shf_val_len                                  as expected");
@@ -111,17 +111,16 @@ main(/* int argc,char **argv */)
         ok(SHF_RET_KEY_FOUND                   == shf->GetKeyValCopy  (                                  ), "c++: custom callback upd uid: op 2: ->GetKeyValCopy()   could     find   upd key as expected");
         ok(3                                   == shf_val_len                                             , "c++: custom callback upd uid: op 2: shf_val_len                                  as expected");
         ok(0 /* matches */                     == memcmp              (shf_val, "up2" , 3                ), "c++: custom callback upd uid: op 2: shf_val                                      as expected");
-
         ok(SHF_RET_KEY_FOUND                   == shf->DelUidVal      (uid                               ), "c++:     existing    del uid: op 1: ->DelUidVal()       could     find   put key as expected");
         ok(SHF_RET_KEY_NONE                    == shf->GetKeyValCopy  (                                  ), "c++:     existing    del uid: op 1: ->GetKeyValCopy()   could not find   del key as expected");
         ok(SHF_RET_KEY_NONE                    == shf->DelUidVal      (uid                               ), "c++: non-existing    del uid: op 1: ->DelUidVal()       could not find   del key as expected");
-           uid                                  = shf->PutKeyVal      (         "val2", 4                )     /* reput / reuse key / uid  op 1 */                                                         ;
+        ok(SHF_RET_KEY_PUT                     == shf->PutKeyVal      (         "val2", 4                ), "c++: reput / reuse key / uid: op 1: ->PutKeyVal()                      reput key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                                            , "c++: reput / reuse key / uid: op 1: ->PutKeyVal()                      reput key as expected");
         ok(SHF_RET_KEY_FOUND                   == shf->GetUidValCopy  (uid                               ), "c++: reput / reuse key / uid: op 1: ->GetUidValCopy()   could     find reput key as expected");
         ok(4                                   == shf_val_len                                             , "c++: reput / reuse key / uid: op 1: shf_val_len                                  as expected");
         ok(0 /* matches */                     == memcmp              (shf_val, "val2", 4                ), "c++: reput / reuse key / uid: op 1: shf_val                                      as expected");
         ok(SHF_RET_KEY_FOUND                   == shf->DelKeyVal      (                                  ), "c++: reput / reuse key / uid: op 1: ->DelKeyVal()       could     find reput key as expected");
-           uid                                  = shf->PutKeyVal      (         "val" , 3                )     /* bad-existing    add key: op 1 */                                                             ;
+        ok(SHF_RET_KEY_PUT                     == shf->PutKeyVal      (         "val" , 3                ), "c++: bad-existing    add key: op 1: ->PutKeyVal()                      reput key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                                            , "c++: bad-existing    add key: op 1: ->PutKeyVal()                      reput key as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_VAL == shf->AddKeyVal      (         123                      ), "c++: bad-existing    add key: op 1: ->AddKeyVal()       could not use    add key as expected");
         ok(shf_uid                             != SHF_UID_NONE                                            , "c++: bad-existing    add key: op 1: shf_uid                                  set as expected");
