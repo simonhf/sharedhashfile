@@ -19,6 +19,6 @@
 
 # Folders
 release
+release-coverage
 debug
-wrappers/nodejs/build
 .html

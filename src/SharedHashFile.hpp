@@ -63,7 +63,9 @@ public:
     uint32_t   QGetName          (const char * name, uint32_t name_len);
     void       QPushHead         (uint32_t qid, uint32_t qiid);
     uint32_t   QPullTail         (uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+#if 0
     uint32_t   QTakeItem         (uint32_t qid                                            ); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
+#endif
     uint32_t   QPushHeadPullTail (uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid); /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
     void       QFlush            (uint32_t pull_qid);
     bool       QIsReady          ();

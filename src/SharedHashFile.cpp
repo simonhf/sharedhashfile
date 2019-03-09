@@ -268,12 +268,14 @@ SharedHashFile::QPullTail(uint32_t qid) /* sets shf_qiid & shf_qiid_addr & shf_q
     return shf_q_pull_tail(shf, qid);
 }
 
+#if 0
 uint32_t
 SharedHashFile::QTakeItem(uint32_t qid) /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */
 {
     SHF_DEBUG("%s()\n", __FUNCTION__);
     return shf_q_take_item(shf, qid);
 }
+#endif
 
 uint32_t
 SharedHashFile::QPushHeadPullTail(uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid) { /* sets shf_qiid & shf_qiid_addr & shf_qiid_addr_len */

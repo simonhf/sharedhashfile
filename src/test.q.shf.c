@@ -46,6 +46,8 @@ test_dummy(void)
     return 1;
 } /* test_dummy() */
 
+#define TEST_PULL_ITEMS (10000000)
+
 int
 main(int argc, char **argv) {
     const char * mode = NULL;
@@ -62,10 +64,12 @@ main(int argc, char **argv) {
     else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2py"))) { plan_tests( 5); mode = strdup(argv[1]); }
     else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("c2c" ))) { plan_tests( 9); mode = strdup(argv[1]); }
     else if (argc > 1 && 0 == memcmp(argv[1], SHF_CONST_STR_AND_SIZE("4c"  ))) { plan_tests( 8); mode = strdup(argv[1]); }
-    else                                                                       { plan_tests(11); mode = "c2c"          ; } /* default if no arguments */
+    else                                                                       { plan_tests(12); mode = "c2c"          ; } /* default if no arguments */
 
-    pid_t pid = getpid();
-    SHF_DEBUG("started; mode is '%s'\n", mode);
+    double process_start_time = shf_get_time_in_seconds();
+    pid_t  pid                = getpid();
+
+    SHF_WARNING("started; mode is '%s'\n", mode);
 
     if (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js"))) { /* just for fun, test C to C call speed; useful for comparing to V8 to C call speed */
         double test_start_time = shf_get_time_in_seconds();
@@ -93,6 +97,8 @@ main(int argc, char **argv) {
         shf = shf_attach_existing     (test_shf_folder, argv[2]); ok(NULL != shf, "    4c: shf_attach_existing() works for existing file as expected");
               shf_log_attach_existing (shf                     );
 
+        SHF_WARNING("child process using SHF logging\n");
+
         shf_debug_verbosity_more(); SHF_DEBUG("'4c' mode; behaving as client\n"); shf_debug_verbosity_less();
 
         char     * test_q_items_addr  = shf_q_get(shf); SHF_UNUSE(test_q_items_addr); /* todo: this test doesn't actually manipulate the item itself */
@@ -113,7 +119,7 @@ main(int argc, char **argv) {
                 while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_b2a, shf_qiid, test_qid_a2b)) {
                                        test_pull_items ++;
                 }
-                if (test_pull_items >= 1000000) { goto FINISH_LINE_4C; }
+                if (test_pull_items >= TEST_PULL_ITEMS) { goto FINISH_LINE_4C; }
             }
             FINISH_LINE_4C:;
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
@@ -153,6 +159,8 @@ main(int argc, char **argv) {
           shf_set_data_need_factor(1);
     shf = shf_attach              (test_shf_folder, test_shf_name, 1 /* delete upon process exit */); ok(NULL != shf, "   c2*: shf_attach()          works for non-existing file as expected");
           shf_log_thread_new      (shf, 0 /* use default log buffer size */, STDOUT_FILENO);
+
+    SHF_WARNING("parent process using SHF logging\n");
 
     {
         shf_race_init(shf, SHF_CONST_STR_AND_SIZE("test-q-race-line"   ));
@@ -197,9 +205,9 @@ main(int argc, char **argv) {
         uint32_t test_pull_items = 0;
         shf_qiid = SHF_QIID_NONE;
         while (1) {
-            while(SHF_QIID_NONE != shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a)) {
-                                   test_pull_items ++;
-                if (1000000     == test_pull_items) { shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a); goto FINISH_LINE_C2; }
+            while(SHF_QIID_NONE     != shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a)) {
+                                       test_pull_items ++;
+                if (TEST_PULL_ITEMS == test_pull_items) { shf_q_push_head_pull_tail(shf, test_qid_a2b, shf_qiid, test_qid_b2a); goto FINISH_LINE_C2; }
             }
             if ((0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2js")))
             ||  (0 == memcmp(mode, SHF_CONST_STR_AND_SIZE("c2py")))) { /* the rw spin locks are fair but don't create unnecessary contention for javascript or python client */
@@ -260,9 +268,14 @@ main(int argc, char **argv) {
 
     ok(1, "   c2*: test still alive");
 
-    SHF_DEBUG("ending parent\n");
+    shf_log_await_flush(); /* for coverage of shf_log_thread() inner loop */ /* todo: only have such a larger number for make release coverage build? */
+    SHF_WARNING("test: shf size before deletion: %s\n", shf_del(shf));
+    double test_elapsed_time = shf_get_time_in_seconds() - process_start_time;
+    ok(test_elapsed_time > 1.0, "   c2*: run time > 1.0 seconds, else shf_log_await_flush() not working?");
+    SHF_WARNING("parent process ending in %f seconds\n", test_elapsed_time);
 
-    SHF_PLAIN("test: shf size before deletion: %s\n", shf_del(shf));
+    SHF_SYSLOG_WARNING("syslog: ran SharedHashFile queue test\n"        ); /* for coverage of logging to syslog */
+    shf_log_fputs     ("stdout: ran SharedHashFile queue test\n", stdout); /* for coverage of shf_log_fputs() */
 
     EARLY_OUT:;
 

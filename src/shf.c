@@ -1429,6 +1429,7 @@ shf_q_get_name(
 // after : SHF_QID_NONE <--      <-- last <-- last <-- last
 // after :                           next --> next --> next --> SHF_QID_NONE
 
+#if 0
 /**
  * @brief Take a qiid from a qid.
  *
@@ -1455,6 +1456,7 @@ shf_q_take_item(
 
     return SHF_QIID_NONE;
 } /* shf_q_take_item() */
+#endif
 
 /**
  * @brief Pull a qiid off qid tail.
@@ -1575,6 +1577,7 @@ shf_q_push_head(
     }
 } /* shf_q_push_head() */
 
+#ifdef SHF_DEBUG_VERSION
 /**
  * @brief Diagnostic function for debugging to show qid queue sizes.
  * - Shows the queue size for queue qid, and its associated 'nolock' push & pull queues; ; see @ref ipc_sec.
@@ -1587,8 +1590,6 @@ shf_q_size( /* this function only used for debugging... */
     SHF      * shf,
     uint32_t   qid)
 {
-    SHF_UNUSE(qid); /* only used in debug version */
-
     SHF_ASSERT_INTERNAL(shf              , "ERROR: shf must not be NULL; have you called shf_attach(_existing)()?");
     SHF_ASSERT_INTERNAL(shf->q.q_is_ready, "ERROR: have you called shf_q_(new|get)()?");
 
@@ -1598,6 +1599,7 @@ shf_q_size( /* this function only used for debugging... */
 
     shf_debug_verbosity_less(); SHF_UNLOCK_WRITER(&shf->q.q_lock->lock); shf_debug_verbosity_more();
 } /* shf_q_size() */
+#endif
 
 /**
  * @brief Flushes nolock push & pull queues.
@@ -2149,7 +2151,7 @@ void
 shf_log_await_flush(void)
 {
     if (shf_log_thread_instance) {
-        sleep(1); /* wait 1 second for shf log thread to flush */ /* todo: mechanism to make log thread flush immediately? or mechanism to detect when flush has occurred? */
+        sleep(1); /* wait 1 second for shf log thread to flush, e.g. when assert tripped before exiting */ /* todo: mechanism to make log thread flush immediately? or mechanism to detect when flush has occurred? */
     }
 }
 

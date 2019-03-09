@@ -406,9 +406,13 @@ extern uint32_t   shf_q_get_name           (SHF * shf, const char * name, uint32
 extern void       shf_q_push_head          (SHF * shf, uint32_t      qid, uint32_t qiid);
 extern uint32_t   shf_q_pull_tail          (SHF * shf, uint32_t      qid                                       );
 extern uint32_t   shf_q_push_head_pull_tail(SHF * shf, uint32_t push_qid, uint32_t push_qiid, uint32_t pull_qid);
+#if 0
 extern uint32_t   shf_q_take_item          (SHF * shf, uint32_t      qiid                                      );
+#endif
 extern void       shf_q_flush              (SHF * shf, uint32_t pull_qid);
+#ifdef SHF_DEBUG_VERSION
 extern void       shf_q_size               (SHF * shf, uint32_t      qid);
+#endif
 extern uint32_t   shf_q_is_ready           (SHF * shf);
 extern void       shf_race_init            (SHF * shf, const char * name, uint32_t name_len                 );
 extern void       shf_race_start           (SHF * shf, const char * name, uint32_t name_len, uint32_t horses);

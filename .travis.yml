@@ -3,4 +3,4 @@ compiler:
 - gcc
 before_install:
 - sudo apt-get update
-script: make release && SHF_DEBUG_MAKE=1 make && SHF_DEBUG_MAKE=1 make debug
+script: SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
