@@ -346,8 +346,7 @@ typedef union SHF_DATA_TYPE {
 #define SHF_RET_BAD_VAL      (1<<1) /* e.g. if          updating a key with wrong sized value */
 #define SHF_RET_BAD_CB       (1<<2) /* e.g. if callback updating a key with wrong sized value */
 #define SHF_RET_KEY_PUT      (1<<3) /* e.g. if key put */
-//todo: convert to individual bit: #define SHF_RET_KEY_NONE     (1<<7) /* e.g. if key or UID not found */
-#define SHF_RET_KEY_NONE     (0) /* e.g. if key or UID not found */
+#define SHF_RET_KEY_NONE     (1<<7) /* e.g. if key or UID not found */
 
 /* UINT32_MAX; note: defined here for use with either C or C++ clients */
 #define SHF_DATA_TYPE_DELETED (0xff)

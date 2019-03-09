@@ -296,8 +296,8 @@ main(/* int argc,char **argv */)
             double testStartTime = shf_get_time_in_seconds();
             uint32_t keys_found = 0;
             for (uint32_t i = (testKeys * 2); i < (testKeys * 3); i++) {
-                              shf->MakeHash     (SHF_CAST(const char *, &i), sizeof(i));
-                keys_found += shf->GetKeyValCopy();
+                shf->MakeHash(SHF_CAST(const char *, &i), sizeof(i));
+                keys_found += (SHF_RET_KEY_FOUND == shf->GetKeyValCopy()) ? 1 : 0;
             }
             double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
             ok(0 == keys_found, "c++: %s: got expected number of non-existing keys // estimate %'.0f keys per second", testHint, testKeys / testElapsedTime);
@@ -309,8 +309,8 @@ main(/* int argc,char **argv */)
             double testStartTime = shf_get_time_in_seconds();
             uint32_t keys_found = 0;
             for (uint32_t i = 0; i < testKeys; i++) {
-                              shf->MakeHash     (SHF_CAST(const char *, &i), sizeof(i));
-                keys_found += shf->GetKeyValCopy();
+                shf->MakeHash(SHF_CAST(const char *, &i), sizeof(i));
+                keys_found += (SHF_RET_KEY_FOUND == shf->GetKeyValCopy()) ? 1 : 0;
                 SHF_ASSERT(sizeof(i) == shf_val_len, "INTERNAL: expected shf_val_len to be %lu but got %u\n", sizeof(i), shf_val_len);
                 SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
             }
@@ -326,8 +326,8 @@ main(/* int argc,char **argv */)
             double testStartTime = shf_get_time_in_seconds();
             uint32_t keys_found = 0;
             for (uint32_t i = 0; i < testKeys; i++) {
-                              shf->MakeHash (SHF_CAST(const char *, &i), sizeof(i));
-                keys_found += shf->DelKeyVal();
+                shf->MakeHash (SHF_CAST(const char *, &i), sizeof(i));
+                keys_found += (SHF_RET_KEY_FOUND == shf->DelKeyVal()) ? 1 : 0;
             }
             double testElapsedTime = shf_get_time_in_seconds() - testStartTime;
             ok(testKeys == keys_found, "c++: %s: del expected number of     existing keys // estimate %'.0f keys per second", testHint, testKeys / testElapsedTime);

@@ -301,7 +301,7 @@ int main(void)
             uint32_t keys_found = 0;
             for (uint32_t i = (test_keys * 2); i < (test_keys * 3); i++) {
                 shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-                keys_found += shf_get_key_val_copy(shf);
+                keys_found += (SHF_RET_KEY_FOUND == shf_get_key_val_copy(shf)) ? 1 : 0;
             }
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
             ok(0 == keys_found, "c: %s: got expected number of non-existing keys // estimate %'.0f keys per second", test_hint, test_keys / test_elapsed_time);
@@ -314,7 +314,7 @@ int main(void)
             uint32_t keys_found = 0;
             for (uint32_t i = 0; i < test_keys; i++) {
                 shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-                keys_found += shf_get_key_val_copy(shf);
+                keys_found += (SHF_RET_KEY_FOUND == shf_get_key_val_copy(shf)) ? 1 : 0;
                 SHF_ASSERT(sizeof(i) == shf_val_len, "INTERNAL: expected shf_val_len to be %lu but got %u\n", sizeof(i), shf_val_len);
                 SHF_ASSERT(0 == memcmp(&i, shf_val, sizeof(i)), "INTERNAL: unexpected shf_val\n");
             }
@@ -331,7 +331,7 @@ int main(void)
             uint32_t keys_found = 0;
             for (uint32_t i = 0; i < test_keys; i++) {
                               shf_make_hash(SHF_CAST(const char *, &i), sizeof(i));
-                keys_found += shf_del_key_val(shf);
+                keys_found += (SHF_RET_KEY_FOUND == shf_del_key_val(shf)) ? 1 : 0;
             }
             double test_elapsed_time = shf_get_time_in_seconds() - test_start_time;
             ok(test_keys == keys_found, "c: %s: del expected number of     existing keys // estimate %'.0f keys per second", test_hint, test_keys / test_elapsed_time);
