@@ -18,7 +18,6 @@
 *.app
 
 # Folders
-release
-release-coverage
-debug
+release-*
+debug-*
 .html

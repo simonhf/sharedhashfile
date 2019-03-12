@@ -21,22 +21,30 @@ MAKEFLAGS = --no-builtin-rules
 # Preserve intermediate files:
 .SECONDARY:
 
-CC              = gcc
 CXXFLAGS        = -c -g -W -Waggregate-return -Wall -Werror -Wcast-align -Wcast-qual -Wchar-subscripts
 CXXFLAGS       += -Wcomment -Wformat -Wmissing-declarations -Wparentheses -Wpointer-arith -Wredundant-decls
 CXXFLAGS       +=  -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wwrite-strings -O
-CXXFLAGS       += -fno-inline-functions-called-once -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
+CXXFLAGS       += -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
 CFLAGS          = -Wimplicit -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes -std=gnu99
+ifneq ($(filter clang,$(MAKECMDGOALS)),)
+LD              = clang++
+CC              = clang
+CXXFLAGS       += -Wno-address-of-packed-member -Wno-cast-align -Wno-unused-function
+else
+LD              = g++
+CC              = gcc
+CXXFLAGS       += -fno-inline-functions-called-once
+endif
 ifneq ($(filter debug,$(MAKECMDGOALS)),)
-BUILD_TYPE      = debug
+BUILD_TYPE      = debug-$(CC)
 CXXFLAGS       += -DSHF_DEBUG_VERSION
 else
 ifneq ($(filter coverage,$(MAKECMDGOALS)),)
-BUILD_TYPE      = release-coverage
+BUILD_TYPE      = release-coverage-$(CC)
 CXXFLAGS       += -fprofile-arcs -ftest-coverage
 LDFLAGS         = -lgcov --coverage
 else
-BUILD_TYPE      = release
+BUILD_TYPE      = release-$(CC)
 CXXFLAGS       += -O2
 endif
 endif
@@ -86,6 +94,7 @@ endif
 
 all: eolws tab $(MAIN_EXES) $(TEST_EXES) $(BUILD_TYPE)/SharedHashFile.a
 	@ls -al /dev/shm/ | egrep test | perl -lane 'print $$_; $$any.= $$_; sub END{if(length($$any) > 0){print qq[make: unwanted /dev/shm/test* files detected after testing!]; exit 1}}'
+	@echo "make: note: useful targets: make (release|debug|release coverage) (clang) (load)"
 	@echo "make: note: prefix make with SHF_DEBUG_MAKE=1 to debug this make file"
 	@echo "make: note: prefix make with SHF_SKIP_TESTS=1 to build but do not run tests"
 	@echo "make: note: prefix make with SHF_PERFORMANCE_TEST_(ENABLE|LOCK|MIX|CPUS|KEYS|FIXED|DEBUG)=(1|1|2|4|10000000|0|0) to run perf test"
@@ -105,7 +114,7 @@ $(BUILD_TYPE)/%.a: $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 
 $(BUILD_TYPE)/%.t: $(BUILD_TYPE)/%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
-	@g++ -o $@ $^ -pthread -lm $(LDFLAGS)
+	@$(LD) -o $@ $^ -pthread -lm $(LDFLAGS)
 ifndef SHF_SKIP_TESTS
 	@echo "make: running: $@"
 	@PATH=$$PATH:$(BUILD_TYPE) ./$@ 2>&1 | perl src/verbose-if-fail.pl $@.tout
@@ -113,7 +122,7 @@ endif
 
 $(BUILD_TYPE)/%: $(BUILD_TYPE)/main.%.o $(PROD_OBJS_C) $(PROD_OBJS_CPP)
 	@echo "make: linking: $@"
-	@g++ -o $@ $^ -pthread -lm $(LDFLAGS)
+	@$(LD) -o $@ $^ -pthread -lm $(LDFLAGS)
 
 release: all
 
@@ -122,22 +131,29 @@ debug: all
 coverage:
 	@echo make: creating and examining coverage files
 	@PATH=$(BUILD_TYPE):$$PATH SHF_PERFORMANCE_TEST_ENABLE=1 SHF_PERFORMANCE_TEST_KEYS=1000000 test.f.shf.t
-	@gcov $(BUILD_TYPE)/shf.c 2>&1 | egrep --after-context=1 "src/shf.c" | perl -lane 'printf qq[make: coverage: %s\n],$$_;'
+ifneq ($(filter clang,$(MAKECMDGOALS)),)
+	@llvm-cov gcov $(BUILD_TYPE)/shf.c 2>&1 | egrep --after-context=1 "'src/shf.c'" | perl -lane 'printf qq[make: coverage: %s\n],$$_;'
+else
+	@gcov          $(BUILD_TYPE)/shf.c 2>&1 | egrep --after-context=1 "'src/shf.c'" | perl -lane 'printf qq[make: coverage: %s\n],$$_;'
+endif
 	@mv *.gcov $(BUILD_TYPE)/.
 
+clang:
+	@echo make: compiled using clang
+
 load: release
-	@PATH=release:$$PATH SHF_PERFORMANCE_TEST_ENABLE=1 test.f.shf.t
+	@PATH=$(BUILD_TYPE):$$PATH SHF_PERFORMANCE_TEST_ENABLE=1 test.f.shf.t
 
 fixme:
-	 find -type f | egrep -v "/(release|release-coverage|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep --line-number -i fixme | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with fixme\n],$$any; exit($$any>0)}'
+	 find -type f | egrep -v "/(release|debug)\-" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep --line-number -i fixme | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with fixme\n],$$any; exit($$any>0)}'
 
 tab:
-	@find -type f | egrep -v "/(release|release-coverage|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\t" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with tab\n],$$any; exit($$any>0)}'
+	@find -type f | egrep -v "/(release|debug)\-" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\t" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with tab\n],$$any; exit($$any>0)}'
 
 eolws:
-	@find -type f | egrep -v "/(release|release-coverage|debug)/" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\s+$$" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with eol whitespace\n],$$any; exit($$any>0)}'
+	@find -type f | egrep -v "/(release|debug)\-" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\s+$$" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with eol whitespace\n],$$any; exit($$any>0)}'
 
-.PHONY: all clean release debug coverage load fixme tab eolws
+.PHONY: all clean release debug coverage clang load fixme tab eolws
 
 clean:
-	rm -rf release debug release-coverage
+	rm -rf release-* debug-*
