@@ -184,6 +184,8 @@ typedef union SHF_HASH { // todo: just use uid instead
     uint8_t  u08[16];
 } __attribute__((packed)) SHF_HASH;
 
-extern __thread SHF_HASH shf_hash;
+extern __thread       SHF_HASH   shf_hash        ;
+extern __thread const char     * shf_hash_key    ;
+extern __thread       uint32_t   shf_hash_key_len;
 
 #endif /* __SHF_PRIVATE_H__ */

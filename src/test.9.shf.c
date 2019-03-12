@@ -44,7 +44,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for shf_upd_*_
 int main(void)
 {
     // Tell tap (test anything protocol) how many tests we expect to run.
-    plan_tests(125);
+    plan_tests(193);
 
     // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
@@ -156,6 +156,107 @@ int main(void)
         ok(0                                   == shf_val_long                             , "c:     existing    add key: op 5: shf_val_long                                 set as expected");
         ok(SHF_RET_KEY_NONE                    == shf_get_key_val_copy (shf               ), "c:     existing    add key: op 5: shf_get_key_val_copy()  could not find   add key as expected");
         ok(shf_uid                             == SHF_UID_NONE                             , "c:     existing    add key: op 5: shf_uid                                    unset as expected");
+
+        // Use own hash -- in this example hard-coded SHA256() -- instead of shf_make_hash() function.
+        uint32_t h_foo[] = {0x2c26b46b, 0x68ffc68f, 0xf99b453c, 0x1d304134, 0x13422d70, 0x6483bfa0, 0xf98a5e88, 0x6266e7ae}; /* SHA256("foo") */
+        uint32_t h_bar[] = {0xfcde2b2e, 0xdba56bf4, 0x08601fb7, 0x21fe9b5c, 0x338d10ee, 0x429ea04f, 0xae5511b6, 0x8fbf8fb9}; /* SHA256("bar") */
+
+        shf_hash_key_len = strlen("foo") ; /* these lines instead of shf_make_hash() */
+        shf_hash_key     =        "foo"  ;
+        shf_hash.u32[0]  =       h_foo[0]; /* $ perl -e 'use Digest::SHA; $k=q[foo]; printf qq[- key %s has SHA256 hash: %s\n], $k, Digest::SHA::sha256_hex($k);' */
+        shf_hash.u32[1]  =       h_foo[1]; /* - key foo has SHA256 hash: 2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae */
+        shf_hash.u32[2]  =       h_foo[2];
+        shf_hash.u32[3]  =       h_foo[3]; /* part of SHA256 hash unused: 13422d706483bfa0f98a5e886266e7ae */
+        ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val" , 3), "c: own hash   foo  xxx key: op 1: shf_put_key_val()                        put key as expected"); uid = shf_uid;
+        ok(uid                                 != SHF_UID_NONE                             , "c: own hash   foo  xxx key: op 1: shf_put_key_val()                        put key as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_val_copy (shf,uid           ), "c: own hash   foo  uid key: op 1: shf_get_uid_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash   foo  uid key: op 1: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash   foo  uid key: op 1: shf_val                                          as expected");
+        ok(shf_uid                             != SHF_UID_NONE                             , "c: own hash   foo  uid key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_val_copy (shf               ), "c: own hash   foo  get key: op 2: shf_get_key_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash   foo  get key: op 2: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash   foo  get key: op 2: shf_val                                          as expected");
+        ok(shf_uid                             == uid                                      , "c: own hash   foo  get key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_key_copy (shf               ), "c: own hash   foo  get key: op 3: shf_get_key_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash   foo  get key: op 3: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, "foo" , 3), "c: own hash   foo  get key: op 3: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_key_copy (shf,uid           ), "c: own hash   foo  get key: op 4: shf_get_uid_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash   foo  get key: op 4: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, "foo" , 3), "c: own hash   foo  get key: op 4: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: own hash   foo  del key: op 5: shf_del_key_val()       could     find   put key as expected");
+
+        shf_hash_key_len = strlen("bar") ; /* these lines instead of shf_make_hash() */
+        shf_hash_key     =        "bar"  ;
+        shf_hash.u32[0]  =       h_bar[0]; /* $ perl -e 'use Digest::SHA; $k=q[bar]; printf qq[- key %s has SHA256 hash: %s\n], $k, Digest::SHA::sha256_hex($k);' */
+        shf_hash.u32[1]  =       h_bar[1]; /* - key bar has SHA256 hash: fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9 */
+        shf_hash.u32[2]  =       h_bar[2];
+        shf_hash.u32[3]  =       h_bar[3]; /* part of SHA256 hash unused: 338d10ee429ea04fae5511b68fbf8fb9 */
+        ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val" , 3), "c: own hash   bar  xxx key: op 1: shf_put_key_val()                        put key as expected"); uid = shf_uid;
+        ok(uid                                 != SHF_UID_NONE                             , "c: own hash   bar  xxx key: op 1: shf_put_key_val()                        put key as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_val_copy (shf,uid           ), "c: own hash   bar  uid key: op 1: shf_get_uid_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash   bar  uid key: op 1: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash   bar  uid key: op 1: shf_val                                          as expected");
+        ok(shf_uid                             != SHF_UID_NONE                             , "c: own hash   bar  uid key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_val_copy (shf               ), "c: own hash   bar  get key: op 2: shf_get_key_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash   bar  get key: op 2: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash   bar  get key: op 2: shf_val                                          as expected");
+        ok(shf_uid                             == uid                                      , "c: own hash   bar  get key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_key_copy (shf               ), "c: own hash   bar  get key: op 3: shf_get_key_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash   bar  get key: op 3: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, "bar" , 3), "c: own hash   bar  get key: op 3: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_key_copy (shf,uid           ), "c: own hash   bar  get key: op 4: shf_get_uid_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash   bar  get key: op 4: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, "bar" , 3), "c: own hash   bar  get key: op 4: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: own hash   bar  del key: op 5: shf_del_key_val()       could     find   put key as expected");
+
+        shf_hash_key_len = 32                         ; /* these lines instead of shf_make_hash() */
+        shf_hash_key     = SHF_CAST(char *, &h_foo[0]);
+        shf_hash.u32[0]  =                   h_foo[0] ; /* $ perl -e 'use Digest::SHA; $k=q[foo]; printf qq[- key %s has SHA256 hash: %s\n], $k, Digest::SHA::sha256_hex($k);' */
+        shf_hash.u32[1]  =                   h_foo[1] ; /* - key foo has SHA256 hash: 2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae */
+        shf_hash.u32[2]  =                   h_foo[2] ;
+        shf_hash.u32[3]  =                   h_foo[3] ; /* part of SHA256 hash unused: 13422d706483bfa0f98a5e886266e7ae */
+        ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val" , 3), "c: own hash h_foo  xxx key: op 1: shf_put_key_val()                        put key as expected"); uid = shf_uid;
+        ok(uid                                 != SHF_UID_NONE                             , "c: own hash h_foo  xxx key: op 1: shf_put_key_val()                        put key as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_val_copy (shf,uid           ), "c: own hash h_foo  uid key: op 1: shf_get_uid_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash h_foo  uid key: op 1: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash h_foo  uid key: op 1: shf_val                                          as expected");
+        ok(shf_uid                             != SHF_UID_NONE                             , "c: own hash h_foo  uid key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_val_copy (shf               ), "c: own hash h_foo  get key: op 2: shf_get_key_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash h_foo  get key: op 2: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash h_foo  get key: op 2: shf_val                                          as expected");
+        ok(shf_uid                             == uid                                      , "c: own hash h_foo  get key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_key_copy (shf               ), "c: own hash h_foo  get key: op 3: shf_get_key_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash h_foo  get key: op 3: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, h_foo ,32), "c: own hash h_foo  get key: op 3: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_key_copy (shf,uid           ), "c: own hash h_foo  get key: op 4: shf_get_uid_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash h_foo  get key: op 4: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, h_foo ,32), "c: own hash h_foo  get key: op 4: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: own hash h_foo  del key: op 5: shf_del_key_val()       could     find   put key as expected");
+
+        shf_hash_key_len = 32                         ; /* these lines instead of shf_make_hash() */
+        shf_hash_key     = SHF_CAST(char *, &h_bar[0]);
+        shf_hash.u32[0]  =                   h_bar[0] ; /* $ perl -e 'use Digest::SHA; $k=q[bar]; printf qq[- key %s has SHA256 hash: %s\n], $k, Digest::SHA::sha256_hex($k);' */
+        shf_hash.u32[1]  =                   h_bar[1] ; /* - key bar has SHA256 hash: fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9 */
+        shf_hash.u32[2]  =                   h_bar[2] ;
+        shf_hash.u32[3]  =                   h_bar[3] ; /* part of SHA256 hash unused: 338d10ee429ea04fae5511b68fbf8fb9 */
+        ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val" , 3), "c: own hash h_bar  xxx key: op 1: shf_put_key_val()                        put key as expected"); uid = shf_uid;
+        ok(uid                                 != SHF_UID_NONE                             , "c: own hash h_bar  xxx key: op 1: shf_put_key_val()                        put key as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_val_copy (shf,uid           ), "c: own hash h_bar  uid key: op 1: shf_get_uid_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash h_bar  uid key: op 1: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash h_bar  uid key: op 1: shf_val                                          as expected");
+        ok(shf_uid                             != SHF_UID_NONE                             , "c: own hash h_bar  uid key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_val_copy (shf               ), "c: own hash h_bar  get key: op 2: shf_get_key_val_copy()  could     find   put key as expected");
+        ok(3                                   == shf_val_len                              , "c: own hash h_bar  get key: op 2: shf_val_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "val" , 3), "c: own hash h_bar  get key: op 2: shf_val                                          as expected");
+        ok(shf_uid                             == uid                                      , "c: own hash h_bar  get key: op 2: shf_uid                                      set as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_key_key_copy (shf               ), "c: own hash h_bar  get key: op 3: shf_get_key_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash h_bar  get key: op 3: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, h_bar ,32), "c: own hash h_bar  get key: op 3: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_get_uid_key_copy (shf,uid           ), "c: own hash h_bar  get key: op 4: shf_get_uid_key_copy()  could     find   put key as expected");
+        ok(shf_hash_key_len                    == shf_key_len                              , "c: own hash h_bar  get key: op 4: shf_key_len                                      as expected");
+        ok(0 /* matches */                     == memcmp               (shf_key, h_bar ,32), "c: own hash h_bar  get key: op 4: shf_key                                          as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: own hash h_bar  del key: op 5: shf_del_key_val()       could     find   put key as expected");
+
 
         // ## Functional tests: IPC queues
         // Create a some queue elements and a bunch of queues using the exiting test shared hash file from the tests above.

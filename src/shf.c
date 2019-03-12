@@ -68,8 +68,8 @@ static __thread       uint32_t   shf_key_size                    ; /* mmap() siz
        __thread       uint32_t   shf_key_len                     ;
 
        __thread       SHF_HASH   shf_hash                        ; /* made by shf_make_hash() */
-static __thread const char     * shf_hash_key                    ; /* used by shf_make_hash() */
-static __thread       uint32_t   shf_hash_key_len                ; /* used by shf_make_hash() */
+       __thread const char     * shf_hash_key                    ; /* used by shf_make_hash() */
+       __thread       uint32_t   shf_hash_key_len                ; /* used by shf_make_hash() */
 
 static __thread       uint32_t   shf_data_needed_factor    = 1   ;
 
