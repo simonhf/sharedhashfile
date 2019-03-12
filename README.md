@@ -5,6 +5,7 @@ SharedHashFile is a lightweight, embeddable NoSQL key value store / hash table w
 ![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
 
 [![Build Status](https://travis-ci.org/simonhf/sharedhashfile.svg?branch=master)](https://travis-ci.org/simonhf/sharedhashfile)
+[![Coverage Status](https://coveralls.io/repos/github/simonhf/sharedhashfile/badge.svg?branch=master)](https://coveralls.io/github/simonhf/sharedhashfile?branch=master)
 
 ## Project Goals
 

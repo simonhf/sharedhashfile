@@ -25,6 +25,7 @@ CXXFLAGS        = -c -g -W -Waggregate-return -Wall -Werror -Wcast-align -Wcast-
 CXXFLAGS       += -Wcomment -Wformat -Wmissing-declarations -Wparentheses -Wpointer-arith -Wredundant-decls
 CXXFLAGS       +=  -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wwrite-strings -O
 CXXFLAGS       += -fPIC -Wuninitialized -Wunused -march=x86-64 -I. -Isrc
+CXXFLAGS       += $(CXXFLAGS-$@)
 CFLAGS          = -Wimplicit -Wmissing-prototypes -Wnested-externs -Wstrict-prototypes -std=gnu99
 ifneq ($(filter clang,$(MAKECMDGOALS)),)
 LD              = clang++
@@ -41,7 +42,8 @@ CXXFLAGS       += -DSHF_DEBUG_VERSION
 else
 ifneq ($(filter coverage,$(MAKECMDGOALS)),)
 BUILD_TYPE      = release-coverage-$(CC)
-CXXFLAGS       += -fprofile-arcs -ftest-coverage
+# See https://stackoverflow.com/questions/1305665/how-to-compile-different-c-files-with-different-cflags-using-makefile
+CXXFLAGS-release-coverage-$(CC)/shf.o += -fprofile-arcs -ftest-coverage
 LDFLAGS         = -lgcov --coverage
 else
 BUILD_TYPE      = release-$(CC)

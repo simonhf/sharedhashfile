@@ -1,6 +1,15 @@
-language: cpp
+os
+- linux
+language:
+- cpp
 compiler:
 - gcc
 before_install:
 - sudo apt-get update
-script: SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
+install:
+- gem install coveralls-lcov
+script:
+- SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
+after_success:
+- lcov --compat-libtool --directory release-coverage-gcc --capture --output-file release-coverage-gcc/coverage.info
+- coveralls-lcov release-coverage-gcc/coverage.info
