@@ -1,16 +1,39 @@
 os:
-- linux
+  - linux
+
 language:
-- cpp
+  - cpp
+
 compiler:
-- gcc
+  - gcc
+
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "v/fAUZ9k8A0Uai+h2aTEYdxh659CjwsvcpuLHLe9gR3QQKwCQ6u5oi+Aovi1MnmOXBWasKLwta1YNhcLoDmX2EVJYxMvXzgzhqyRnG/JpnKlfNZJxs3iLdWxuE5gn+2g34ovIjxlaxTtlAJKbJ2souHAjJSyhzAVfX1V6pzY/uU="
+
+addons:
+  coverity_scan:
+    project:
+      name: "simonhf/sharedhashfile"
+      description: "Build submitted via Travis CI"
+    notification_email: travis-coverity@sharedhashfile.com
+    build_command_prepend: "make clean"
+    build_command: "make release"
+    branch_pattern: master
+
 before_install:
-- sudo apt-get update
-- sudo apt-get install lcov
+  - sudo apt-get update
+  - sudo apt-get install lcov
+  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
 install:
-- gem install coveralls-lcov
+  - gem install coveralls-lcov
+
 script:
-- SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
+  - SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
+
 after_success:
-- lcov --compat-libtool --directory release-coverage-gcc --capture --output-file release-coverage-gcc/coverage.info
-- coveralls-lcov release-coverage-gcc/coverage.info
+  - lcov --compat-libtool --directory release-coverage-gcc --capture --output-file release-coverage-gcc/coverage.info
+  - coveralls-lcov release-coverage-gcc/coverage.info
