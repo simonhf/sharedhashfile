@@ -20,4 +20,5 @@
 # Folders
 release-*
 debug-*
+cov-int
 .html

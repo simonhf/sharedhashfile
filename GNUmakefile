@@ -147,13 +147,13 @@ load: release
 	@PATH=$(BUILD_TYPE):$$PATH SHF_PERFORMANCE_TEST_ENABLE=1 test.f.shf.t
 
 fixme:
-	 find -type f | egrep -v "/(release|debug)\-" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep --line-number -i fixme | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with fixme\n],$$any; exit($$any>0)}'
+	 find -type f | egrep -v "/(release\-|debug\-|cov-int)" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs egrep --line-number -i fixme | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with fixme\n],$$any; exit($$any>0)}'
 
 tab:
-	@find -type f | egrep -v "/(release|debug)\-" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\t" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with tab\n],$$any; exit($$any>0)}'
+	@find -type f | egrep -v "/(release\-|debug\-|cov-int)" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\t" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with tab\n],$$any; exit($$any>0)}'
 
 eolws:
-	@find -type f | egrep -v "/(release|debug)\-" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\s+$$" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with eol whitespace\n],$$any; exit($$any>0)}'
+	@find -type f | egrep -v "/(release\-|debug\-|cov-int)" | egrep -v "/.html/" | egrep "\.(c|cc|cpp|h|hpp|js|md|txt)" | xargs  grep --line-number -P "\\s+$$" | perl -lane 'print qq[>].$$_.qq[<]; $$any+=length($$_)>0; sub END{printf qq[make: %u line(s) with eol whitespace\n],$$any; exit($$any>0)}'
 
 .PHONY: all clean release debug coverage clang load fixme tab eolws
 
