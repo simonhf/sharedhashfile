@@ -19,7 +19,7 @@ addons:
       name: "simonhf/sharedhashfile"
       description: "Build submitted via Travis CI"
     notification_email: travis-coverity@sharedhashfile.com
-    build_command_prepend: "make clean"
+    build_command_prepend: "cov-configure --compiler /usr/bin/gcc --comptype gcc ; make clean"
     build_command: "make release"
     branch_pattern: master
 
@@ -36,6 +36,8 @@ script:
 
 after_script:
   - cat cov-int/scm_log.txt
+  - which gcc
+  - gcc -v
 
 after_success:
   - lcov --compat-libtool --directory release-coverage-gcc --capture --output-file release-coverage-gcc/coverage.info
