@@ -13,7 +13,6 @@ env:
    #   via the "travis encrypt" command using the project repo's public key
    - secure: "WbMkGWvcdx2yOMlSNyAo9LRL5OCIgO8ksPW77yl70f34kfpk4P1lNKulg0Gh8ONHG1iBmZROBXyG1PKQCx2OqBsi//xGEDnNMq2FFNrj+8Ch1u3yA4n8z0Kl2IlGmHUm79pJ2WPTykMPXW8VBs6aL9vPSnF9TtGHL93g9FC8sY8="
 
-
 addons:
   coverity_scan:
     project:
@@ -34,6 +33,9 @@ install:
 
 script:
   - SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
+
+after_script:
+  - cat cov-int/scm_log.txt
 
 after_success:
   - lcov --compat-libtool --directory release-coverage-gcc --capture --output-file release-coverage-gcc/coverage.info
