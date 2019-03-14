@@ -19,7 +19,9 @@ addons:
       name: "simonhf/sharedhashfile"
       description: "Build submitted via Travis CI"
     notification_email: travis-coverity@sharedhashfile.com
-    build_command_prepend: "cov-configure --compiler gcc --comptype gcc --template ; make clean"
+    # https://www.synopsys.com/blogs/software-security/coverity-and-issues-in-third-party-code/
+    # only have Coverity examine shf.c
+    build_command_prepend: "cov-configure --compiler gcc --comptype gcc --template ; make clean ; make release ; rm release-gcc/shf.o release-gcc/test.q.shf.t"
     build_command: "make release"
     branch_pattern: master
 
@@ -37,6 +39,7 @@ script:
 after_script:
   - which gcc
   - gcc -v
+  - find cov-int -type f
   - cat cov-int/scm_log.txt
 
 after_success:
