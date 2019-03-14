@@ -2,10 +2,10 @@
 
 SharedHashFile is a lightweight, embeddable NoSQL key value store / hash table with stable key hints, a zero-copy IPC queue, & a multiplexed IPC logging library written in C for Linux.  There is no server process.  Data is read and written directly from/to shared memory or SSD; no sockets are used between SharedHashFile and the application program. APIs for C & C++.
 
-![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
-
 [![Build Status](https://travis-ci.org/simonhf/sharedhashfile.svg?branch=master)](https://travis-ci.org/simonhf/sharedhashfile)
 [![Coverage Status](https://coveralls.io/repos/github/simonhf/sharedhashfile/badge.svg?branch=master)](https://coveralls.io/github/simonhf/sharedhashfile?branch=master)
+
+![Nailed It](http://simonhf.github.io/sharedhashfile/images/10m-tps-nailed-it.jpeg)
 
 ## Project Goals
 
