@@ -19,7 +19,7 @@ addons:
       name: "simonhf/sharedhashfile"
       description: "Build submitted via Travis CI"
     notification_email: travis-coverity@sharedhashfile.com
-    build_command_prepend: "cov-configure --compiler /usr/bin/gcc --comptype gcc --template ; make clean"
+    build_command_prepend: "cov-configure --compiler gcc --comptype gcc --template ; make clean"
     build_command: "make release"
     branch_pattern: master
 
