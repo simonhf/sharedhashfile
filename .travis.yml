@@ -34,12 +34,13 @@ install:
   - gem install coveralls-lcov
 
 script:
-  - SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
+  - make clean ; SHF_DEBUG_MAKE=1 make release && SHF_DEBUG_MAKE=1 make debug && SHF_DEBUG_MAKE=1 make release coverage
 
 after_script:
   - which gcc
   - gcc -v
   - find cov-int -type f
+  - cat cov-int/build-log.txt
   - cat cov-int/scm_log.txt
 
 after_success:
