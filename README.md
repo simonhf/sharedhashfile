@@ -5,6 +5,7 @@ SharedHashFile is a lightweight, embeddable NoSQL key value store / hash table w
 [![Build Status](https://travis-ci.org/simonhf/sharedhashfile.svg?branch=master)](https://travis-ci.org/simonhf/sharedhashfile)
 [![Coverage Status](https://coveralls.io/repos/github/simonhf/sharedhashfile/badge.svg?branch=master)](https://coveralls.io/github/simonhf/sharedhashfile?branch=master)
 [![Coverity Scan Build Status](https://img.shields.io/coverity/scan/17867.svg)](https://scan.coverity.com/projects/simonhf-sharedhashfile)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/5e9eac5334064beb84a841d4987ab548)](https://www.codacy.com/app/simonhf/sharedhashfile?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=simonhf/sharedhashfile&amp;utm_campaign=Badge_Grade)
 [![GNU Affero General Public License version 3](https://img.shields.io/badge/license-AGPL3-green.svg)](https://opensource.org/licenses/AGPL-3.0)
 [![Gitter](https://badges.gitter.im/sharedhashfile/community.svg)](https://gitter.im/sharedhashfile/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
