@@ -126,6 +126,13 @@ SharedHashFile::AddKeyVal(long add)
 }
 
 uint32_t
+SharedHashFile::AddUidVal(uint32_t uid, long add)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    return shf_add_uid_val(shf, uid, add);
+}
+
+uint32_t
 SharedHashFile::PutKeyVal(
     const char * val    ,
     uint32_t     val_len)

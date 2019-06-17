@@ -42,7 +42,8 @@ public:
     uint32_t   GetUidKeyCopy     (uint32_t uid);
     uint32_t   GetKeyValCopy     ();
     uint32_t   GetUidValCopy     (uint32_t uid);
-    uint32_t   AddKeyVal         (long add);
+    uint32_t   AddKeyVal         (              long add);
+    uint32_t   AddUidVal         (uint32_t uid, long add);
     uint32_t   PutKeyVal         (const char * val, uint32_t val_len);
     uint32_t   DelKeyVal         ();
     uint32_t   DelUidVal         (uint32_t uid);

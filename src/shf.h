@@ -385,6 +385,7 @@ extern uint32_t   shf_get_uid_val_copy     (SHF * shf, uint32_t uid          );
 extern uint32_t   shf_add_key_val_atom     (SHF * shf              , long add);
 extern uint32_t   shf_add_uid_val_atom     (SHF * shf, uint32_t uid, long add);
 extern uint32_t   shf_add_key_val          (SHF * shf              , long add);
+extern uint32_t   shf_add_uid_val          (SHF * shf, uint32_t uid, long add);
 extern uint32_t   shf_del_key_val          (SHF * shf                        );
 extern uint32_t   shf_del_uid_val          (SHF * shf, uint32_t uid          );
 extern uint32_t   shf_upd_key_val          (SHF * shf                        );

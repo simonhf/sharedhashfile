@@ -44,7 +44,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for shf_upd_*_
 int main(void)
 {
     // Tell tap (test anything protocol) how many tests we expect to run.
-    plan_tests(193);
+    plan_tests(200);
 
     // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
@@ -123,6 +123,7 @@ int main(void)
         ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val" , 3), "c: bad-existing    add key: op 1: shf_put_key_val()                      reput key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                             , "c: bad-existing    add key: op 1: shf_put_key_val()                      reput key as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_VAL == shf_add_key_val      (shf    , 123      ), "c: bad-existing    add key: op 1: shf_add_key_val()       could not use    add key as expected");
+        ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_VAL == shf_add_uid_val      (shf,uid, 123      ), "c: bad-existing    add key: op 1: shf_add_uid_val()       could not use    add uid as expected");
         ok(shf_uid                             != SHF_UID_NONE                             , "c: bad-existing    add key: op 1: shf_uid                                      set as expected");
         ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: bad-existing    add key: op 1: shf_del_key_val()       could     find reput key as expected");
         ok(SHF_RET_KEY_NONE                    == shf_get_key_val_copy (shf               ), "c: non-existing    add key: op 1: shf_get_key_val_copy()  could not find unadd key as expected");
@@ -156,6 +157,12 @@ int main(void)
         ok(0                                   == shf_val_long                             , "c:     existing    add key: op 5: shf_val_long                                 set as expected");
         ok(SHF_RET_KEY_NONE                    == shf_get_key_val_copy (shf               ), "c:     existing    add key: op 5: shf_get_key_val_copy()  could not find   add key as expected");
         ok(shf_uid                             == SHF_UID_NONE                             , "c:     existing    add key: op 5: shf_uid                                    unset as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_add_key_val      (shf    , 111      ), "c:     existing    add key: op 6: shf_add_key_val()       could            add key as expected"); uid = shf_uid;
+        ok(SHF_RET_KEY_FOUND                   == shf_add_uid_val      (shf,uid,-111      ), "c:     existing    add key: op 6: shf_add_uid_val()       could del after  add uid as expected");
+        ok(shf_uid                             == SHF_UID_NONE                             , "c:     existing    add key: op 6: shf_uid deleted and                        unset as expected");
+        ok(0                                   == shf_val_long                             , "c:     existing    add key: op 6: shf_val_long                                 set as expected");
+        ok(SHF_RET_KEY_NONE                    == shf_get_key_val_copy (shf               ), "c:     existing    add key: op 6: shf_get_key_val_copy()  could not find   add key as expected");
+        ok(shf_uid                             == SHF_UID_NONE                             , "c:     existing    add key: op 6: shf_uid                                    unset as expected");
 
         // Use own hash -- in this example hard-coded SHA256() -- instead of shf_make_hash() function.
         uint32_t h_foo[] = {0x2c26b46b, 0x68ffc68f, 0xf99b453c, 0x1d304134, 0x13422d70, 0x6483bfa0, 0xf98a5e88, 0x6266e7ae}; /* SHA256("foo") */

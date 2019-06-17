@@ -1035,7 +1035,7 @@ shf_add_key_val(SHF * shf, long add)
             shf_del_key_val(shf);
         }
         else {
-            /* come here if key exists and is neither just created or deleted */
+            /* come here if key exists and is neither just created nor deleted */
         }
     }
     else if (SHF_RET_KEY_NONE == result) {
@@ -1050,6 +1050,29 @@ shf_add_key_val(SHF * shf, long add)
     }
     return result;
 } /* shf_add_key_val() */
+
+uint32_t /* see SHF_RET_* for result meaning */
+shf_add_uid_val(SHF * shf, uint32_t uid, long add)
+{
+    int result = shf_add_uid_val_atom(shf, uid, add);
+    if (SHF_RET_KEY_FOUND == result) {
+        /* come here if uid exists */
+        if (0 == shf_val_long) {
+            /* come here if new reference count is zero, so delete key */
+            shf_del_uid_val(shf, uid);
+        }
+        else {
+            /* come here if uid exists and is neither just created nor deleted */
+        }
+    }
+    else if (SHF_RET_KEY_NONE == result) {
+        /* come here if uid does not exist; but we cannot auto create a new key from a uid */
+    }
+    else {
+        /* come here if error */
+    }
+    return result;
+} /* shf_add_uid_val() */
 
 void
 shf_upd_callback_set(uint32_t (*shf_upd_callback_new)(const char * val, uint32_t val_len))

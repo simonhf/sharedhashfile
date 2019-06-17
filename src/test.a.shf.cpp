@@ -45,7 +45,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for ->Upd*Val(
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(8+193);
+    plan_tests(8+200);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -123,6 +123,7 @@ main(/* int argc,char **argv */)
         ok(SHF_RET_KEY_PUT                     == shf->PutKeyVal      (         "val" , 3                ), "c++: bad-existing    add key: op 1: ->PutKeyVal()                      reput key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                                            , "c++: bad-existing    add key: op 1: ->PutKeyVal()                      reput key as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_VAL == shf->AddKeyVal      (         123                      ), "c++: bad-existing    add key: op 1: ->AddKeyVal()       could not use    add key as expected");
+        ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_VAL == shf->AddUidVal      (uid    , 123                      ), "c++: bad-existing    add key: op 1: ->AddUidVal()       could not use    add uid as expected");
         ok(shf_uid                             != SHF_UID_NONE                                            , "c++: bad-existing    add key: op 1: shf_uid                                  set as expected");
         ok(SHF_RET_KEY_FOUND                   == shf->DelKeyVal      (                                  ), "c++: bad-existing    add key: op 1: ->DelKeyVal()       could     find reput key as expected");
         ok(SHF_RET_KEY_NONE                    == shf->GetKeyValCopy  (                                  ), "c++: non-existing    add key: op 1: ->GetKeyValCopy()   could not find unadd key as expected");
@@ -156,6 +157,12 @@ main(/* int argc,char **argv */)
         ok(0                                   == shf_val_long                                            , "c++:     existing    add key: op 5: shf_val_long                             set as expected");
         ok(SHF_RET_KEY_NONE                    == shf->GetKeyValCopy  (                                  ), "c++:     existing    add key: op 5: ->GetKeyValCopy()   could not find   add key as expected");
         ok(shf_uid                             == SHF_UID_NONE                                            , "c++:     existing    add key: op 5: shf_uid                                unset as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf->AddKeyVal      (         111                      ), "c++:     existing    add key: op 6: ->AddKeyVal()       could            add key as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf->AddUidVal      (uid    ,-111                      ), "c++:     existing    add key: op 6: ->AddUidVal()       could del after  add uid as expected");
+        ok(shf_uid                             == SHF_UID_NONE                                            , "c++:     existing    add key: op 6: shf_uid deleted and                    unset as expected");
+        ok(0                                   == shf_val_long                                            , "c++:     existing    add key: op 6: shf_val_long                             set as expected");
+        ok(SHF_RET_KEY_NONE                    == shf->GetKeyValCopy  (                                  ), "c++:     existing    add key: op 6: ->GetKeyValCopy()   could not find   add key as expected");
+        ok(shf_uid                             == SHF_UID_NONE                                            , "c++:     existing    add key: op 6: shf_uid                                unset as expected");
 
         // Use own hash -- in this example hard-coded SHA256() -- instead of shf->MakeHash function.
         uint32_t h_foo[] = {0x2c26b46b, 0x68ffc68f, 0xf99b453c, 0x1d304134, 0x13422d70, 0x6483bfa0, 0xf98a5e88, 0x6266e7ae}; /* SHA256("foo") */
