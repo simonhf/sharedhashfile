@@ -50,6 +50,7 @@ public:
     uint32_t   UpdKeyVal         ();
     uint32_t   UpdUidVal         (uint32_t uid);
     uint32_t   UpdCallbackCopy   (const char * val, uint32_t val_len);
+    void       TabCopyIterate    (uint32_t * win_addr, uint32_t * tab_addr);
     char     * Del               ();
     uint64_t   DebugGetGarbage   ();
     void       DebugVerbosityLess();

@@ -45,7 +45,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for ->Upd*Val(
 int
 main(/* int argc,char **argv */)
 {
-    plan_tests(8+200);
+    plan_tests(8+201);
 
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
 
@@ -263,6 +263,34 @@ main(/* int argc,char **argv */)
         ok(shf_hash_key_len                    == shf_key_len                                             , "c++: own hash h_bar  get key: op 4: shf_key_len                                  as expected");
         ok(0 /* matches */                     == memcmp              (shf_key, h_bar ,32                ), "c++: own hash h_bar  get key: op 4: shf_key                                      as expected");
         ok(SHF_RET_KEY_FOUND                   == shf->DelKeyVal      (                                  ), "c++: own hash h_bar  del uid: op 5: ->DelKeyVal()       could     find   put key as expected");
+
+        uint32_t win          = 0;
+        uint32_t tab          = 0;
+        uint32_t tabs_visited = 0;
+        uint64_t tabs_len     = 0;
+        uint32_t refs_visited = 0;
+        uint32_t refs_used    = 0;
+        //debug double   t1           = shf_get_time_in_seconds();
+        do {
+            shf->TabCopyIterate(&win, &tab);
+            tabs_len     += shf_tab_len;
+            tabs_visited ++;
+            for(uint32_t row = 0; row < SHF_ROWS_PER_TAB; row ++) {
+                for(uint32_t ref = 0; ref < SHF_REFS_PER_ROW; ref ++) {
+                    refs_visited ++;
+                    if (0 == shf_tab->row[row].ref[ref].pos) {
+                        /* come here if ref UNused */
+                    }
+                    else {
+                        /* come here if ref used */
+                        refs_used ++;
+                    }
+                }
+            }
+        } while((win > 0) || (tab > 0));
+        //debug double t2 = shf_get_time_in_seconds();
+        //debug printf("- %'u=tabs_visited %'lu=tabs_len %'u=refs_visited %'u=refs_used in %f seconds\n", tabs_visited, tabs_len, refs_visited, refs_used, t2 - t1);
+        ok(0 == refs_used, "c++: search via                     ->TabCopyIterate()  could not find       key as expected");
 
         uint32_t testPullItems  = 0;
         uint32_t testQs         = 3;

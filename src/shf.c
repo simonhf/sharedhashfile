@@ -48,39 +48,43 @@
 
 #include "murmurhash3.h"
 
-                      SHF      * shf_log_thread_instance   = NULL;
-                      uint32_t   shf_init_called           = 0   ;
+                      SHF          * shf_log_thread_instance   = NULL;
+                      uint32_t       shf_init_called           = 0   ;
 
-       __thread       uint32_t   shf_uid                         ;
-       __thread       uint32_t   shf_qiid                        ; /*!< Set by                           shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
-       __thread       char     * shf_qiid_addr                   ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
-       __thread       uint32_t   shf_qiid_addr_len               ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
+       __thread       uint32_t       shf_uid                         ;
+       __thread       uint32_t       shf_qiid                        ; /*!< Set by                           shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
+       __thread       char         * shf_qiid_addr                   ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
+       __thread       uint32_t       shf_qiid_addr_len               ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
 
-       __thread       long       shf_val_long                    ; /* atomically add this to value */
-       __thread       void     * shf_val_addr                    ; /* address of value in RAM */
-static __thread       uint32_t   shf_val_size                    ; /* mmap() size */
-       __thread       char     * shf_val                   = NULL; /* mmap() */
-       __thread       uint32_t   shf_val_len                     ;
+       __thread       long           shf_val_long                    ; /* atomically add this to value */
+       __thread       void         * shf_val_addr                    ; /* address of value in RAM */
+static __thread       uint32_t       shf_val_size                    ; /* mmap() size */
+       __thread       char         * shf_val                   = NULL; /* mmap() */
+       __thread       uint32_t       shf_val_len                     ;
 
-       __thread       void     * shf_key_addr                    ; /* address of key in RAM */
-static __thread       uint32_t   shf_key_size                    ; /* mmap() size */
-       __thread       char     * shf_key                   = NULL; /* mmap() */
-       __thread       uint32_t   shf_key_len                     ;
+       __thread       void         * shf_key_addr                    ; /* address of key in RAM */
+static __thread       uint32_t       shf_key_size                    ; /* mmap() size */
+       __thread       char         * shf_key                   = NULL; /* mmap() */
+       __thread       uint32_t       shf_key_len                     ;
 
-       __thread       SHF_HASH   shf_hash                        ; /* made by shf_make_hash() */
-       __thread const char     * shf_hash_key                    ; /* used by shf_make_hash() */
-       __thread       uint32_t   shf_hash_key_len                ; /* used by shf_make_hash() */
+       __thread       SHF_HASH       shf_hash                        ; /* made by shf_make_hash() */
+       __thread const char         * shf_hash_key                    ; /* used by shf_make_hash() */
+       __thread       uint32_t       shf_hash_key_len                ; /* used by shf_make_hash() */
 
-static __thread       uint32_t   shf_data_needed_factor    = 1   ;
+static __thread       uint32_t       shf_tab_size                    ; /* mmap() size */
+       __thread       SHF_TAB_MMAP * shf_tab                   = NULL; /* mmap() */
+       __thread       uint32_t       shf_tab_len                     ;
 
-static __thread       char     * shf_backticks_buffer      = NULL; /* mmap() */
-static __thread       uint32_t   shf_backticks_buffer_size = 0   ; /* mmap() size */
-static __thread       uint32_t   shf_backticks_buffer_used       ;
+static __thread       uint32_t       shf_data_needed_factor    = 1   ;
 
-static __thread       uint32_t(* shf_upd_callback)(const char * val, uint32_t val_len) = shf_upd_callback_copy;
-static __thread       uint32_t   shf_upd_callback_failsafe                             = 0;
-static __thread const char     * shf_upd_callback_copy_val                             = NULL;
-static __thread       uint32_t   shf_upd_callback_copy_val_len                         = 0;
+static __thread       char         * shf_backticks_buffer      = NULL; /* mmap() */
+static __thread       uint32_t       shf_backticks_buffer_size = 0   ; /* mmap() size */
+static __thread       uint32_t       shf_backticks_buffer_used       ;
+
+static __thread       uint32_t(    * shf_upd_callback)(const char * val, uint32_t val_len) = shf_upd_callback_copy;
+static __thread       uint32_t       shf_upd_callback_failsafe                             = 0;
+static __thread const char         * shf_upd_callback_copy_val                             = NULL;
+static __thread       uint32_t       shf_upd_callback_copy_val_len                         = 0;
 
 /**
  * @brief Spawn a child process & return its pid.
@@ -244,6 +248,7 @@ shf_init(void)
 
     shf_key_size = 4096; shf_key = mmap(NULL, shf_key_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_key, "mmap(): %u: ", errno);
     shf_val_size = 4096; shf_val = mmap(NULL, shf_val_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_val, "mmap(): %u: ", errno);
+    shf_tab_size = 4096; shf_tab = mmap(NULL, shf_tab_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0); SHF_ASSERT(MAP_FAILED != shf_tab, "mmap(): %u: ", errno);
 
 #ifdef SHF_DEBUG_VERSION
     shf_debug_file = fopen("/tmp/debug.shf", "wb"); SHF_ASSERT(NULL != shf_debug_file, "fopen(): %u: ", errno); /* shorten debug file */
@@ -1120,6 +1125,54 @@ shf_del( /* shf_detach() & then delete the folder structure on /dev/shm or disk 
 
     return du_rm_output;
 } /* shf_del() */
+
+void
+shf_tab_copy_iterate(
+    SHF      * shf,
+    uint32_t * win_addr,
+    uint32_t * tab_addr)
+{
+    /* ensure tab is memory mapped */
+    uint32_t       win       = *win_addr;
+    uint32_t       tab       = *tab_addr;
+    uint32_t       tabs_used;
+    SHF_TAB_MMAP * tab_mmap;
+
+    if (shf->is_lockable) { SHF_LOCK_READER(&shf->shf_mmap->wins[win].lock); }
+
+    tabs_used = shf->shf_mmap->wins[win].tabs_used;
+
+    SHF_GET_TAB_MMAP(shf, tab);
+
+    if (tab_mmap->tab_size > shf_tab_size) {
+        /* come here to increase tab size */
+        uint32_t new_tab_size = shf_tab_size;
+        while (tab_mmap->tab_size > new_tab_size) {
+            new_tab_size += SHF_SIZE_PAGE;
+        }
+        shf_tab = mremap(shf_tab, shf_tab_size, new_tab_size, MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_tab, "mremap(): %u: ", errno);
+        SHF_DEBUG("increased tab size from %u to %u\n", shf_tab_size, new_tab_size);
+        shf_tab_size = new_tab_size;
+    }
+
+    /* copy tab */
+    shf_tab_len = tab_mmap->tab_size;
+    memcpy(shf_tab, tab_mmap, shf_tab_len); /* copy tab so that we can iterate over the keys at our leisure after the unlocking */
+
+    if (shf->is_lockable) { SHF_UNLOCK_READER(&shf->shf_mmap->wins[win].lock); }
+
+    /* iterate to next win & tab */
+    tab ++;
+    if (tab >= tabs_used) {
+        tab = 0;
+        win ++;
+        win = win < SHF_WINS_PER_SHF ? win : 0;
+    }
+
+    /* update caller variables */
+    *win_addr = win;
+    *tab_addr = tab;
+} /* shf_tab_iterate() */
 
 uint64_t
 shf_debug_get_garbage( /* get total bytes marked as deleted aka garbage */

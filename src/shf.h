@@ -354,17 +354,19 @@ typedef union SHF_DATA_TYPE {
 #define SHF_QID_NONE          (4294967295U) /*!< Value used to represent no qid */
 #define SHF_QIID_NONE         (4294967295U) /*!< Value used to represent no qiid */
 
-extern __thread uint32_t   shf_uid          ;
-extern __thread char     * shf_key          ;
-extern __thread uint32_t   shf_key_len      ;
-extern __thread void     * shf_key_addr     ;
-extern __thread char     * shf_val          ;
-extern __thread uint32_t   shf_val_len      ;
-extern __thread void     * shf_val_addr     ;
-extern __thread long       shf_val_long     ;
-extern __thread uint32_t   shf_qiid         ;
-extern __thread char     * shf_qiid_addr    ;
-extern __thread uint32_t   shf_qiid_addr_len;
+extern __thread uint32_t       shf_uid          ;
+extern __thread char         * shf_key          ;
+extern __thread uint32_t       shf_key_len      ;
+extern __thread void         * shf_key_addr     ;
+extern __thread char         * shf_val          ;
+extern __thread uint32_t       shf_val_len      ;
+extern __thread void         * shf_val_addr     ;
+extern __thread long           shf_val_long     ;
+extern __thread SHF_TAB_MMAP * shf_tab          ;
+extern __thread uint32_t       shf_tab_len      ;
+extern __thread uint32_t       shf_qiid         ;
+extern __thread char         * shf_qiid_addr    ;
+extern __thread uint32_t       shf_qiid_addr_len;
 
 extern pid_t      shf_exec_child           (const char * child_path, const char * child_file, const char * child_argument_1, char  * child_argument_2);
 extern char     * shf_backticks            (const char * command);
@@ -392,6 +394,7 @@ extern uint32_t   shf_upd_key_val          (SHF * shf                        );
 extern uint32_t   shf_upd_uid_val          (SHF * shf, uint32_t uid          );
 extern void       shf_upd_callback_set     (uint32_t (*shf_upd_callback_new)(const char * val, uint32_t val_len));
 extern uint32_t   shf_upd_callback_copy    (const char * val, uint32_t val_len);
+extern void       shf_tab_copy_iterate     (SHF * shf, uint32_t * win_addr, uint32_t * tab_addr);
 extern char     * shf_del                  (SHF * shf);
 extern uint64_t   shf_debug_get_garbage    (SHF * shf);
 extern void       shf_debug_verbosity_less (void);

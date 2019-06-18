@@ -176,6 +176,13 @@ SharedHashFile::UpdCallbackCopy(const char * val, uint32_t val_len)
     return shf_upd_callback_copy(val, val_len);
 }
 
+void
+SharedHashFile::TabCopyIterate(uint32_t * win_addr, uint32_t * tab_addr)
+{
+    SHF_DEBUG("%s()\n", __FUNCTION__);
+    shf_tab_copy_iterate(shf, win_addr, tab_addr);
+}
+
 char *
 SharedHashFile::Del()
 {

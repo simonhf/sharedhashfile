@@ -44,7 +44,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for shf_upd_*_
 int main(void)
 {
     // Tell tap (test anything protocol) how many tests we expect to run.
-    plan_tests(200);
+    plan_tests(201);
 
     // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
@@ -264,6 +264,33 @@ int main(void)
         ok(0 /* matches */                     == memcmp               (shf_key, h_bar ,32), "c: own hash h_bar  get key: op 4: shf_key                                          as expected");
         ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: own hash h_bar  del key: op 5: shf_del_key_val()       could     find   put key as expected");
 
+        uint32_t win          = 0;
+        uint32_t tab          = 0;
+        uint32_t tabs_visited = 0;
+        uint64_t tabs_len     = 0;
+        uint32_t refs_visited = 0;
+        uint32_t refs_used    = 0;
+        //debug double   t1           = shf_get_time_in_seconds();
+        do {
+            shf_tab_copy_iterate(shf, &win, &tab);
+            tabs_len     += shf_tab_len;
+            tabs_visited ++;
+            for(uint32_t row = 0; row < SHF_ROWS_PER_TAB; row ++) {
+                for(uint32_t ref = 0; ref < SHF_REFS_PER_ROW; ref ++) {
+                    refs_visited ++;
+                    if (0 == shf_tab->row[row].ref[ref].pos) {
+                        /* come here if ref UNused */
+                    }
+                    else {
+                        /* come here if ref used */
+                        refs_used ++;
+                    }
+                }
+            }
+        } while((win > 0) || (tab > 0));
+        //debug double t2 = shf_get_time_in_seconds();
+        //debug printf("- %'u=tabs_visited %'lu=tabs_len %'u=refs_visited %'u=refs_used in %f seconds\n", tabs_visited, tabs_len, refs_visited, refs_used, t2 - t1);
+        ok(0 == refs_used, "c: search via                     shf_tab_copy_iterate()  could not find       key as expected");
 
         // ## Functional tests: IPC queues
         // Create a some queue elements and a bunch of queues using the exiting test shared hash file from the tests above.
