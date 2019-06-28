@@ -44,7 +44,7 @@ upd_callback_test(const char * val, uint32_t val_len) /* callback for shf_upd_*_
 int main(void)
 {
     // Tell tap (test anything protocol) how many tests we expect to run.
-    plan_tests(201);
+    plan_tests(206);
 
     // To enable ```%'.0f``` in sprintf() instead of boring ```%.0f```.
     SHF_ASSERT(NULL != setlocale(LC_NUMERIC, ""), "setlocale(): %u: ", errno);
@@ -114,12 +114,17 @@ int main(void)
         ok(SHF_RET_KEY_FOUND                   == shf_del_uid_val      (shf,uid           ), "c:     existing    del uid: op 1: shf_del_uid_val()       could     find   put key as expected");
         ok(SHF_RET_KEY_NONE                    == shf_get_key_val_copy (shf               ), "c:     existing    del uid: op 1: shf_get_key_val_copy()  could not find   del key as expected");
         ok(SHF_RET_KEY_NONE                    == shf_del_uid_val      (shf,uid           ), "c: non-existing    del uid: op 1: shf_del_uid_val()       could not find   del key as expected");
-        ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val2", 4), "c: reput / reuse key / uid: op 1: shf_put_key_val()                      reput key as expected"); uid = shf_uid;
+        ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "2222", 4), "c: reput / reuse key / uid: op 1: shf_put_key_val()                      reput key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                             , "c: reput / reuse key / uid: op 1: shf_put_key_val()                      reput key as expected");
         ok(SHF_RET_KEY_FOUND                   == shf_get_uid_val_copy (shf,uid           ), "c: reput / reuse key / uid: op 1: shf_get_uid_val_copy()  could     find reput key as expected");
         ok(4                                   == shf_val_len                              , "c: reput / reuse key / uid: op 1: shf_val_len                                      as expected");
-        ok(0 /* matches */                     == memcmp               (shf_val, "val2", 4), "c: reput / reuse key / uid: op 1: shf_val                                          as expected");
-        ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: reput / reuse key / uid: op 1: shf_del_key_val()       could     find reput key as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "2222", 4), "c: reput / reuse key / uid: op 1: shf_val                                          as expected"); shf_ttl = 1234; shf_val[0] = 0; shf_val_len = 0;
+        ok(SHF_RET_KEY_FOUND + SHF_RET_NOT_TTL == shf_del_key_val      (shf               ), "c: reput / reuse key / uid: op 2: shf_del_key_val() + TTL could not del  reput key as expected"); shf_ttl = ('2' << 24) + ('2' << 16) + ('2' << 8) + '2';
+        ok(0                                   == shf_val[0]                               , "c: reput / reuse key / uid: op 2: shf_val                                          as expected");
+        ok(0                                   == shf_val_len                              , "c: reput / reuse key / uid: op 2: shf_val_len                                      as expected");
+        ok(SHF_RET_KEY_FOUND                   == shf_del_key_val      (shf               ), "c: reput / reuse key / uid: op 2: shf_del_key_val() + TTL could     del  reput key as expected");
+        ok(0 /* matches */                     == memcmp               (shf_val, "2222", 4), "c: reput / reuse key / uid: op 2: shf_val                                          as expected");
+        ok(4                                   == shf_val_len                              , "c: reput / reuse key / uid: op 2: shf_val_len                                      as expected");
         ok(SHF_RET_KEY_PUT                     == shf_put_key_val      (shf    , "val" , 3), "c: bad-existing    add key: op 1: shf_put_key_val()                      reput key as expected"); uid = shf_uid;
         ok(uid                                 != SHF_UID_NONE                             , "c: bad-existing    add key: op 1: shf_put_key_val()                      reput key as expected");
         ok(SHF_RET_KEY_FOUND + SHF_RET_BAD_VAL == shf_add_key_val      (shf    , 123      ), "c: bad-existing    add key: op 1: shf_add_key_val()       could not use    add key as expected");

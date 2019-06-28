@@ -51,6 +51,7 @@
                       SHF          * shf_log_thread_instance   = NULL;
                       uint32_t       shf_init_called           = 0   ;
 
+       __thread       uint32_t       shf_ttl                   = 0   ; /* if non-zero, causes shf_del-*() to conditionally delete based upon TTL */
        __thread       uint32_t       shf_uid                         ;
        __thread       uint32_t       shf_qiid                        ; /*!< Set by                           shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
        __thread       char         * shf_qiid_addr                   ; /*!< Set by shf_q_new(), shf_q_get(), shf_q_pull_tail(), and shf_q_push_head_pull_tail(). */
@@ -460,6 +461,27 @@ shf_make_hash(
     SHF_DEBUG("%s(key=?, key_len=%u){} // %04x-%04x-%04x\n", __FUNCTION__, key_len, shf_hash.u16[0], shf_hash.u16[1], shf_hash.u16[2]);
 } /* shf_make_hash() */
 
+#ifdef SHF_DEBUG_VERSION
+#define SHF_LOCK_DEBUG_LINE(LOCK)        (LOCK)->line = __LINE__;
+#define SHF_LOCK_DEBUG_MACRO(LOCK,MACRO) (LOCK)->line = __LINE__; (LOCK)->macro = MACRO;
+#else
+#define SHF_LOCK_DEBUG_LINE(ARGS...)
+#define SHF_LOCK_DEBUG_MACRO(LOCK,MACRO)
+#endif
+
+#define SHF_MEM_CPY_MAYBE_MREMAP(KEYORVAL) \
+    if (KEYORVAL##_len > shf_##KEYORVAL##_size) { \
+        /* SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock); */ \
+        shf_##KEYORVAL = mremap(shf_##KEYORVAL, shf_##KEYORVAL##_size, SHF_MOD_PAGE(KEYORVAL##_len), MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_##KEYORVAL, "mremap(): %u: ", errno); \
+        shf_##KEYORVAL##_size = SHF_MOD_PAGE(KEYORVAL##_len); \
+        /* SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock); */ \
+    } \
+    memcpy(shf_##KEYORVAL, shf_##KEYORVAL##_addr, KEYORVAL##_len); \
+    shf_##KEYORVAL##_len = KEYORVAL##_len;
+
+void shf_copy_key(uint32_t key_len) { SHF_MEM_CPY_MAYBE_MREMAP(key); } /* copy key_len bytes from shf_key_addr to shf_key, setting shf_key_len, and mremap() shf_key if necessary */
+void shf_copy_val(uint32_t val_len) { SHF_MEM_CPY_MAYBE_MREMAP(val); } /* copy val_len bytes from shf_val_addr to shf_val, setting shf_val_len, and mremap() shf_val if necessary */
+
 #define SHF_GET_TAB_MMAP(SHF, TAB) \
     if (0 == SHF->tabs[win][TAB].tab_mmap) { /* need to mmap() tab? */ \
         char file_tab[256]; \
@@ -625,14 +647,6 @@ shf_make_hash(
     tab_mmap_new->row[row].ref[ref].tab = tab_mmap_old->row[row].ref[ref].tab; \
     tab_mmap_new->row[row].ref[ref].rnd = tab_mmap_old->row[row].ref[ref].rnd; \
     tab_mmap_new->tab_refs_used ++;
-
-#ifdef SHF_DEBUG_VERSION
-#define SHF_LOCK_DEBUG_LINE(LOCK)        (LOCK)->line = __LINE__;
-#define SHF_LOCK_DEBUG_MACRO(LOCK,MACRO) (LOCK)->line = __LINE__; (LOCK)->macro = MACRO;
-#else
-#define SHF_LOCK_DEBUG_LINE(ARGS...)
-#define SHF_LOCK_DEBUG_MACRO(LOCK,MACRO)
-#endif
 
 #ifdef SHF_DEBUG_VERSION
 static void
@@ -956,24 +970,10 @@ shf_find_key_internal(
             /* nothing to do here! */
             break;
         case SHF_FIND_KEY_OR_UID_AND_COPY_KEY:
-            if (key_len > shf_key_size) {
-                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                shf_key = mremap(shf_key, shf_key_size, SHF_MOD_PAGE(key_len), MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_key, "mremap(): %u: ", errno);
-                shf_key_size = SHF_MOD_PAGE(key_len);
-                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-            }
-            memcpy(shf_key, shf_key_addr, key_len);
-            shf_key_len = key_len;
+            shf_copy_key(key_len);
             goto SHF_CONSIDER_TAB_SHRINK;
         case SHF_FIND_KEY_OR_UID_AND_COPY_VAL:
-            if (val_len > shf_val_size) {
-                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-                shf_val = mremap(shf_val, shf_val_size, SHF_MOD_PAGE(val_len), MREMAP_MAYMOVE); SHF_ASSERT(MAP_FAILED != shf_val, "mremap(): %u: ", errno);
-                shf_val_size = SHF_MOD_PAGE(val_len);
-                SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
-            }
-            memcpy(shf_val, shf_val_addr, val_len);
-            shf_val_len = val_len;
+            shf_copy_val(val_len);
 
             SHF_CONSIDER_TAB_SHRINK:;
             if (tab_mmap->tab_data_free > (tab_mmap->tab_data_used / 4)) { // todo: allow flexibility WRT how garbage collection gets triggered
@@ -992,10 +992,23 @@ shf_find_key_internal(
             }
             break;
         case SHF_FIND_KEY_OR_UID_AND_DELETE:
+            if (shf_ttl) {
+                /* come here want to conditionally delete */
+                if (shf_ttl != SHF_U32_AT(shf_val_addr, 0)) {
+                    /* come here if conditionally deleting *and* TTL does not match */
+                    result |= SHF_RET_NOT_TTL; /* flag in result: atomic del failed */
+                    goto SHF_DELETE_SKIP;
+                }
+                /* come here if conditionally deleting *and* TTL matches */
+                shf_copy_val(val_len);
+            }
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
             SHF_TAB_REF_MARK_AS_DELETED(tab_mmap, len_len);
             SHF_LOCK_DEBUG_LINE(&shf->shf_mmap->wins[win].lock);
             shf_uid = SHF_UID_NONE;
+
+            SHF_DELETE_SKIP:;
+            shf_ttl = 0; /* conditional delete is one shot */
             break;
         case SHF_FIND_KEY_OR_UID_AND_UPDATE:
             shf_upd_callback_failsafe ++;

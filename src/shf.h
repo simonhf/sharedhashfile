@@ -346,6 +346,7 @@ typedef union SHF_DATA_TYPE {
 #define SHF_RET_BAD_VAL      (1<<1) /* e.g. if          updating a key with wrong sized value */
 #define SHF_RET_BAD_CB       (1<<2) /* e.g. if callback updating a key with wrong sized value */
 #define SHF_RET_KEY_PUT      (1<<3) /* e.g. if key put */
+#define SHF_RET_NOT_TTL      (1<<4) /* e.g. if key del fails due to unmatching TTL */
 #define SHF_RET_KEY_NONE     (1<<7) /* e.g. if key or UID not found */
 
 /* UINT32_MAX; note: defined here for use with either C or C++ clients */
@@ -354,6 +355,7 @@ typedef union SHF_DATA_TYPE {
 #define SHF_QID_NONE          (4294967295U) /*!< Value used to represent no qid */
 #define SHF_QIID_NONE         (4294967295U) /*!< Value used to represent no qiid */
 
+extern __thread uint32_t       shf_ttl          ;
 extern __thread uint32_t       shf_uid          ;
 extern __thread char         * shf_key          ;
 extern __thread uint32_t       shf_key_len      ;
@@ -377,6 +379,8 @@ extern uint64_t   shf_get_vfs_available    (const char * path);
 extern SHF      * shf_attach_existing      (const char * path, const char * name);
 extern SHF      * shf_attach               (const char * path, const char * name, uint32_t delete_upon_process_exit);
 extern void       shf_make_hash            (const char * key, uint32_t key_len);
+extern void       shf_copy_key             (uint32_t key_len);
+extern void       shf_copy_val             (uint32_t val_len);
 extern uint32_t   shf_put_key_val          (SHF * shf, const char * val, uint32_t val_len);
 extern uint32_t   shf_get_key_val_addr     (SHF * shf                        );
 extern uint32_t   shf_get_uid_val_addr     (SHF * shf, uint32_t uid          );
