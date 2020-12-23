@@ -413,7 +413,7 @@ DB size: 2.6G   /dev/shm/test-lmdb-20848
 * Add performance test for multiplexed logging and compare to e.g. log4cxx.
 * Allow values bigger than 4KB to be their own mmap(); so IPC queue & log addrs never change.
 * Auto dump remaining shared memory log atexit.
-* Extend shf_log() to seemlessly log to a file instead of stdout.
+* Extend shf_log() to seamlessly log to a file instead of stdout.
 * Convert shf.log to work with shf_log() instead of slower fopen().
 * Add API documentation via doxygen for log operations.
 * Add API documentation via doxygen for key value operations.
